@@ -13,30 +13,44 @@
  */
 
 async function cfCheck(page) {
-  await page.waitForFunction("window._cf_chl_opt===undefined");
   const frames = await page.frames();
 
   for (const frame of frames) {
-    const frameUrl = frame.url();
     try {
+      const frameUrl = frame.url();
       const domain = new URL(frameUrl).hostname;
-      console.log(domain);
+
       if (domain === "challenges.cloudflare.com") {
-        const id = await frame.evaluate(
-          () => window._cf_chl_opt.chlApiWidgetId
-        );
-        await page.waitForFunction(
-          `document.getElementById("cf-chl-widget-${id}_response").value!==''`
-        );
-        console.log(
-          await page.evaluate(
-            () => document.getElementById(`cf-chl-widget-${id}_response`).value
-          )
+        const id = await frame.evaluate(() => {
+          return window._cf_chl_opt?.chlApiWidgetId;
+        });
+
+        if (!id) continue;
+
+        await frame.waitForFunction(
+          (widgetId) => {
+            const input = document.getElementById(`cf-chl-widget-${widgetId}_response`);
+            return input && input.value && input.value !== "";
+          },
+          { timeout: 15000 },
+          id
         );
 
-        console.log("CF is loaded.");
+        const result = await frame.evaluate((widgetId) => {
+          return document.getElementById(`cf-chl-widget-${widgetId}_response`)?.value;
+        }, id);
+
+        console.log("Cloudflare challenge solved with value:", result);
+        return true;
       }
-    } catch (error) {}
+    } catch (err) {
+      console.warn("cfCheck error:", err.message);
+    }
   }
+
+  console.log("cfCheck: No Cloudflare challenge frame detected.");
+  return false;
 }
+
 module.exports = cfCheck;
+
