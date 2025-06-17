@@ -81,7 +81,7 @@ export async function GET(request) {
       try {
         const response = await page.goto(urlStr, {
           waitUntil: "networkidle2",
-          timeout: 60000,
+          timeout: 300000,
         });
 
         if (!response || !response.ok()) {
