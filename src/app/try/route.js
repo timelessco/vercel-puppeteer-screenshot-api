@@ -58,7 +58,7 @@ export async function GET(request) {
     // Suppress expected JS errors
     page.on("pageerror", (err) => {
       if (!err.message.includes("stopPropagation")) {
-        console.warn("Page JS error:", err.message);
+        console.log("Page JS error:", err.message);
       }
     });
 
@@ -85,7 +85,7 @@ export async function GET(request) {
         });
 
         if (!response || !response.ok()) {
-          console.warn(
+          console.log(
             `Navigation attempt ${attempt} failed: ${response?.status()} ${response?.statusText()}`
           );
         }
@@ -113,7 +113,7 @@ export async function GET(request) {
             break;
           } catch (err) {
             if (err.message.includes("frame was detached")) {
-              console.warn("Screenshot frame detached. Retrying outer flow.");
+              console.log("Screenshot frame detached. Retrying outer flow.");
               break;
             }
             lastError = err;
@@ -124,7 +124,7 @@ export async function GET(request) {
         if (screenshot) break;
       } catch (err) {
         if (err.message.includes("frame was detached")) {
-          console.warn("Frame was detached during navigation. Retrying...");
+          console.log("Frame was detached during navigation. Retrying...");
           lastError = err;
           await new Promise((res) => setTimeout(res, 1000));
         } else {

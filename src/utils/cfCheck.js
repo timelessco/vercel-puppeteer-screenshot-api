@@ -40,7 +40,7 @@ async function cfCheck(page) {
         return true;
       }
     } catch (err) {
-      console.warn("cfCheck error:", err.message);
+      console.log("cfCheck error:", err.message);
     }
   }
 
