@@ -105,7 +105,7 @@ export async function GET(request) {
         // });
 
         // await new Promise((res) => setTimeout(res, 6000));
-        // await cfCheck(page);
+        await cfCheck(page);
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
