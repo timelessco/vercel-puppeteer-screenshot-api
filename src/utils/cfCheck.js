@@ -28,12 +28,8 @@ async function cfCheck(page) {
         if (!id) continue;
 
         await frame.waitForFunction(
-          (widgetId) => {
-            const input = document.getElementById(`cf-chl-widget-${widgetId}_response`);
-            return input && input.value && input.value !== "";
-          },
-          { timeout: 300_000 },
-          id
+          `document.getElementById("cf-chl-widget-${id}_response").value!==''`,
+          { timeout: 300_000 }
         );
 
         const result = await frame.evaluate((widgetId) => {
