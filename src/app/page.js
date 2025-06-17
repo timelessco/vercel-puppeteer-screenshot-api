@@ -25,9 +25,7 @@ export default function Home() {
     const intervalTimer = startDuration();
     try {
       setLoading(true);
-      const res = await fetch(`/try?url=${url}`, {
-        next: { revalidate: 10 },
-      });
+      const res = await fetch(`/try?url=${url}`);
       const data = await res.blob();
       setImgUrl(URL.createObjectURL(data));
     } catch (error) {
@@ -43,8 +41,15 @@ export default function Home() {
 
   function startDuration() {
     return setInterval(() => {
-      setDuration((prev) => Number((prev + 0.2).toFixed(1)));
-    }, 200);
+      setDuration((prev) => {
+        const newDuration = Number((prev + 1).toFixed(1));
+        if (newDuration >= 300) {
+          clearInterval(intervalTimer);
+          return 300;
+        }
+        return newDuration;
+      });
+    }, 1000);
   }
 
   return (
@@ -59,14 +64,8 @@ export default function Home() {
             Try screenshot
           </h3>
           <p className="text-md mt-3">
-            Thursday, May 9th 2024 Vercel Functions for Hobby can now run up to
-            60 seconds{" "}
-            <a
-              href="https://vercel.com/changelog/vercel-functions-for-hobby-can-now-run-up-to-60-seconds"
-              className="text-blue-500 underline"
-            >
-              detail
-            </a>
+           can now run up to
+            300 seconds{" "}
           </p>
         </div>
         <form onSubmit={handleSubmit}>

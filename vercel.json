@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/try/route.js": {
+      "maxDuration": 300
+    }
+  }
+}
