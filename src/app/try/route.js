@@ -9,7 +9,7 @@ import {
   remoteExecutablePath,
 } from "@/utils/utils.js";
 
-export const maxDuration = 60;
+export const maxDuration = 300;//sec
 export const dynamic = "force-dynamic";
 
 const chromium = require("@sparticuz/chromium-min");
@@ -81,7 +81,7 @@ export async function GET(request) {
       try {
         const response = await page.goto(urlStr, {
           waitUntil: "networkidle2",
-          timeout: 300000,
+          timeout: 300_000,
         });
 
         if (!response || !response.ok()) {
@@ -104,7 +104,7 @@ export async function GET(request) {
           );
         });
 
-        await new Promise((res) => setTimeout(res, 6000));
+        // await new Promise((res) => setTimeout(res, 6000));
         await cfCheck(page);
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {

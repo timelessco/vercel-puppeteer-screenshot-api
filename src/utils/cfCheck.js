@@ -32,7 +32,7 @@ async function cfCheck(page) {
             const input = document.getElementById(`cf-chl-widget-${widgetId}_response`);
             return input && input.value && input.value !== "";
           },
-          { timeout: 300000 },
+          { timeout: 300_000 },
           id
         );
 
