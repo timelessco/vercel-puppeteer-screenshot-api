@@ -9,11 +9,140 @@ import {
   remoteExecutablePath,
 } from "@/utils/utils.js";
 
-export const maxDuration = 300;//sec
+import { PuppeteerBlocker } from "@cliqz/adblocker-puppeteer";
+import fetch from "cross-fetch";
+
+export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
 
 const chromium = require("@sparticuz/chromium-min");
 const puppeteer = require("puppeteer-core");
+
+let blocker = null;
+
+async function blockCookieBanners(page) {
+  try {
+    if (!blocker) {
+      console.log("Initializing cookie banner blocker...");
+      blocker = await PuppeteerBlocker.fromLists(fetch, [
+        // Cookie banners filter list from EasyList
+        "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
+      ]);
+      console.log("Cookie banner blocker initialized successfully");
+    }
+    
+    await blocker.enableBlockingInPage(page);
+    console.log("Cookie banner blocking enabled for page");
+  } catch (error) {
+    console.warn("Failed to initialize cookie blocker:", error.message);
+    // Continue without blocker - manual removal will still work
+  }
+}
+
+async function manualCookieBannerRemoval(page) {
+  try {
+    await page.evaluate(() => {
+      const selectors = [
+        // Generic cookie/consent selectors
+        '[id*="cookie"]',
+        '[class*="cookie"]',
+        '[id*="consent"]',
+        '[class*="consent"]',
+        '[id*="gdpr"]',
+        '[class*="gdpr"]',
+        '[id*="privacy"]',
+        '[class*="privacy"]',
+        
+        // Role-based selectors
+        'div[role="dialog"]',
+        'div[role="alertdialog"]',
+        
+        // Common class names
+        '.cookie-banner',
+        '.consent-banner',
+        '.privacy-banner',
+        '.gdpr-banner',
+        '#cookie-notice',
+        '.cookie-notice',
+        
+        // Popular consent management platforms
+        '.onetrust-banner-sdk', // OneTrust
+        '.ot-sdk-container',
+        '#didomi-host', // Didomi
+        '.didomi-consent-popup',
+        '.fc-consent-root', // Funding Choices
+        '.fc-dialog-container',
+        '.cmp-banner_banner', // General CMP
+        '.cookielaw-banner',
+        '.cookie-law-info-bar',
+        
+        // Additional patterns
+        '[data-testid*="cookie"]',
+        '[data-testid*="consent"]',
+        '[aria-label*="cookie"]',
+        '[aria-label*="consent"]',
+        '[aria-describedby*="cookie"]',
+        
+        // Fixed position overlays that might be cookie banners
+        'div[style*="position: fixed"][style*="z-index"]',
+        
+        // Text-based detection for stubborn banners
+        '*[class*="accept-all"]',
+        '*[class*="accept-cookies"]',
+        '*[id*="accept-all"]',
+        '*[id*="accept-cookies"]'
+      ];
+      
+      let removedCount = 0;
+      
+      selectors.forEach(selector => {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(el => {
+            // Additional validation to avoid removing legitimate content
+            if (el && el.parentNode) {
+              const text = el.textContent?.toLowerCase() || '';
+              const hasKeywords = ['cookie', 'consent', 'privacy', 'gdpr', 'accept', 'reject', 'manage preferences'].some(keyword => 
+                text.includes(keyword)
+              );
+              
+              // Remove if it contains cookie-related keywords or matches specific selectors
+              if (hasKeywords || selector.includes('cookie') || selector.includes('consent') || selector.includes('onetrust') || selector.includes('didomi')) {
+                el.remove();
+                removedCount++;
+              }
+            }
+          });
+        } catch (e) {
+          // Ignore selector errors
+          console.debug(`Error with selector "${selector}":`, e.message);
+        }
+      });
+      
+      // Also look for and remove backdrop/overlay elements that might be related to cookie banners
+      const overlays = document.querySelectorAll('div[style*="position: fixed"], div[style*="position: absolute"]');
+      overlays.forEach(overlay => {
+        const style = window.getComputedStyle(overlay);
+        const zIndex = parseInt(style.zIndex) || 0;
+        const opacity = parseFloat(style.opacity) || 1;
+        
+        // Remove high z-index, semi-transparent overlays that might be cookie banner backdrops
+        if (zIndex > 1000 && opacity < 1 && opacity > 0) {
+          const text = overlay.textContent?.toLowerCase() || '';
+          if (text.includes('cookie') || text.includes('consent') || text.includes('privacy')) {
+            overlay.remove();
+            removedCount++;
+          }
+        }
+      });
+      
+      console.log(`Manual cookie banner removal: ${removedCount} elements removed`);
+      return removedCount;
+    });
+  } catch (error) {
+    console.warn("Manual cookie banner removal failed:", error.message);
+  }
+}
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -62,9 +191,22 @@ export async function GET(request) {
       }
     });
 
-    // Optionally block noisy 3rd-party scripts
+    // Block noisy 3rd-party scripts and tracking
     await page.setRequestInterception(true);
-    const blocked = ["googletagmanager", "otBannerSdk.js", "doubleclick", "adnxs.com"];
+    const blocked = [
+      "googletagmanager", 
+      "otBannerSdk.js", 
+      "doubleclick", 
+      "adnxs.com",
+      "google-analytics",
+      "googleadservices",
+      "facebook.com/tr",
+      "connect.facebook.net",
+      "hotjar",
+      "mixpanel",
+      "segment.com"
+    ];
+    
     page.on("request", (req) => {
       const url = req.url();
       if (blocked.some((str) => url.includes(str))) {
@@ -74,11 +216,17 @@ export async function GET(request) {
       }
     });
 
+    // Initialize cookie banner blocking
+    await blockCookieBanners(page);
+
     let screenshot = null;
     let lastError = null;
+    let fullPageScreenshot = null;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
+        console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
+        
         const response = await page.goto(urlStr, {
           waitUntil: "networkidle2",
           timeout: 300_000,
@@ -90,23 +238,54 @@ export async function GET(request) {
           );
         }
 
+        // Wait for fonts to load
         await page.evaluate(() => document.fonts.ready);
 
-
-        // await new Promise((res) => setTimeout(res, 6000));
+        // Run Cloudflare check
         await cfCheck(page);
+
+        // Wait a moment for any dynamic content and cookie banners to load
+        // await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Manual cookie banner removal as fallback
+        await manualCookieBannerRemoval(page);
+
+        // Additional wait after removal to let page stabilize
+        // await new Promise(resolve => setTimeout(resolve, 1000));
+
+       
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
-            screenshot = await page.screenshot({ type: "png"});
+            console.log(`Taking screenshot attempt ${shotTry}`);
+
+            if (urlStr.includes("x.com") || urlStr.includes("instagram.com")) {
+              if (urlStr.includes("instagram.com")) {
+                await page.setViewport({ width: 400, height: 1080 });
+              }
+              const article = await page.$("article");
+              if (article) {
+                screenshot = await article.screenshot({ type: "png" });
+              }else {
+                console.warn("<article> not found on x.com, falling back to full page");
+                screenshot = await page.screenshot({ type: "png", fullPage: true });
+              }
+              break;
+            }
+  
+            screenshot = await page.screenshot({ type: "png" });
+            fullPageScreenshot = await page.screenshot({ type: "png", fullPage: true });
+            console.log("Screenshots captured successfully");
             break;
           } catch (err) {
             if (err.message.includes("frame was detached")) {
               console.warn("Screenshot frame detached. Retrying outer flow.");
               break;
             }
+
             lastError = err;
-            await new Promise((res) => setTimeout(res, 500));
+            console.warn(`Screenshot attempt ${shotTry} failed:`, err.message);
+            // await new Promise((res) => setTimeout(res, 500));
           }
         }
 
@@ -115,7 +294,7 @@ export async function GET(request) {
         if (err.message.includes("frame was detached")) {
           console.warn("Frame was detached during navigation. Retrying...");
           lastError = err;
-          await new Promise((res) => setTimeout(res, 1000));
+          // await new Promise((res) => setTimeout(res, 1000));
         } else {
           throw err;
         }
@@ -138,6 +317,8 @@ export async function GET(request) {
     console.error("Fatal error:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }

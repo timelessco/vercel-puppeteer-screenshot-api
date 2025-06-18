@@ -111,8 +111,8 @@ export default function Home() {
           </div>
         </form>
         {imgUrl && (
-          <div className="border border-gray-100/10 mt-4 max-w-4xl">
-            <img src={imgUrl} alt="screenshot" />
+          <div className="border  border-gray-100/10 mt-4 max-w-4xl object-fill">
+            <img width={"100%"} height={200} src={imgUrl} alt="screenshot"/>
           </div>
         )}
       </div>
