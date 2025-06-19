@@ -287,7 +287,7 @@ export async function GET(request) {
               screenshot = await screenshotTarget.screenshot({ type: "png" });
             } else {
               console.warn("Target not found. Taking full-page screenshot instead.");
-              screenshot = await page.screenshot({ type: "png", fullPage: true });
+              screenshot = await page.screenshot({ type: "png"});
             }
         
             console.log("Screenshot captured successfully.");
