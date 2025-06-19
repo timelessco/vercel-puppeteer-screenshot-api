@@ -245,14 +245,14 @@ export async function GET(request) {
         await cfCheck(page);
 
         // Wait a moment for any dynamic content and cookie banners to load
-        // await new Promise(resolve => setTimeout(resolve, 3000));
+        // await new Promise(resolve => setTimeout(resolve, 10000));
 
         // Manual cookie banner removal as fallback
         await manualCookieBannerRemoval(page);
 
         // Additional wait after removal to let page stabilize
         // await new Promise(resolve => setTimeout(resolve, 1000));
-
+          
        
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
@@ -260,12 +260,18 @@ export async function GET(request) {
             console.log(`Taking screenshot attempt ${shotTry}`);
 
             if (urlStr.includes("x.com") || urlStr.includes("instagram.com")) {
+              let  screenshotTarget= await page.$("header");
               if (urlStr.includes("instagram.com")) {
                 await page.setViewport({ width: 400, height: 1080 });
               }
-              const article = await page.$("article");
-              if (article) {
-                screenshot = await article.screenshot({ type: "png" });
+              if (urlStr.includes("/reel/") || urlStr.includes("/p/")) { 
+                screenshotTarget = await page.$("article");
+              }
+
+              await page.keyboard.press("Escape");
+
+              if (screenshotTarget) {
+                screenshot = await screenshotTarget.screenshot({ type: "png" });
               }else {
                 console.warn("<article> not found on x.com, falling back to full page");
                 screenshot = await page.screenshot({ type: "png", fullPage: true });
