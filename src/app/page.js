@@ -42,14 +42,14 @@ export default function Home() {
   function startDuration() {
     return setInterval(() => {
       setDuration((prev) => {
-        const newDuration = Number((prev + 1).toFixed(1));
+        const newDuration = Number((prev + 0.09).toFixed(3));
         if (newDuration >= 300) {
           clearInterval(intervalTimer);
           return 300;
         }
         return newDuration;
-      });
-    }, 1000);
+      }); 
+    }, 90);
   }
 
   return (

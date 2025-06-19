@@ -261,6 +261,7 @@ export async function GET(request) {
 
             if (urlStr.includes("x.com") || urlStr.includes("instagram.com")) {
               let  screenshotTarget= await page.$("header");
+              await page.keyboard.press("Escape");
               if (urlStr.includes("instagram.com")) {
                 await page.setViewport({ width: 400, height: 1080 });
               }
@@ -268,7 +269,6 @@ export async function GET(request) {
                 screenshotTarget = await page.$("article");
               }
 
-              await page.keyboard.press("Escape");
 
               if (screenshotTarget) {
                 screenshot = await screenshotTarget.screenshot({ type: "png" });
