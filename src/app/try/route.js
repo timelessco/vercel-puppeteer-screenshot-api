@@ -164,7 +164,7 @@ export async function GET(request) {
             "--disable-site-isolation-trials",
           ]
         : [...chromium.args, "--disable-blink-features=AutomationControlled"],
-      defaultViewport: { width: 1920, height: 1080 },
+      defaultViewport: { width: 1920, height: 1080,deviceScaleFactor:2  },
       executablePath: isDev
         ? localExecutablePath
         : await chromium.executablePath(remoteExecutablePath),
@@ -176,7 +176,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setViewport({ width: 1920, height: 1080,deviceScaleFactor:2 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -264,7 +264,7 @@ export async function GET(request) {
             await page.keyboard.press("Escape");
         
             if (urlStr.includes("instagram.com")) {
-              await page.setViewport({ width: 400, height: 1080 });
+              await page.setViewport({ width: 400, height: 1080 ,deviceScaleFactor:2});
               await page.setUserAgent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
               );
