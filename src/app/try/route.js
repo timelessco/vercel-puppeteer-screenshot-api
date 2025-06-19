@@ -258,50 +258,52 @@ export async function GET(request) {
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
             console.log(`Taking screenshot attempt ${shotTry}`);
-
             let screenshotTarget = null;
-
-            if (urlStr.includes("instagram.com")) { 
-             screenshotTarget= await page.$("header");
-              await page.keyboard.press("Escape");
+        
+            // Always try to escape modals/banners
+            await page.keyboard.press("Escape");
+        
+            if (urlStr.includes("instagram.com")) {
               await page.setViewport({ width: 400, height: 1080 });
               await page.setUserAgent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
               );
-              if (urlStr.includes("/reel/") || urlStr.includes("/p/")) { 
-                screenshotTarget = await page.$("article");
+        
+              // Default to header first
+              screenshotTarget = await page.$("header");
+        
+              // Override if reel or post
+              if (urlStr.includes("/reel/") || urlStr.includes("/p/")) {
+                const article = await page.$("article");
+                if (article) screenshotTarget = article;
               }
             }
-
+        
             if (urlStr.includes("x.com")) {
-              await page.keyboard.press("Escape");
-             screenshotTarget= await page.$("article")
+              screenshotTarget = await page.$("article");
             }
+        
             if (screenshotTarget) {
               screenshot = await screenshotTarget.screenshot({ type: "png" });
-              break
-            }else {
-              console.warn("<article> not found on x.com, falling back to full page");
+            } else {
+              console.warn("Target not found. Taking full-page screenshot instead.");
               screenshot = await page.screenshot({ type: "png", fullPage: true });
-              break;
             }
-  
-            screenshot = await page.screenshot({ type: "png" });
-            fullPageScreenshot = await page.screenshot({ type: "png", fullPage: true });
-            console.log("Screenshots captured successfully");
-            break;
+        
+            console.log("Screenshot captured successfully.");
+            break; // Exit loop on success
+        
           } catch (err) {
             if (err.message.includes("frame was detached")) {
               console.warn("Screenshot frame detached. Retrying outer flow.");
               break;
             }
-
+        
             lastError = err;
             console.warn(`Screenshot attempt ${shotTry} failed:`, err.message);
-            // await new Promise((res) => setTimeout(res, 500));
           }
         }
-
+        
         if (screenshot) break;
       } catch (err) {
         if (err.message.includes("frame was detached")) {
