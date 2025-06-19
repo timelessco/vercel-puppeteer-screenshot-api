@@ -263,7 +263,7 @@ export async function GET(request) {
               let  screenshotTarget= await page.$("header");
               await page.keyboard.press("Escape");
               if (urlStr.includes("instagram.com")) {
-                await page.setViewport({ width: 400, height: 1080 });
+                // await page.setViewport({ width: 400, height: 1080 });
               }
               if (urlStr.includes("/reel/") || urlStr.includes("/p/")) { 
                 screenshotTarget = await page.$("article");
