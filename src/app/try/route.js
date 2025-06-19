@@ -259,27 +259,30 @@ export async function GET(request) {
           try {
             console.log(`Taking screenshot attempt ${shotTry}`);
 
-            if (urlStr.includes("x.com") || urlStr.includes("instagram.com")) {
-              let  screenshotTarget= await page.$("header");
-              await page.keyboard.press("Escape");
-              if (urlStr.includes("instagram.com")) {
+            let screenshotTarget = null;
 
-                await page.setViewport({ width: 400, height: 1080 });
-                await page.setUserAgent(
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
-                );
-              }
+            if (urlStr.includes("instagram.com")) { 
+             screenshotTarget= await page.$("header");
+              await page.keyboard.press("Escape");
+              await page.setViewport({ width: 400, height: 1080 });
+              await page.setUserAgent(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+              );
               if (urlStr.includes("/reel/") || urlStr.includes("/p/")) { 
                 screenshotTarget = await page.$("article");
               }
+            }
 
-
-              if (screenshotTarget) {
-                screenshot = await screenshotTarget.screenshot({ type: "png" });
-              }else {
-                console.warn("<article> not found on x.com, falling back to full page");
-                screenshot = await page.screenshot({ type: "png", fullPage: true });
-              }
+            if (urlStr.includes("x.com")) {
+              await page.keyboard.press("Escape");
+             screenshotTarget= await page.$("article")
+            }
+            if (screenshotTarget) {
+              screenshot = await screenshotTarget.screenshot({ type: "png" });
+              break
+            }else {
+              console.warn("<article> not found on x.com, falling back to full page");
+              screenshot = await page.screenshot({ type: "png", fullPage: true });
               break;
             }
   
