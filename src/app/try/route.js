@@ -291,7 +291,6 @@ export async function GET(request) {
               console.log("Target found. Taking screenshot..." + fullPage);
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
-              console.log("Target found. Taking screenshot..." + fullPage);
               console.warn("Target not found. Taking full-page screenshot instead.");
               screenshot = await page.screenshot({ type: "png", fullPage: fullPage, deviceScaleFactor: 2 });
             }
