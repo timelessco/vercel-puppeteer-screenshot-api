@@ -284,10 +284,10 @@ export async function GET(request) {
             }
         
             if (screenshotTarget) {
-              screenshot = await screenshotTarget.screenshot({ type: "png" });
+              screenshot = await screenshotTarget.screenshot({ type: "png" ,deviceScaleFactor: 2});
             } else {
               console.warn("Target not found. Taking full-page screenshot instead.");
-              screenshot = await page.screenshot({ type: "png"});
+              screenshot = await page.screenshot({ type: "png", deviceScaleFactor: 2 });
             }
         
             console.log("Screenshot captured successfully.");
