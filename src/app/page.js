@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { Spotlight } from "@/app/components/Spotlight";
 import { LineMdGithubLoop } from "@/app/components/github-icon";
-
 export default function Home() {
   const [imgUrl, setImgUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [fullPage, setFullPage] = useState(false);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const formData = new FormData(e.target);
     const url = formData.get("url");
     if (!url) {
@@ -25,7 +25,7 @@ export default function Home() {
     const intervalTimer = startDuration();
     try {
       setLoading(true);
-      const res = await fetch(`/try?url=${url}`);
+      const res = await fetch(`/try?url=${url}&fullpage=${fullPage}`);
       const data = await res.blob();
       setImgUrl(URL.createObjectURL(data));
     } catch (error) {
@@ -48,7 +48,7 @@ export default function Home() {
           return 300;
         }
         return newDuration;
-      }); 
+      });
     }, 90);
   }
 
@@ -64,7 +64,7 @@ export default function Home() {
             Try screenshot
           </h3>
           <p className="text-md mt-3">
-           can now run up to
+            can now run up to
             300 seconds{" "}
           </p>
         </div>
@@ -107,14 +107,31 @@ export default function Home() {
                   {loading ? "Loading..." : "Screenshot"}
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setFullPage((prev) => !prev)}
+                className={`px-3 py-1 rounded-full text-sm font-medium border transition ${fullPage
+                  ? "bg-neutral-800 text-white border-neutral-600"
+                  : "bg-neutral-900 text-gray-400 border-gray-700"
+                  }`}
+              >
+                {fullPage ? "Full Page: ON" : "Full Page: OFF"}
+              </button>
+
             </div>
           </div>
         </form>
         {imgUrl && (
-          <div className="border  border-gray-100/10 mt-4 max-w-4xl object-fill">
-            <img width={"100%"} height={200} src={imgUrl} alt="screenshot"/>
+          <div className="mt-4 border border-gray-100/10 max-w-4xl w-full max-h-[80vh] overflow-auto rounded-lg">
+            <img
+              src={imgUrl}
+              alt="screenshot"
+              className="w-full h-auto"
+            />
           </div>
         )}
+
       </div>
       <div className="absolute pointer-events-none inset-0 flex items-center justify-center bg-black [mask-image:radial-gradient(ellipse_at_center,transparent_-40%,black)]"></div>
       <div className="fixed z-30 right-4 top-4 flex items-center space-x-3">

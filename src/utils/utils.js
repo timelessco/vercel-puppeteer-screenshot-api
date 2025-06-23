@@ -11,3 +11,7 @@ export const isDev = process.env.NODE_ENV === "development";
 
 export const userAgent =
   "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36";
+
+
+export const X = "x.com"
+export const  INSTAGRAM = "instagram.com"
