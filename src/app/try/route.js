@@ -259,8 +259,8 @@ export async function GET(request) {
 
             // Always try to escape modals/banners
             await page.keyboard.press("Escape");
-                                //x.com
-            if (urlStr.includes(X)) {
+                                //instagram.com
+            if (urlStr.includes(INSTAGRAM)) {
               await page.setViewport({ width: 400, height: 1080 });
               await page.setUserAgent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
@@ -275,8 +275,8 @@ export async function GET(request) {
                 if (article) screenshotTarget = article;
               }
             }
-                                //instagram
-            if (urlStr.includes(INSTAGRAM)) {
+                            //x.com
+            if (urlStr.includes(X)) {
               screenshotTarget = await page.$("article");
             }
 
