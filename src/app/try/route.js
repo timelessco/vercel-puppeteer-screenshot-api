@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
+import { X, INSTAGRAM} from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
@@ -248,16 +249,8 @@ export async function GET(request) {
         // Run Cloudflare check
         await cfCheck(page);
 
-        // Wait a moment for any dynamic content and cookie banners to load
-        // await new Promise(resolve => setTimeout(resolve, 10000));
-
         // Manual cookie banner removal as fallback
-        await manualCookieBannerRemoval(page);
-
-        // Additional wait after removal to let page stabilize
-        // await new Promise(resolve => setTimeout(resolve, 3000));
-
-
+        await manualCookieBannerRemoval(page);   
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
@@ -266,9 +259,9 @@ export async function GET(request) {
 
             // Always try to escape modals/banners
             await page.keyboard.press("Escape");
-
-            if (urlStr.includes("instagram.com")) {
-              await page.setViewport({ width: 400, height: 1080 ,deviceScaleFactor: 2});
+                                //x.com
+            if (urlStr.includes(X)) {
+              await page.setViewport({ width: 400, height: 1080 });
               await page.setUserAgent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
               );
@@ -282,8 +275,8 @@ export async function GET(request) {
                 if (article) screenshotTarget = article;
               }
             }
-
-            if (urlStr.includes("x.com")) {
+                                //instagram
+            if (urlStr.includes(INSTAGRAM)) {
               screenshotTarget = await page.$("article");
             }
 
