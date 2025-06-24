@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
-import { X, INSTAGRAM} from "@/utils/utils.js";
+import { X, INSTAGRAM } from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
@@ -181,7 +181,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1920, height: 1080,deviceScaleFactor: 2 });
+    // await page.setViewport({ width: 1920, height: 1080 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -226,7 +226,7 @@ export async function GET(request) {
 
     let screenshot = null;
     let lastError = null;
-    let fullPageScreenshot = null;
+    // let fullPageScreenshot = null;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -245,12 +245,11 @@ export async function GET(request) {
 
         // Wait for fonts to load
         await page.evaluate(() => document.fonts.ready);
-
         // Run Cloudflare check
         await cfCheck(page);
 
         // Manual cookie banner removal as fallback
-        await manualCookieBannerRemoval(page);   
+        await manualCookieBannerRemoval(page);
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
@@ -259,9 +258,9 @@ export async function GET(request) {
 
             // Always try to escape modals/banners
             await page.keyboard.press("Escape");
-                                //instagram.com
+            //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
-              await page.setViewport({ width: 400, height: 1080 });
+              await page.setViewport({ width: 400, height: 1080,deviceScaleFactor: 2 });
               await page.setUserAgent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
               );
@@ -275,7 +274,7 @@ export async function GET(request) {
                 if (article) screenshotTarget = article;
               }
             }
-                            //x.com
+            //x.com
             if (urlStr.includes(X)) {
               screenshotTarget = await page.$("article");
             }
@@ -285,7 +284,7 @@ export async function GET(request) {
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
               console.warn("Target not found. Taking full-page screenshot instead.");
-              screenshot = await page.screenshot({ type: "png", fullPage: fullPage, deviceScaleFactor: 2 });
+              screenshot=await page.screenshot({type:"png",fullPage,deviceScaleFactor: 2,});
             }
 
             console.log("Screenshot captured successfully.");
