@@ -14,4 +14,6 @@ export const userAgent =
 
 
 export const X = "x.com"
-export const  INSTAGRAM = "instagram.com"
+export const INSTAGRAM = "instagram.com"
+export const  YOUTUBE = "youtube.com"
+

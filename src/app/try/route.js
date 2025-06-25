@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
-import { X, INSTAGRAM} from "@/utils/utils.js";
+import { X, INSTAGRAM,YOUTUBE } from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
@@ -147,7 +147,7 @@ async function manualCookieBannerRemoval(page) {
 
 export async function GET(request) {
   const url = new URL(request.url);
-  const urlStr = url.searchParams.get("url");
+  let urlStr = url.searchParams.get("url");
   const fullPageParam = url.searchParams.get("fullpage");
   const fullPage = fullPageParam === "true";
 
@@ -232,6 +232,15 @@ export async function GET(request) {
       try {
         console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
 
+         if (urlStr.includes(YOUTUBE)) {
+              // Extract video ID from URL
+              const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
+              if (videoId) {
+                // Create  URL
+                urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+              }
+            }
+
         const response = await page.goto(urlStr, {
           waitUntil: "networkidle2",
           timeout: 300_000,
@@ -311,7 +320,7 @@ export async function GET(request) {
               }
 
               screenshot = await page.screenshot({ type: "png",fullPage:fullPage});
-            }
+             }
 
             console.log("Screenshot captured successfully.");
             break; // Exit loop on success
