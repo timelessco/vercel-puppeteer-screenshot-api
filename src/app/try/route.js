@@ -289,6 +289,11 @@ export async function GET(request) {
               screenshotTarget = await page.$("article");
             }
 
+            if (urlStr.includes(YOUTUBE)) {
+              const img = await page.$("img");
+              if (img) screenshotTarget = img;
+            }
+
             if (screenshotTarget) {
               console.log("Target found. Taking screenshot..." + fullPage);
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
