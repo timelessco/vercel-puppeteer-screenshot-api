@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
-import { X, INSTAGRAM,YOUTUBE } from "@/utils/utils.js";
+import { X, INSTAGRAM, YOUTUBE } from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
@@ -145,18 +145,7 @@ async function manualCookieBannerRemoval(page) {
   }
 }
 
-export async function GET(request) {
-  const url = new URL(request.url);
-  let urlStr = url.searchParams.get("url");
-  const fullPageParam = url.searchParams.get("fullpage");
-  const fullPage = fullPageParam === "true";
-
-
-
-  if (!urlStr) {
-    return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
-  }
-
+async function handleScreenshot(urlStr, fullPage) {
   let browser = null;
 
   try {
@@ -169,7 +158,7 @@ export async function GET(request) {
           "--disable-site-isolation-trials",
         ]
         : [...chromium.args, "--disable-blink-features=AutomationControlled"],
-      defaultViewport: { width: 1080, height: 1920},
+      defaultViewport: { width: 1080, height: 1920 },
       executablePath: isDev
         ? localExecutablePath
         : await chromium.executablePath(remoteExecutablePath),
@@ -181,7 +170,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1080, height: 1920,deviceScaleFactor:2});
+    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 2 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -192,7 +181,7 @@ export async function GET(request) {
     // Suppress expected JS errors
     page.on("pageerror", (err) => {
       if (!err.message.includes("stopPropagation")) {
-        console.log("Page JS error:", err.message);
+        console.warn("Page JS error:", err.message);
       }
     });
 
@@ -232,14 +221,14 @@ export async function GET(request) {
       try {
         console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
 
-         if (urlStr.includes(YOUTUBE)) {
-              // Extract video ID from URL
-              const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
-              if (videoId) {
-                // Create  URL
-                urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-              }
-            }
+        if (urlStr.includes(YOUTUBE)) {
+          // Extract video ID from URL
+          const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
+          if (videoId) {
+            // Create  URL
+            urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+          }
+        }
 
         const response = await page.goto(urlStr, {
           waitUntil: "networkidle2",
@@ -247,7 +236,7 @@ export async function GET(request) {
         });
 
         if (!response || !response.ok()) {
-          console.log(
+          console.warn(
             `Navigation attempt ${attempt} failed: ${response?.status()} ${response?.statusText()}`
           );
         }
@@ -259,7 +248,7 @@ export async function GET(request) {
         await cfCheck(page);
 
         // Manual cookie banner removal as fallback
-        await manualCookieBannerRemoval(page);   
+        await manualCookieBannerRemoval(page);
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
@@ -268,7 +257,7 @@ export async function GET(request) {
 
             // Always try to escape modals/banners
             await page.keyboard.press("Escape");
-                                //instagram.com
+            //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
               await page.setViewport({ width: 400, height: 1920, deviceScaleFactor: 2 });
               await page.setUserAgent(
@@ -284,7 +273,7 @@ export async function GET(request) {
                 if (article) screenshotTarget = article;
               }
             }
-                            //x.com
+            //x.com
             if (urlStr.includes(X)) {
               screenshotTarget = await page.$("article");
             }
@@ -324,15 +313,15 @@ export async function GET(request) {
                 await scroll(page);
               }
 
-              screenshot = await page.screenshot({ type: "png",fullPage:fullPage});
-             }
+              screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
+            }
 
             console.log("Screenshot captured successfully.");
             break; // Exit loop on success
 
           } catch (err) {
             if (err.message.includes("frame was detached")) {
-              console.log("Screenshot frame detached. Retrying outer flow.");
+              console.warn("Screenshot frame detached. Retrying outer flow.");
               break;
             }
 
@@ -344,7 +333,7 @@ export async function GET(request) {
         if (screenshot) break;
       } catch (err) {
         if (err.message.includes("frame was detached")) {
-          console.log("Frame was detached during navigation. Retrying...");
+          console.warn("Frame was detached during navigation. Retrying...");
           lastError = err;
           // await new Promise((res) => setTimeout(res, 1000));
         } else {
@@ -359,18 +348,271 @@ export async function GET(request) {
         { status: 500 }
       );
     }
-
     const headers = new Headers();
     headers.set("Content-Type", "image/png");
     headers.set("Content-Length", screenshot.length.toString());
-
     return new NextResponse(screenshot, { status: 200, headers });
-  } catch (err) {
-    console.error("Fatal error:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+
   } finally {
     if (browser) {
       await browser.close();
     }
   }
 }
+
+export async function GET(request) {
+  const url = new URL(request.url);
+  let urlStr = url.searchParams.get("url");
+  const fullPageParam = url.searchParams.get("fullpage");
+  const fullPage = fullPageParam === "true";
+
+  if (!urlStr) {
+    return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
+  }
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`GET handler attempt ${attempt}`);
+      return await handleScreenshot(urlStr, fullPage);
+    } catch (err) {
+      lastError = err;
+      console.warn(`Attempt ${attempt} failed: ${err.message}`);
+      if (attempt < 3) {
+        await new Promise(res => setTimeout(res, 1000)); // Optional delay
+      }
+    }
+  }
+
+  return NextResponse.json({ error: "Failed after 3 retries", details: lastError?.message }, { status: 500 });
+}
+
+// export async function GET(request) {
+//   const url = new URL(request.url);
+//   let urlStr = url.searchParams.get("url");
+//   const fullPageParam = url.searchParams.get("fullpage");
+//   const fullPage = fullPageParam === "true";
+
+
+
+//   if (!urlStr) {
+//     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
+//   }
+
+//   let browser = null;
+
+//   try {
+//     browser = await puppeteer.launch({
+//       ignoreDefaultArgs: ["--enable-automation"],
+//       args: isDev
+//         ? [
+//           "--disable-blink-features=AutomationControlled",
+//           "--disable-features=site-per-process",
+//           "--disable-site-isolation-trials",
+//         ]
+//         : [...chromium.args, "--disable-blink-features=AutomationControlled"],
+//       defaultViewport: { width: 1080, height: 1920},
+//       executablePath: isDev
+//         ? localExecutablePath
+//         : await chromium.executablePath(remoteExecutablePath),
+//       headless: isDev ? false : "new",
+//       debuggingPort: isDev ? 9222 : undefined,
+//     });
+
+//     const pages = await browser.pages();
+//     const page = pages[0];
+
+//     await page.setUserAgent(userAgent);
+//     await page.setViewport({ width: 1080, height: 1920,deviceScaleFactor:2});
+
+//     const preloadFile = fs.readFileSync(
+//       path.join(process.cwd(), "/src/utils/preload.js"),
+//       "utf8"
+//     );
+//     await page.evaluateOnNewDocument(preloadFile);
+
+//     // Suppress expected JS errors
+//     page.on("pageerror", (err) => {
+//       if (!err.message.includes("stopPropagation")) {
+//         console.warn("Page JS error:", err.message);
+//       }
+//     });
+
+//     // Block noisy 3rd-party scripts and tracking
+//     await page.setRequestInterception(true);
+//     const blocked = [
+//       "googletagmanager",
+//       "otBannerSdk.js",
+//       "doubleclick",
+//       "adnxs.com",
+//       "google-analytics",
+//       "googleadservices",
+//       "facebook.com/tr",
+//       "connect.facebook.net",
+//       "hotjar",
+//       "mixpanel",
+//       "segment.com"
+//     ];
+
+//     page.on("request", (req) => {
+//       const url = req.url();
+//       if (blocked.some((str) => url.includes(str))) {
+//         req.abort();
+//       } else {
+//         req.continue();
+//       }
+//     });
+
+//     // Initialize cookie banner blocking
+//     await blockCookieBanners(page);
+
+//     let screenshot = null;
+//     let lastError = null;
+//     let fullPageScreenshot = null;
+
+//     for (let attempt = 1; attempt <= 2; attempt++) {
+//       try {
+//         console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
+
+//          if (urlStr.includes(YOUTUBE)) {
+//               // Extract video ID from URL
+//               const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
+//               if (videoId) {
+//                 // Create  URL
+//                 urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+//               }
+//             }
+
+//         const response = await page.goto(urlStr, {
+//           waitUntil: "networkidle2",
+//           timeout: 300_000,
+//         });
+
+//         if (!response || !response.ok()) {
+//           console.warn(
+//             `Navigation attempt ${attempt} failed: ${response?.status()} ${response?.statusText()}`
+//           );
+//         }
+
+//         // Wait for fonts to load
+//         await page.evaluate(() => document.fonts.ready);
+
+//         // Run Cloudflare check
+//         await cfCheck(page);
+
+//         // Manual cookie banner removal as fallback
+//         await manualCookieBannerRemoval(page);   
+
+//         for (let shotTry = 1; shotTry <= 2; shotTry++) {
+//           try {
+//             console.log(`Taking screenshot attempt ${shotTry}`);
+//             let screenshotTarget = null;
+
+//             // Always try to escape modals/banners
+//             await page.keyboard.press("Escape");
+//                                 //instagram.com
+//             if (urlStr.includes(INSTAGRAM)) {
+//               await page.setViewport({ width: 400, height: 1920, deviceScaleFactor: 2 });
+//               await page.setUserAgent(
+//                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+//               );
+
+//               // Default to header first
+//               screenshotTarget = await page.$("header");
+
+//               // Override if reel or post
+//               if (urlStr.includes("/reel/") || urlStr.includes("/p/")) {
+//                 const article = await page.$("article");
+//                 if (article) screenshotTarget = article;
+//               }
+//             }
+//                             //x.com
+//             if (urlStr.includes(X)) {
+//               screenshotTarget = await page.$("article");
+//             }
+
+//             if (urlStr.includes(YOUTUBE)) {
+//               const img = await page.$("img");
+//               if (img) screenshotTarget = img;
+//             }
+
+//             if (screenshotTarget) {
+//               console.log("Target found. Taking screenshot..." + fullPage);
+//               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
+//             } else {
+//               console.warn("Target not found. Taking full-page screenshot instead.");
+
+
+//               async function scroll(page) {
+//                 return await page.evaluate(async () => {
+//                   return await new Promise((resolve, reject) => {
+//                     var i = setInterval(() => {
+//                       window.scrollBy(0, window.innerHeight);
+//                       if (
+//                         document.scrollingElement &&
+//                         document.scrollingElement.scrollTop + window.innerHeight >=
+//                         document.scrollingElement.scrollHeight
+//                       ) {
+//                         window.scrollTo(0, 0);
+//                         clearInterval(i);
+//                         resolve(null);
+//                       }
+//                     }, 100);
+//                   });
+//                 });
+//               }
+
+//               if (fullPage) {
+//                 await scroll(page);
+//               }
+
+//               screenshot = await page.screenshot({ type: "png",fullPage:fullPage});
+//              }
+
+//             console.log("Screenshot captured successfully.");
+//             break; // Exit loop on success
+
+//           } catch (err) {
+//             if (err.message.includes("frame was detached")) {
+//               console.warn("Screenshot frame detached. Retrying outer flow.");
+//               break;
+//             }
+
+//             lastError = err;
+//             console.warn(`Screenshot attempt ${shotTry} failed:`, err.message);
+//           }
+//         }
+
+//         if (screenshot) break;
+//       } catch (err) {
+//         if (err.message.includes("frame was detached")) {
+//           console.warn("Frame was detached during navigation. Retrying...");
+//           lastError = err;
+//           // await new Promise((res) => setTimeout(res, 1000));
+//         } else {
+//           throw err;
+//         }
+//       }
+//     }
+
+//     if (!screenshot) {
+//       return NextResponse.json(
+//         { error: "Failed to capture screenshot", details: lastError?.message },
+//         { status: 500 }
+//       );
+//     }
+
+//     const headers = new Headers();
+//     headers.set("Content-Type", "image/png");
+//     headers.set("Content-Length", screenshot.length.toString());
+
+//     return new NextResponse(screenshot, { status: 200, headers });
+//   } catch (err) {
+//     console.error("Fatal error:", err);
+//     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+//   } finally {
+//     if (browser) {
+//       await browser.close();
+//     }
+//   }
+// }
