@@ -53,4 +53,3 @@ async function cfCheck(page) {
 }
 
 module.exports = cfCheck;
-
