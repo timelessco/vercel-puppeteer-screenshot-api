@@ -405,8 +405,8 @@ async function handleScreenshot(urlStr, fullPage) {
             let screenshotTarget = null;
 
             // Multiple escape attempts
-            await page.keyboard.press("Escape");
             await randomDelay(200, 500);
+            await page.keyboard.press("Escape");
             await page.keyboard.press("Escape");
 
             // Platform-specific targeting
@@ -439,25 +439,28 @@ async function handleScreenshot(urlStr, fullPage) {
             } else {
               console.warn("Target not found. Taking full-page screenshot instead.");
 
-              if (fullPage) {
-                await page.evaluate(async () => {
-                  return await new Promise((resolve) => {
-                    let totalHeight = 0;
-                    const distance = 100;
-                    const timer = setInterval(() => {
-                      const scrollHeight = document.body.scrollHeight;
-                      window.scrollBy(0, distance);
-                      totalHeight += distance;
+              // if (fullPage) {
+              //   await page.evaluate(async () => {
+              //     return await new Promise((resolve) => {
+              //       let totalHeight = 0;
+              //       const distance = 100;
+              //       const timer = setInterval(() => {
+              //         const scrollHeight = document.body.scrollHeight;
+              //         window.scrollBy(0, distance);
+              //         totalHeight += distance;
 
-                      if (totalHeight >= scrollHeight) {
-                        clearInterval(timer);
-                        window.scrollTo(0, 0);
-                        resolve();
-                      }
-                    }, 100);
-                  });
-                });
-              }
+              //         if (totalHeight >= scrollHeight) {
+              //           clearInterval(timer);
+              //           window.scrollTo(0, 0);
+              //           resolve();
+              //         }
+              //       }, 100);
+              //     });
+              //   });
+              // }
+              window.scrollBy(0, 1920);
+
+             await new Promise(()=>setTimeout(() => { },1000));
 
               screenshot = await page.screenshot({ 
                 type: "png", 
