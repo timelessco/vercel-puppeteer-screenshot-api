@@ -274,11 +274,21 @@ export async function GET(request) {
                 console.warn("[role='dialog'] did not close after Escape — continuing anyway");
               }
               const divs = await page.$$("article > div");
-              if(divs.length>=1){ 
+              if (divs.length >= 1) {
                 const imgs = await divs[1].$$("img");
-                screenshotTarget = imgs[0];
+                const srcHandle = await imgs[0].getProperty("src");
+                const src = await srcHandle.jsonValue();
+                const imageRes = await fetch(src);
+                const arrayBuffer = await imageRes.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+
+                const headers = new Headers();
+                headers.set("Content-Type", "image/png");
+                headers.set("Content-Length", buffer.length.toString());
+
+                return new NextResponse(buffer, { status: 200, headers });
               }
-              
+
             }
 
             //x.com
@@ -293,7 +303,7 @@ export async function GET(request) {
             }
 
             if (screenshotTarget) {
-              console.log("Target found. Taking screenshot... for"+ urlStr + "fullPage" + " " + fullPage);
+              console.log("Target found. Taking screenshot... for" + urlStr + "fullPage" + " " + fullPage);
               await page.evaluate(() => {
                 window.scrollTo(0, 1920);
               });
