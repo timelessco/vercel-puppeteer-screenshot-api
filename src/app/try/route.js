@@ -266,32 +266,21 @@ export async function GET(request) {
             let screenshotTarget = null;
 
             //instagram.com
-            if (urlStr.includes(INSTAGRAM)) {
-              const allMetaProps = await page.evaluate(() => {
-                const metas = Array.from(document.querySelectorAll('meta[property]'));
-                return metas.map(meta => ({
-                  property: meta.getAttribute('property'),
-                  content: meta.getAttribute('content'),
-                }));
-              });              
-
-              const ogImage = await page
-                .$eval('meta[property="og:image"]', el => el.content)
-                .catch(() => null);
-
-              if (ogImage) {
-                console.log("Found Instagram OG image:", ogImage);
-                return NextResponse.redirect(ogImage, 302);
-              }
-             
-              await page.keyboard.press("Escape");
-              // Override if reel or post
-              if (urlStr.includes("/reel/") || urlStr.includes("/p/")) {
+            if (urlStr.includes(INSTAGRAM)) { 
                 await page.keyboard.press("Escape");
-                const article = await page.$("article");
-                if (article) screenshotTarget = article;
-              }
+                try {
+                  await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
+                } catch (e) {
+                  console.warn("[role='dialog'] did not close after Escape — continuing anyway");
+                }
+
+                const imgs = await page.$$("article img");
+                console.log(imgs);
+
+                const img = imgs[1];
+                screenshotTarget = img;
             }
+
             //x.com
             if (urlStr.includes(X)) {
               await page.setViewport({ width: 400, height: 0, deviceScaleFactor: 2 });
