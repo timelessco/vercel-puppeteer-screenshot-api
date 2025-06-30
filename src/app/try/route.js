@@ -267,16 +267,12 @@ export async function GET(request) {
 
             //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
-              await page.evaluate(() => {
-                window.scrollTo(0, 1920);
-              })
               await page.keyboard.press("Escape");
               try {
                 await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
               } catch (e) {
                 console.warn("[role='dialog'] did not close after Escape — continuing anyway");
               }
-
               const divs = await page.$$("article > div");
               if(divs.length>=1){ 
                 const imgs = await divs[1].$$("img");
@@ -305,12 +301,10 @@ export async function GET(request) {
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
               console.warn("Target not found. Taking full-page screenshot instead.");
-
               await page.evaluate(() => {
                 window.scrollTo(0, 1920);
               });
               await new Promise((res) => setTimeout(res, 1000));
-
               screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
             }
 
