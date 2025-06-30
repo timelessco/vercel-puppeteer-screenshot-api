@@ -181,7 +181,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 1440 , height: 1200, deviceScaleFactor: 2 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -306,17 +306,12 @@ export async function GET(request) {
             if (screenshotTarget) {
               console.log("Target found. Taking screenshot... for" + urlStr + "fullPage" + " " + fullPage);
               await new Promise((res) => setTimeout(res, 1000));
-              // page.evaluate(() => window.goto(0,0));
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
               console.warn("Taking screenshot for normal website instead.");
-              
-              await page.evaluate(() => {
-                window.scrollBy(0, 1920);
-              });
-
+     
               await new Promise((res) => setTimeout(res, 1000));
-              screenshot = await page.screenshot({ type: "png", fullPage: fullPage,clip: { x: 0, y: 0, width: 1080, height: 1920 } });
+              screenshot = await page.screenshot({ type: "png", fullPage: fullPage});
             }
 
             console.log("Screenshot captured successfully.");
