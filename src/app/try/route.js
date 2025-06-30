@@ -43,6 +43,7 @@ async function blockCookieBanners(page) {
 async function manualCookieBannerRemoval(page) {
   try {
     await page.evaluate(() => {
+      // window.scrollBy(0, 1920);
       const selectors = [
         // Generic cookie/consent selectors
         '[id*="cookie"]',
@@ -180,7 +181,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1080, height: 0, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 2 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -304,17 +305,13 @@ export async function GET(request) {
 
             if (screenshotTarget) {
               console.log("Target found. Taking screenshot... for" + urlStr + "fullPage" + " " + fullPage);
-              await page.evaluate(() => {
-                window.scrollTo(0, 1920);
-              });
               await new Promise((res) => setTimeout(res, 1000));
+              // page.evaluate(() => window.goto(0,0));
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
               console.warn("Taking screenshot for normal website instead.");
-              await page.evaluate(() => {
-                window.scrollTo(0, 1920);
-              });
               await new Promise((res) => setTimeout(res, 1000));
+              // page.evaluate(() => window.goto(0,0));
               screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
             }
 
