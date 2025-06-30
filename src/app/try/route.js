@@ -310,9 +310,13 @@ export async function GET(request) {
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
               console.warn("Taking screenshot for normal website instead.");
+              
+              await page.evaluate(() => {
+                window.scrollBy(0, 1920);
+              });
+
               await new Promise((res) => setTimeout(res, 1000));
-              // page.evaluate(() => window.goto(0,0));
-              screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
+              screenshot = await page.screenshot({ type: "png", fullPage: fullPage,clip: { x: 0, y: 0, width: 1080, height: 1920 } });
             }
 
             console.log("Screenshot captured successfully.");
