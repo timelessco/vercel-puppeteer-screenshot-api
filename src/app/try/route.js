@@ -169,7 +169,6 @@ export async function GET(request) {
           "--disable-site-isolation-trials",
         ]
         : [...chromium.args, "--disable-blink-features=AutomationControlled"],
-      // defaultViewport: { width: 1080, height: 1920},
       executablePath: isDev
         ? localExecutablePath
         : await chromium.executablePath(remoteExecutablePath),
