@@ -283,24 +283,24 @@ export async function GET(request) {
 
             //x.com
             if (urlStr.includes(X)) {
-              await page.setViewport({ width: 400, height: 0, deviceScaleFactor: 2 });
               screenshotTarget = await page.$("article");
             }
 
+            //youtube.com
             if (urlStr.includes(YOUTUBE)) {
               const img = await page.$("img");
               if (img) screenshotTarget = img;
             }
 
             if (screenshotTarget) {
-              console.log("Target found. Taking screenshot..." + fullPage);
+              console.log("Target found. Taking screenshot... for"+ urlStr + "fullPage" + " " + fullPage);
               await page.evaluate(() => {
                 window.scrollTo(0, 1920);
               });
               await new Promise((res) => setTimeout(res, 1000));
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
-              console.warn("Target not found. Taking full-page screenshot instead.");
+              console.warn("Taking screenshot for normal website instead.");
               await page.evaluate(() => {
                 window.scrollTo(0, 1920);
               });
@@ -327,7 +327,6 @@ export async function GET(request) {
         if (err.message.includes("frame was detached")) {
           console.warn("Frame was detached during navigation. Retrying...");
           lastError = err;
-          // await new Promise((res) => setTimeout(res, 1000));
         } else {
           throw err;
         }
