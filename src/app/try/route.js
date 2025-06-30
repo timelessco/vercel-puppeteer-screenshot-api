@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
-import { X, INSTAGRAM,YOUTUBE } from "@/utils/utils.js";
+import { X, INSTAGRAM, YOUTUBE } from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
@@ -43,6 +43,7 @@ async function blockCookieBanners(page) {
 async function manualCookieBannerRemoval(page) {
   try {
     await page.evaluate(() => {
+      // window.scrollBy(0, 1920);
       const selectors = [
         // Generic cookie/consent selectors
         '[id*="cookie"]',
@@ -169,7 +170,6 @@ export async function GET(request) {
           "--disable-site-isolation-trials",
         ]
         : [...chromium.args, "--disable-blink-features=AutomationControlled"],
-      defaultViewport: { width: 1080, height: 1920},
       executablePath: isDev
         ? localExecutablePath
         : await chromium.executablePath(remoteExecutablePath),
@@ -181,7 +181,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1080, height: 1920,deviceScaleFactor:2});
+    await page.setViewport({ width: 1440 , height: 1200, deviceScaleFactor: 2 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -232,14 +232,14 @@ export async function GET(request) {
       try {
         console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
 
-         if (urlStr.includes(YOUTUBE)) {
-              // Extract video ID from URL
-              const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
-              if (videoId) {
-                // Create  URL
-                urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-              }
-            }
+        if (urlStr.includes(YOUTUBE)) {
+          // Extract video ID from URL
+          const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
+          if (videoId) {
+            // Create  URL
+            urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+          }
+        }
 
         const response = await page.goto(urlStr, {
           waitUntil: "networkidle2",
@@ -259,73 +259,60 @@ export async function GET(request) {
         await cfCheck(page);
 
         // Manual cookie banner removal as fallback
-        await manualCookieBannerRemoval(page);   
+        await manualCookieBannerRemoval(page);
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
           try {
             console.log(`Taking screenshot attempt ${shotTry}`);
             let screenshotTarget = null;
 
-            // Always try to escape modals/banners
-            await page.keyboard.press("Escape");
-                                //instagram.com
+            //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
-              await page.setViewport({ width: 400, height: 1920, deviceScaleFactor: 2 });
-              await page.setUserAgent(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
-              );
-
-              // Default to header first
-              screenshotTarget = await page.$("header");
-
-              // Override if reel or post
-              if (urlStr.includes("/reel/") || urlStr.includes("/p/")) {
-                const article = await page.$("article");
-                if (article) screenshotTarget = article;
+              await page.keyboard.press("Escape");
+              try {
+                await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
+              } catch (e) {
+                console.warn("[role='dialog'] did not close after Escape — continuing anyway");
               }
+              const divs = await page.$$("article > div");
+              if (divs.length >= 1) {
+                const imgs = await divs[1].$$("img");
+                const srcHandle = await imgs[0].getProperty("src");
+                const src = await srcHandle.jsonValue();
+                const imageRes = await fetch(src);
+                const arrayBuffer = await imageRes.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+
+                const headers = new Headers();
+                headers.set("Content-Type", "image/png");
+                headers.set("Content-Length", buffer.length.toString());
+
+                return new NextResponse(buffer, { status: 200, headers });
+              }
+
             }
-                            //x.com
+
+            //x.com
             if (urlStr.includes(X)) {
               screenshotTarget = await page.$("article");
             }
 
+            //youtube.com
             if (urlStr.includes(YOUTUBE)) {
               const img = await page.$("img");
               if (img) screenshotTarget = img;
             }
 
             if (screenshotTarget) {
-              console.log("Target found. Taking screenshot..." + fullPage);
+              console.log("Target found. Taking screenshot... for" + urlStr + "fullPage" + " " + fullPage);
+              await new Promise((res) => setTimeout(res, 1000));
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
-              console.warn("Target not found. Taking full-page screenshot instead.");
-
-
-              async function scroll(page) {
-                return await page.evaluate(async () => {
-                  return await new Promise((resolve, reject) => {
-                    var i = setInterval(() => {
-                      window.scrollBy(0, window.innerHeight);
-                      if (
-                        document.scrollingElement &&
-                        document.scrollingElement.scrollTop + window.innerHeight >=
-                        document.scrollingElement.scrollHeight
-                      ) {
-                        window.scrollTo(0, 0);
-                        clearInterval(i);
-                        resolve(null);
-                      }
-                    }, 100);
-                  });
-                });
-              }
-
-              if (fullPage) {
-                await scroll(page);
-              }
-
-              screenshot = await page.screenshot({ type: "png",fullPage:fullPage});
-             }
+              console.warn("Taking screenshot for normal website instead.");
+     
+              await new Promise((res) => setTimeout(res, 1000));
+              screenshot = await page.screenshot({ type: "png", fullPage: fullPage});
+            }
 
             console.log("Screenshot captured successfully.");
             break; // Exit loop on success
@@ -346,7 +333,6 @@ export async function GET(request) {
         if (err.message.includes("frame was detached")) {
           console.warn("Frame was detached during navigation. Retrying...");
           lastError = err;
-          // await new Promise((res) => setTimeout(res, 1000));
         } else {
           throw err;
         }
