@@ -267,6 +267,9 @@ export async function GET(request) {
 
             //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
+              await page.evaluate(() => {
+                window.scrollTo(0, 1920);
+              })
               await page.keyboard.press("Escape");
               try {
                 await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
@@ -275,8 +278,10 @@ export async function GET(request) {
               }
 
               const divs = await page.$$("article > div");
-              const imgs = await divs[1].$$("img");
-              screenshotTarget = imgs[0];
+              if(divs.length>=1){ 
+                const imgs = await divs[1].$$("img");
+                screenshotTarget = imgs[0];
+              }
               
             }
 
