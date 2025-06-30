@@ -266,19 +266,18 @@ export async function GET(request) {
             let screenshotTarget = null;
 
             //instagram.com
-            if (urlStr.includes(INSTAGRAM)) { 
-                await page.keyboard.press("Escape");
-                try {
-                  await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
-                } catch (e) {
-                  console.warn("[role='dialog'] did not close after Escape — continuing anyway");
-                }
+            if (urlStr.includes(INSTAGRAM)) {
+              await page.keyboard.press("Escape");
+              try {
+                await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
+              } catch (e) {
+                console.warn("[role='dialog'] did not close after Escape — continuing anyway");
+              }
 
-                const imgs = await page.$$("article img");
-                console.log(imgs);
-
-                const img = imgs[1];
-                screenshotTarget = img;
+              const divs = await page.$$("article > div");
+              const imgs = await divs[1].$$("img");
+              screenshotTarget = imgs[0];
+              
             }
 
             //x.com
