@@ -182,13 +182,9 @@ export async function GET(request) {
 
     const pages = await browser.pages();
     const page = pages[0];
-    if (urlStr.includes(INSTAGRAM)) {
-      await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-      );
-    } else {
+   
       await page.setUserAgent(userAgent);
-    }
+        
         await page.setViewport({ width: 1440, height: 1200, deviceScaleFactor: 2 });
 
     const preloadFile = fs.readFileSync(
