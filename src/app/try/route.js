@@ -269,6 +269,24 @@ export async function GET(request) {
             //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
               await page.keyboard.press("Escape");
+              if (urlStr.includes("/reel/")) {                
+                const ogImage = await page.evaluate(() => {
+                  const meta = document.querySelector('meta[property="og:image"]');
+                  return meta ? meta.content : null;
+                });
+                if (!ogImage) throw new Error("No og:image found");
+                
+                // Then fetch it (like you do)
+                const imageRes = await fetch(ogImage);
+                const arrayBuffer = await imageRes.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                
+                const headers = new Headers();
+                headers.set("Content-Type", "image/png");
+                headers.set("Content-Length", buffer.length.toString());
+                
+                return new NextResponse(buffer, { status: 200, headers });
+              }
               try {
                 await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
               } catch (e) {
@@ -359,4 +377,4 @@ export async function GET(request) {
       await browser.close();
     }
   }
-}
+} 
