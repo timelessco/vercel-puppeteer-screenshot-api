@@ -151,7 +151,9 @@ export async function GET(request) {
   let urlStr = url.searchParams.get("url");
   const fullPageParam = url.searchParams.get("fullpage");
   const fullPage = fullPageParam === "true";
-  const imageIndex = urlStr.includes('?') ? urlStr.split('?')[1].split('=')[1]:null
+  const url2 = new URL(url.searchParams.get("url"));
+  const imageIndex = url2.searchParams.get("img_index") || url.searchParams.get("img_index") || null;
+
 
 
 
@@ -180,7 +182,6 @@ export async function GET(request) {
 
     const pages = await browser.pages();
     const page = pages[0];
-
     await page.setUserAgent(userAgent);
     await page.setViewport({ width: 1440, height: 1200, deviceScaleFactor: 2 });
 
@@ -269,60 +270,63 @@ export async function GET(request) {
 
             //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
-              console.log(imageIndex);
-
               await page.keyboard.press("Escape");
+              const ogImage = await page.evaluate(() => {
+                const meta = document.querySelector('meta[property="og:image"]');
+                return meta ? meta.content : null;
+              });
+              if (!ogImage) throw new Error("No og:image found");
+
+              // Then fetch it (like you do)
+              const imageRes = await fetch(ogImage);
+              const arrayBuffer = await imageRes.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
               if (urlStr.includes("/reel/")) {
-                const ogImage = await page.evaluate(() => {
-                  const meta = document.querySelector('meta[property="og:image"]');
-                  return meta ? meta.content : null;
-                });
-                if (!ogImage) throw new Error("No og:image found");
-
-                // Then fetch it (like you do)
-                const imageRes = await fetch(ogImage);
-                const arrayBuffer = await imageRes.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-
                 const headers = new Headers();
                 headers.set("Content-Type", "image/png");
                 headers.set("Content-Length", buffer.length.toString());
 
                 return new NextResponse(buffer, { status: 200, headers });
-              }
-              try {
-                await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
-              } catch (e) {
-                console.warn("[role='dialog'] did not close after Escape — continuing anyway");
-              }
-              const ariaLabel = "Next"; // Replace with your aria-label value
+              } else if (urlStr.includes("/p/")) {
 
-              if (imageIndex&& imageIndex>1) {
-                for (let i = 0; i < imageIndex; i++) {
-                  await page.waitForSelector(`[aria-label="${ariaLabel}"]`, {visible: true,});
-  
-                  await page.click(`[aria-label="${ariaLabel}"]`);
-                  await new Promise(resolve => setTimeout(resolve, 500));
+                try {
+                  await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
+                } catch (e) {
+                  console.warn("[role='dialog'] did not close after Escape — continuing anyway");
+                }
+                const ariaLabel = "Next"; // Replace with your aria-label value
+
+                if (imageIndex && imageIndex > 1) {
+                  for (let i = 0; i < imageIndex; i++) {
+                    await page.waitForSelector(`[aria-label="${ariaLabel}"]`, { visible: true, });
+
+                    await page.click(`[aria-label="${ariaLabel}"]`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                  }
+                }
+                const divs = await page.$$("article > div");
+                if (divs.length >= 1) {
+                  const imgs = await divs[1].$$("img");
+                  console.log(await imgs.length);
+
+                  const srcHandle = await imgs[imageIndex > 1 ? 1 : 0].getProperty("src");
+                  const src = await srcHandle.jsonValue();
+                  const imageRes = await fetch(src);
+                  const arrayBuffer = await imageRes.arrayBuffer();
+                  const buffer = Buffer.from(arrayBuffer);
+
+                  const headers = new Headers();
+                  headers.set("Content-Type", "image/png");
+                  headers.set("Content-Length", buffer.length.toString());
+
+                  return new NextResponse(buffer, { status: 200, headers });
                 }
               }
-              const divs = await page.$$("article > div");
-              if (divs.length >= 1) {
-                const imgs = await divs[1].$$("img");
-                console.log(await imgs.length);
-                
-                const srcHandle = await imgs[imageIndex>1 ?1 :0].getProperty("src");
-                const src = await srcHandle.jsonValue();
-                const imageRes = await fetch(src);
-                const arrayBuffer = await imageRes.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
+              const headers = new Headers();
+              headers.set("Content-Type", "image/png");
+              headers.set("Content-Length", buffer.length.toString());
 
-                const headers = new Headers();
-                headers.set("Content-Type", "image/png");
-                headers.set("Content-Length", buffer.length.toString());
-
-                return new NextResponse(buffer, { status: 200, headers });
-              }
-
+              return new NextResponse(buffer, { status: 200, headers });
             }
 
             //x.com
