@@ -151,6 +151,7 @@ export async function GET(request) {
   let urlStr = url.searchParams.get("url");
   const fullPageParam = url.searchParams.get("fullpage");
   const fullPage = fullPageParam === "true";
+  const imageIndex = urlStr.includes('?') ? urlStr.split('?')[1].split('=')[1]:null
 
 
 
@@ -181,7 +182,7 @@ export async function GET(request) {
     const page = pages[0];
 
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1440 , height: 1200, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 1440, height: 1200, deviceScaleFactor: 2 });
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -268,23 +269,25 @@ export async function GET(request) {
 
             //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
+              console.log(imageIndex);
+
               await page.keyboard.press("Escape");
-              if (urlStr.includes("/reel/")) {                
+              if (urlStr.includes("/reel/")) {
                 const ogImage = await page.evaluate(() => {
                   const meta = document.querySelector('meta[property="og:image"]');
                   return meta ? meta.content : null;
                 });
                 if (!ogImage) throw new Error("No og:image found");
-                
+
                 // Then fetch it (like you do)
                 const imageRes = await fetch(ogImage);
                 const arrayBuffer = await imageRes.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
-                
+
                 const headers = new Headers();
                 headers.set("Content-Type", "image/png");
                 headers.set("Content-Length", buffer.length.toString());
-                
+
                 return new NextResponse(buffer, { status: 200, headers });
               }
               try {
@@ -292,10 +295,20 @@ export async function GET(request) {
               } catch (e) {
                 console.warn("[role='dialog'] did not close after Escape — continuing anyway");
               }
+              const ariaLabel = "Next"; // Replace with your aria-label value
+
+              if (imageIndex) {
+                for (let i = 0; i < imageIndex; i++) {
+                  await page.waitForSelector(`[aria-label="${ariaLabel}"]`);
+  
+                  await page.click(`[aria-label="${ariaLabel}"]`);
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                }
+              }
               const divs = await page.$$("article > div");
               if (divs.length >= 1) {
                 const imgs = await divs[1].$$("img");
-                const srcHandle = await imgs[0].getProperty("src");
+                const srcHandle = await imgs[imageIndex&&imageIndex - 1||0].getProperty("src");
                 const src = await srcHandle.jsonValue();
                 const imageRes = await fetch(src);
                 const arrayBuffer = await imageRes.arrayBuffer();
@@ -327,9 +340,9 @@ export async function GET(request) {
               screenshot = await screenshotTarget.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
               console.warn("Taking screenshot for normal website instead.");
-     
+
               await new Promise((res) => setTimeout(res, 1000));
-              screenshot = await page.screenshot({ type: "png", fullPage: fullPage});
+              screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
             }
 
             console.log("Screenshot captured successfully.");
