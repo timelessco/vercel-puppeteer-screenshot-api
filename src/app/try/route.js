@@ -297,18 +297,20 @@ export async function GET(request) {
               }
               const ariaLabel = "Next"; // Replace with your aria-label value
 
-              if (imageIndex) {
+              if (imageIndex&& imageIndex>1) {
                 for (let i = 0; i < imageIndex; i++) {
-                  await page.waitForSelector(`[aria-label="${ariaLabel}"]`);
+                  await page.waitForSelector(`[aria-label="${ariaLabel}"]`, {visible: true,});
   
                   await page.click(`[aria-label="${ariaLabel}"]`);
-                  await new Promise(resolve => setTimeout(resolve, 100));
+                  await new Promise(resolve => setTimeout(resolve, 500));
                 }
               }
               const divs = await page.$$("article > div");
               if (divs.length >= 1) {
                 const imgs = await divs[1].$$("img");
-                const srcHandle = await imgs[imageIndex&&imageIndex - 1||0].getProperty("src");
+                console.log(await imgs.length);
+                
+                const srcHandle = await imgs[imageIndex>1 ?1 :0].getProperty("src");
                 const src = await srcHandle.jsonValue();
                 const imageRes = await fetch(src);
                 const arrayBuffer = await imageRes.arrayBuffer();
