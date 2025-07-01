@@ -271,63 +271,73 @@ export async function GET(request) {
             //instagram.com
             if (urlStr.includes(INSTAGRAM)) {
               await page.keyboard.press("Escape");
+            
+              let buffer= null;
+            
               const ogImage = await page.evaluate(() => {
                 const meta = document.querySelector('meta[property="og:image"]');
                 return meta ? meta.content : null;
               });
-              if (!ogImage) throw new Error("No og:image found");
-
-              // Then fetch it (like you do)
-              const imageRes = await fetch(ogImage);
-              const arrayBuffer = await imageRes.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
+            
+              if (ogImage) {
+                console.log("Found og:image:", ogImage);
+                const imageRes = await fetch(ogImage);
+                const arrayBuffer = await imageRes.arrayBuffer();
+                buffer = Buffer.from(arrayBuffer);
+              } else {
+                console.warn("No og:image found — taking fallback screenshot");
+                buffer = await page.screenshot({ type: "png" });
+                const headers = new Headers();
+                headers.set("Content-Type", "image/png");
+                headers.set("Content-Length", buffer.length.toString());
+                return new NextResponse(buffer, { status: 200, headers });
+              }
+            
               if (urlStr.includes("/reel/")) {
                 const headers = new Headers();
                 headers.set("Content-Type", "image/png");
                 headers.set("Content-Length", buffer.length.toString());
-
                 return new NextResponse(buffer, { status: 200, headers });
-              } else if (urlStr.includes("/p/")) {
-
+              }
+            
+              if (urlStr.includes("/p/")) {
                 try {
                   await page.waitForSelector('div[role="dialog"]', { hidden: true, timeout: 2000 });
                 } catch (e) {
                   console.warn("[role='dialog'] did not close after Escape — continuing anyway");
                 }
-                const ariaLabel = "Next"; // Replace with your aria-label value
-
-                if (imageIndex && imageIndex > 1) {
-                  for (let i = 0; i < imageIndex; i++) {
-                    await page.waitForSelector(`[aria-label="${ariaLabel}"]`, { visible: true, });
-
+            
+                const ariaLabel = "Next";
+                const index = imageIndex ? parseInt(imageIndex) : null;
+            
+                if (index && index > 1) {
+                  for (let i = 0; i < index; i++) {
+                    await page.waitForSelector(`[aria-label="${ariaLabel}"]`, { visible: true });
                     await page.click(`[aria-label="${ariaLabel}"]`);
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise((res) => setTimeout(res, 500));
                   }
                 }
+            
                 const divs = await page.$$("article > div");
                 if (divs.length >= 1) {
                   const imgs = await divs[1].$$("img");
-                  console.log(await imgs.length);
-
-                  const srcHandle = await imgs[imageIndex > 1 ? 1 : 0].getProperty("src");
+                  console.log("Found images:", imgs.length);
+            
+                  const srcHandle = await imgs[index && index > 1 ? 1 : 0].getProperty("src");
                   const src = await srcHandle.jsonValue();
+            
                   const imageRes = await fetch(src);
                   const arrayBuffer = await imageRes.arrayBuffer();
-                  const buffer = Buffer.from(arrayBuffer);
-
-                  const headers = new Headers();
-                  headers.set("Content-Type", "image/png");
-                  headers.set("Content-Length", buffer.length.toString());
-
-                  return new NextResponse(buffer, { status: 200, headers });
+                  buffer = Buffer.from(arrayBuffer);
                 }
               }
+            
               const headers = new Headers();
               headers.set("Content-Type", "image/png");
               headers.set("Content-Length", buffer.length.toString());
-
               return new NextResponse(buffer, { status: 200, headers });
             }
+            
 
             //x.com
             if (urlStr.includes(X)) {
