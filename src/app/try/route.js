@@ -9,7 +9,7 @@ import {
   userAgent,
   remoteExecutablePath,
 } from "@/utils/utils.js";
-import { manualCookieBannerRemoval, blockCookieBanners,getScreenshotInstagram } from "@/utils/helpers";
+import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram } from "@/utils/helpers";
 
 export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
@@ -56,6 +56,10 @@ export async function GET(request) {
     await page.setUserAgent(userAgent);
 
     await page.setViewport({ width: 1440, height: 1200, deviceScaleFactor: 2 });
+    await page.emulateMediaFeatures([
+      { name: "prefers-color-scheme", value: "dark" },
+    ]);
+
 
     const preloadFile = fs.readFileSync(
       path.join(process.cwd(), "/src/utils/preload.js"),
@@ -146,7 +150,10 @@ export async function GET(request) {
             let screenshotTarget = null;
 
             //instagram.com
-            if (urlStr.includes(INSTAGRAM)) { 
+            // in instagram we directly take screenshot in the function itself, because for reel we get the og:image
+            // to maintain the  same we are returning the buffer 
+            //for other we select the html elemnt and take screenshot of it
+            if (urlStr.includes(INSTAGRAM)) {
               const buffer = await getScreenshotInstagram(page, urlStr, imageIndex);
 
               const headers = new Headers();
@@ -158,7 +165,27 @@ export async function GET(request) {
 
             //x.com
             if (urlStr.includes(X)) {
-              screenshotTarget = await page.$("article");
+              if (urlStr.includes("/status/")) {
+                screenshotTarget = await page.$("article");
+              } else {
+                screenshotTarget = await page.evaluateHandle(() => {
+                  const main = document.querySelector('main');
+                  if (!main) return null;
+
+                  const divs = main.querySelectorAll('div');
+                  for (const div of divs) {
+                    const firstChild = div?.firstElementChild;
+                      if (
+                        firstChild &&
+                        firstChild.tagName === 'A'
+                        // && firstChild?.getAttribute('aria-hidden') === 'true'
+                      ) {
+                        return div;
+                      }                  
+                  }
+                  return null;
+                });
+              }
             }
 
             //youtube.com
