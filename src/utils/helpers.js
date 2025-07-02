@@ -128,7 +128,8 @@ export async function blockCookieBanners(page) {
     }
 }
 
-//screenshot funstion for Instagram 
+//screenshot function for Instagram 
+// it returns the array buffer
 export async function getScreenshotInstagram(page, urlStr, imageIndex) {
 
     let buffer = null;
@@ -181,4 +182,30 @@ export async function getScreenshotInstagram(page, urlStr, imageIndex) {
         }
     }
     return buffer;
+}
+
+//screenshot function for x and twitter 
+// it returns the html element the screenshot should be taken->(screenshotTarget)
+export async function getScreenshotX(page, urlStr) {
+    if (urlStr.includes("/status/")) {
+        return await page.$("article");
+    } else {
+         return await page.evaluateHandle(() => {
+            const main = document.querySelector('main');
+            if (!main) return null;
+
+            const divs = main.querySelectorAll('div');
+            for (const div of divs) {
+                const firstChild = div?.firstElementChild;
+                if (
+                    firstChild &&
+                    firstChild.tagName === 'A'
+                    // && firstChild?.getAttribute('aria-hidden') === 'true'
+                ) {
+                    return div;
+                }
+            }
+            return null;
+        });
+    }
 }
