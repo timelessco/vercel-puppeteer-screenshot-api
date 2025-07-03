@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
-import { X, INSTAGRAM, YOUTUBE ,TWITTER} from "@/utils/utils.js";
+import { X, INSTAGRAM, YOUTUBE, TWITTER } from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
   userAgent,
   remoteExecutablePath,
 } from "@/utils/utils.js";
-import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram,getScreenshotX } from "@/utils/helpers";
+import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX } from "@/utils/helpers";
 
 export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
@@ -164,7 +164,7 @@ export async function GET(request) {
             }
 
             //x.com
-            if (urlStr.includes(X)|| urlStr.includes(TWITTER)) {
+            if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
               screenshotTarget = await getScreenshotX(page, urlStr);
             }
 
@@ -175,10 +175,10 @@ export async function GET(request) {
             }
 
             if (screenshotTarget) {
-              await new Promise((res) => setTimeout(res, 1000));
+              await new Promise((res) => setTimeout(res, urlStr.includes("stackoverflow") ? 10000 : 1000));
               screenshot = await screenshotTarget?.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
-              await new Promise((res) => setTimeout(res, 1000));
+              await new Promise((res) => setTimeout(res, urlStr.includes("stackoverflow") ? 10000 : 1000));
               screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
             }
 
