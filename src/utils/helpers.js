@@ -216,10 +216,10 @@ export async function getScreenshotX(page, urlStr) {
 // here we use satori to generate a png with the data we getfrom the api ${redditUrl}/about.json
 export async function getScreenshotReddit(urlStr) {
     console.log("getScreenshotReddit", urlStr);
-    
+
     const response = await fetch(`${urlStr}/about.json`, {
         headers: {
-            "User-Agent": userAgent
+            'User-Agent': 'MyRedditApp/1.0 (by u/Capable_Store6986)'
         },
     });
     const data = await response.json();
@@ -234,24 +234,24 @@ export async function getScreenshotReddit(urlStr) {
         const subredditResponse = await fetch(`${newurl}/about.json`,
             {
                 headers: {
-                    "User-Agent": userAgent
+                    'User-Agent': 'MyRedditApp/1.0 (by u/Capable_Store6986)'
                 },
             }
         );
         const subredditData = await subredditResponse.json();
 
-        subredditIcon = subredditData.data.icon_img|| subredditData.data.header_img
+        subredditIcon = subredditData.data.icon_img || subredditData.data.header_img
         postData = data[0].data.children[0].data;
     } else {
         postData = data.data;
-        subredditIcon =postData.icon_img || postData.header_img
-    }    
+        subredditIcon = postData.icon_img || postData.header_img
+    }
     const timestamp = postData.created_utc;
     const date = new Date(timestamp * 1000); // multiply by 1000 to convert to milliseconds
-    const formatted = date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+    const formatted = date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
     });
 
     return new ImageResponse(
