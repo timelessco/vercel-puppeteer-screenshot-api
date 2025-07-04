@@ -1,4 +1,5 @@
 import { PuppeteerBlocker } from "@cliqz/adblocker-puppeteer";
+import { ImageResponse } from "@vercel/og";
 import fetch from "cross-fetch";
 export async function manualCookieBannerRemoval(page) {
     try {
@@ -208,4 +209,61 @@ export async function getScreenshotX(page, urlStr) {
             return null;
         });
     }
+}
+
+//screenshot function for Instagram 
+// here we use satori to generate a png with the data we getfrom the api ${redditUrl}/about.json
+export async function getScreenshotReddit(urlStr) {
+    const response = await fetch(`${urlStr}/about.json`);
+    const data = await response.json();
+    const isPost = urlStr.includes("/comments/");
+    const icon = "https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-57x57.png"
+    let subredditIcon = null;
+
+    let postData;
+    if (isPost) {
+      postData = data[0].data.children[0].data;
+    } else {
+      postData = data.data; 
+      subredditIcon= postData.icon_img
+    }
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            background: "#ffffff",
+            padding: "32px",
+            borderRadius: "16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+            width: "100%",
+            fontFamily: "Arial, sans-serif",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+            <img
+              src={subredditIcon || icon}
+              alt="Reddit Logo"
+              style={{ width: "40px", height: "40px", borderRadius: "8px", marginRight: "12px" }}
+            />
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: "14px", color: "#FF4500", fontWeight: "bold" }}>
+                {postData.subreddit_name_prefixed || postData?.display_name_prefixed}
+              </div>
+              <div style={{ fontSize: "12px", color: "#7c7c7c" }}>reddit.com</div>
+            </div>
+          </div>
+         {isPost && <h1 style={{ fontSize: "20px", margin: "0 0 16px 0", color: "#000" }}>{postData.title}</h1>}
+          <h1 style={{ fontSize: "16px", lineHeight: "1.4", margin: "0", color: "#333" }}>
+            {postData.selftext || postData.public_description}
+          </h1>
+        </div>
+      ),
+      {
+        type: "png",
+        width: 600,
+        height: 1500, 
+      }
+    );
 }
