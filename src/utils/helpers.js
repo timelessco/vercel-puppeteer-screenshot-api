@@ -1,6 +1,7 @@
 import { PuppeteerBlocker } from "@cliqz/adblocker-puppeteer";
 import { ImageResponse } from "@vercel/og";
 import fetch from "cross-fetch";
+import { userAgent } from "./utils";
 export async function manualCookieBannerRemoval(page) {
     try {
         await page.evaluate(() => {
@@ -214,6 +215,8 @@ export async function getScreenshotX(page, urlStr) {
 //screenshot function for Instagram 
 // here we use satori to generate a png with the data we getfrom the api ${redditUrl}/about.json
 export async function getScreenshotReddit(urlStr) {
+    console.log("getScreenshotReddit", urlStr);
+    
     const response = await fetch(`${urlStr}/about.json`, {
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
@@ -231,7 +234,7 @@ export async function getScreenshotReddit(urlStr) {
         const subredditResponse = await fetch(`${newurl}/about.json`,
             {
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+                    "User-Agent": userAgent
                 },
             }
         );
