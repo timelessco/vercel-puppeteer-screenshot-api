@@ -191,7 +191,7 @@ export async function getScreenshotX(page, urlStr) {
     if (urlStr.includes("/status/")) {
         return await page.$("article");
     } else {
-         return await page.evaluateHandle(() => {
+        return await page.evaluateHandle(() => {
             const main = document.querySelector('main');
             if (!main) return null;
 
@@ -214,7 +214,11 @@ export async function getScreenshotX(page, urlStr) {
 //screenshot function for Instagram 
 // here we use satori to generate a png with the data we getfrom the api ${redditUrl}/about.json
 export async function getScreenshotReddit(urlStr) {
-    const response = await fetch(`${urlStr}/about.json`);
+    const response = await fetch(`${urlStr}/about.json`, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+        },
+    });
     const data = await response.json();
     const isPost = urlStr.includes("/comments/");
     const icon = "https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-57x57.png"
@@ -222,48 +226,70 @@ export async function getScreenshotReddit(urlStr) {
 
     let postData;
     if (isPost) {
-      postData = data[0].data.children[0].data;
+        // if it is a post, we are splitting the url to get the subreddit name, then we are fetching the subreddit icon
+        let newurl = urlStr.split("/comments/")[0]
+        const subredditResponse = await fetch(`${newurl}/about.json`,
+            {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+                },
+            }
+        );
+        const subredditData = await subredditResponse.json();
+
+        subredditIcon = subredditData.data.icon_img|| subredditData.data.header_img
+        postData = data[0].data.children[0].data;
     } else {
-      postData = data.data; 
-      subredditIcon= postData.icon_img
-    }
+        postData = data.data;
+        subredditIcon =postData.icon_img || postData.header_img
+    }    
+    const timestamp = postData.created_utc;
+    const date = new Date(timestamp * 1000); // multiply by 1000 to convert to milliseconds
+    const formatted = date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+
     return new ImageResponse(
-      (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            background: "#ffffff",
-            padding: "32px",
-            borderRadius: "16px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-            width: "100%",
-            fontFamily: "Arial, sans-serif",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
-            <img
-              src={subredditIcon || icon}
-              alt="Reddit Logo"
-              style={{ width: "40px", height: "40px", borderRadius: "8px", marginRight: "12px" }}
-            />
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: "14px", color: "#FF4500", fontWeight: "bold" }}>
-                {postData.subreddit_name_prefixed || postData?.display_name_prefixed}
-              </div>
-              <div style={{ fontSize: "12px", color: "#7c7c7c" }}>reddit.com</div>
+        (
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    background: "#ffffff",
+                    padding: "32px",
+                    borderRadius: "16px",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                    width: "100%",
+                    fontFamily: "Arial, sans-serif",
+                }}
+            >
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+                    <img
+                        src={subredditIcon || icon}
+                        alt="Reddit Logo"
+                        style={{ width: "40px", height: "40px", borderRadius: "8px", marginRight: "12px" }}
+                    />
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                        <div style={{ fontSize: "14px", color: "#FF4500", fontWeight: "bold" }}>
+                            {postData.subreddit_name_prefixed || postData?.display_name_prefixed}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#7c7c7c" }}>reddit.com</div>
+                    </div>
+                </div>
+                {isPost && <h1 style={{ fontSize: "20px", margin: "0 0 16px 0", color: "#000" }}>{postData.title}</h1>}
+                <h1 style={{ fontSize: "16px", lineHeight: "1.4", margin: "0", color: "#333" }}>
+                    {postData.selftext || postData.public_description}
+                </h1>
+                <p>subreddit_type: {postData.subreddit_type}</p>
+                <p>created at: {formatted}</p>
             </div>
-          </div>
-         {isPost && <h1 style={{ fontSize: "20px", margin: "0 0 16px 0", color: "#000" }}>{postData.title}</h1>}
-          <h1 style={{ fontSize: "16px", lineHeight: "1.4", margin: "0", color: "#333" }}>
-            {postData.selftext || postData.public_description}
-          </h1>
-        </div>
-      ),
-      {
-        type: "png",
-        width: 600,
-        height: 1500, 
-      }
+        ),
+        {
+            type: "svg",
+            width: 600,
+            height: 1500,
+        }
     );
 }
