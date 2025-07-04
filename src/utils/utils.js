@@ -17,4 +17,5 @@ export const X = "x.com"
 export const INSTAGRAM = "instagram.com"
 export const YOUTUBE = "youtube.com"
 export const TWITTER = "twitter.com"
+export const REDDIT= "reddit.com"
 
