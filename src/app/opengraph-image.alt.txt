@@ -1,0 +1,1 @@
+Vercel function for screenshoting URLs using headless browsers
