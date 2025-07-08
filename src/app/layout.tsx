@@ -25,7 +25,7 @@ export default function RootLayout(props: RootLayoutProps) {
 			{/* <head>
 				<script src="https://unpkg.com/react-scan/dist/auto.global.js" async />
 			</head> */}
-			<body className="relative min-h-full">
+			<body className="relative h-full">
 				<Providers>
 					{children}
 					<TailwindIndicator />

@@ -2,7 +2,7 @@
 	"name": "vercel-puppeteer-screenshot-api",
 	"version": "6.1.0",
 	"private": true,
-	"description": "Vercel Puppeteer screenshot API Template",
+	"description": "Vercel function for screenshoting URLs using headless browsers",
 	"keywords": [
 		"react",
 		"typescript",
@@ -70,10 +70,13 @@
 	},
 	"dependencies": {
 		"@ariakit/react": "0.4.17",
+		"@cliqz/adblocker-puppeteer": "^1.34.0",
 		"@serwist/next": "9.0.15",
+		"@sparticuz/chromium-min": "^137.0.1",
 		"clsx": "2.1.1",
 		"ky": "1.8.1",
 		"next": "15.3.4",
+		"puppeteer-core": "^24.12.0",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"serwist": "9.0.15",

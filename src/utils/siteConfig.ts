@@ -1,5 +1,6 @@
 export const SITE_NAME = "Vercel Puppeteer screenshot API";
-export const SITE_DESCRIPTION = "Vercel Puppeteer screenshot API Template";
+export const SITE_DESCRIPTION =
+	"Vercel function for screenshoting URLs using headless browsers";
 export const SITE_EMAIL = "hello@timeless.co";
 export const SITE_PHONE_NUMBER = "+91 9688888222";
 export const SITE_AUTHOR = "Timeless Team";
