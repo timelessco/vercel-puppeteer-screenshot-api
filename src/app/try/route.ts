@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import chromium from "@sparticuz/chromium-min";
-import { launch, type Browser, type Page } from "puppeteer-core";
+import { launch, type Browser } from "puppeteer-core";
 
 import cfCheck from "@/utils/puppeteer/cfCheck";
 import {
@@ -23,18 +23,16 @@ import {
 	YOUTUBE,
 } from "@/utils/puppeteer/utils";
 
+// https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
 // Disable caching for this route
-export const dynamic = "force-dynamic";
+// https://nextjs.org/docs/app/api-reference/file-conventions/route#revalidating-cached-data
+// export const revalidate = 0;
 
-export async function GET(request: Request): Promise<NextResponse> {
-	const url = new URL(request.url);
-	let urlStr = url.searchParams.get("url");
-	const fullPageParam = url.searchParams.get("fullpage");
-	const fullPage = fullPageParam === "true";
+export async function GET(request: NextRequest) {
+	const searchParams = request.nextUrl.searchParams;
 
-	// Parse image index from query params
-	const imageIndex = url.searchParams.get("img_index") ?? null;
+	let urlStr = searchParams.get("url");
 
 	if (!urlStr) {
 		return NextResponse.json(
@@ -42,6 +40,12 @@ export async function GET(request: Request): Promise<NextResponse> {
 			{ status: 400 },
 		);
 	}
+
+	const fullPageParam = searchParams.get("fullpage");
+	const fullPage = fullPageParam === "true";
+
+	// Parse image index from query params
+	const imageIndex = searchParams.get("img-index") ?? null;
 
 	let browser: Browser | null = null;
 
@@ -74,7 +78,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 		});
 
 		const pages = await browser.pages();
-		const page: Page = pages[0];
+		const page = pages[0];
 
 		await page.setUserAgent(userAgent);
 

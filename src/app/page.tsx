@@ -213,18 +213,16 @@ export default function Home() {
 				{imgUrl && (
 					<section
 						aria-label="Screenshot preview"
-						className="mt-8 w-full max-w-4xl"
+						className="relative mt-8 w-full max-w-4xl rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
 					>
-						<div className="relative max-h-[60vh] w-full overflow-hidden rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm">
-							<div className="relative h-[60vh] w-full">
-								{/* eslint-disable-next-line @next/next/no-img-element */}
-								<img
-									alt="Screenshot preview"
-									className="absolute inset-0 h-full w-full object-contain object-top"
-									loading="lazy"
-									src={imgUrl}
-								/>
-							</div>
+						<div className="relative h-[60vh] w-full">
+							{/* eslint-disable-next-line @next/next/no-img-element */}
+							<img
+								alt="Screenshot preview"
+								className="absolute inset-0 h-full w-full object-contain"
+								loading="lazy"
+								src={imgUrl}
+							/>
 						</div>
 					</section>
 				)}

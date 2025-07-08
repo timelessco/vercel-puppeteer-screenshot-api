@@ -1,3 +1,17 @@
+/**
+ * Cloudflare Check Tools:
+ * https://nopecha.com/demo/cloudflare
+ * https://nowsecure.nl/
+ * https://2captcha.com/demo/cloudflare-turnstile
+ *
+ * Browser Check Tools:
+ * https://infosimples.github.io/detect-headless/
+ * https://arh.antoinevastel.com/bots/areyouheadless
+ * https://bot.sannysoft.com/
+ * https://hmaker.github.io/selenium-detector/
+ * https://kaliiiiiiiiii.github.io/brotector/
+ */
+
 import type { Page } from "puppeteer-core";
 
 interface CloudflareChallenge {
