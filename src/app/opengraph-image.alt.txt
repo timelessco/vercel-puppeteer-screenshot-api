@@ -1,0 +1,1 @@
+Vercel Puppeteer screenshot API Template
