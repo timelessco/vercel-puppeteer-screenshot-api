@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import cfCheck from "@/utils/cfCheck";
-import { X, INSTAGRAM, YOUTUBE, TWITTER,REDDIT} from "@/utils/utils.js";
+import { X, INSTAGRAM, YOUTUBE, TWITTER, REDDIT } from "@/utils/utils.js";
 import {
   localExecutablePath,
   isDev,
@@ -26,17 +26,18 @@ export async function GET(request) {
   const url2 = new URL(url?.searchParams.get("url"));
   const imageIndex = url2?.searchParams.get("img_index") || url?.searchParams.get("img_index") || null;
 
+  let browser = null;
 
   if (!urlStr) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
   }
+
 
   //reddit.com
   if (urlStr.includes(REDDIT)) {
     return getScreenshotReddit(urlStr);
   }
 
-  let browser = null;
 
   try {
     browser = await puppeteer.launch({

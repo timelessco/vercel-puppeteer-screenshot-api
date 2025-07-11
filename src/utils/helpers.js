@@ -217,12 +217,20 @@ export async function getScreenshotX(page, urlStr) {
 export async function getScreenshotReddit(urlStr) {
     console.log("getScreenshotReddit", urlStr);
 
-    const response = await fetch(`${urlStr}/about.json`, {
-        headers: {
-            'User-Agent': 'MyRedditApp/1.0 (by u/Capable_Store6986)'
-        },
-    });
-    const data = await response.json();
+    let data;
+    try {
+        const response = await fetch(`${urlStr}/about.json`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+                'Accept': 'application/json',
+              },
+        });
+        data = await response.json();
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        return null;
+    }
+
     const isPost = urlStr.includes("/comments/");
     const icon = "https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-57x57.png"
     let subredditIcon = null;
@@ -231,17 +239,22 @@ export async function getScreenshotReddit(urlStr) {
     if (isPost) {
         // if it is a post, we are splitting the url to get the subreddit name, then we are fetching the subreddit icon
         let newurl = urlStr.split("/comments/")[0]
-        const subredditResponse = await fetch(`${newurl}/about.json`,
-            {
-                headers: {
-                    'User-Agent': 'MyRedditApp/1.0 (by u/Capable_Store6986)'
-                },
-            }
-        );
-        const subredditData = await subredditResponse.json();
+        try {
+            const subredditResponse = await fetch(`${newurl}/about.json`,
+                {
+                    headers: {
+                        'User-Agent': 'MyRedditApp/1.0 (by u/Capable_Store6986)'
+                    },
+                }
+            );
+            const subredditData = await subredditResponse.json();
 
-        subredditIcon = subredditData.data.icon_img || subredditData.data.header_img
-        postData = data[0].data.children[0].data;
+            subredditIcon = subredditData.data.icon_img || subredditData.data.header_img
+            postData = data[0].data.children[0].data;
+        } catch (error) {
+            console.error("Error fetching subreddit icon:", error);
+            return null;
+        }
     } else {
         postData = data.data;
         subredditIcon = postData.icon_img || postData.header_img
