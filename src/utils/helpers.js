@@ -190,7 +190,7 @@ export async function getScreenshotX(page, urlStr) {
     if (urlStr.includes("/status/")) {
         return await page.$("article");
     } else {
-         return await page.evaluateHandle(() => {
+        return await page.evaluateHandle(() => {
             const main = document.querySelector('main');
             if (!main) return null;
 
@@ -208,4 +208,20 @@ export async function getScreenshotX(page, urlStr) {
             return null;
         });
     }
+}
+
+export async function getScreenshotPdf(browser, urlStr) {
+    const page = await browser.newPage();
+
+    await page.goto(urlStr, { waitUntil: "networkidle2" });
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const screenshotBuffer = await page.screenshot({ type: "png" });
+
+    if (browser) {
+        await browser.close();
+    }
+    return screenshotBuffer
+
 }
