@@ -9,7 +9,7 @@ import {
   userAgent,
   remoteExecutablePath,
 } from "@/utils/utils.js";
-import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX } from "@/utils/helpers";
+import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX,getScreenshotPdf } from "@/utils/helpers";
 
 export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
@@ -49,6 +49,22 @@ export async function GET(request) {
       headless: isDev ? false : "new",
       debuggingPort: isDev ? 9222 : undefined,
     });
+
+    if (urlStr.endsWith(".pdf")) {
+      try {
+        
+        const screenshotBuffer = await getScreenshotPdf(browser, urlStr);
+        const headers = new Headers();
+        headers.set("Content-Type", "image/png");
+        headers.set("Content-Length", screenshotBuffer.length.toString());
+        
+        return new NextResponse(screenshotBuffer, { status: 200, headers });
+      } catch (error) {
+        console.error("Error taking screenshot:", error);
+        return NextResponse.json({ error: "Error taking screenshot" }, { status: 500 });
+      }
+
+    }
 
     const pages = await browser.pages();
     const page = pages[0];
