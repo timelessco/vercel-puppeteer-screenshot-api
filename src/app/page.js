@@ -25,7 +25,7 @@ export default function Home() {
     const intervalTimer = startDuration();
     try {
       setLoading(true);
-      const res = await fetch(`/try?url=${url}&fullpage=${fullPage}`);
+      const res = await fetch(`/try?url=${encodeURIComponent(url)}&fullpage=${fullPage}`);
       const data = await res.blob();
       setImgUrl(URL.createObjectURL(data));
     } catch (error) {

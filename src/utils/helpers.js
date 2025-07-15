@@ -209,3 +209,42 @@ export async function getScreenshotX(page, urlStr) {
         });
     }
 }
+
+
+//in this function we render the urls in the video tag and take the screenshot
+export async function getScreenshotMp4(page, url) {
+  // Build simple HTML with a <video> tag
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <body style="margin:0; background:black;">
+        <video id="video" width="1280" height="720" autoplay muted playsinline>
+          <source src="${url}" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </body>
+    </html>
+  `;
+
+  await page.setContent(htmlContent);
+
+  // Wait until the video has enough data to render the first frame
+  await page.waitForFunction(() => {
+    const video = document.getElementById('video');
+    return video && video.readyState >= 2; // HAVE_CURRENT_DATA
+  }, { timeout: 30_000 });
+
+  // Optional: wait a little for the frame to render
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // Take screenshot of the <video> element
+  const videoHandle = await page.$("video");
+  let screenshot = null;
+
+  if (videoHandle) {
+    screenshot = await videoHandle.screenshot({ type: "png" });
+  }
+
+  console.log("MP4 video screenshot captured.");
+  return screenshot;
+}
