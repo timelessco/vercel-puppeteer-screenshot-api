@@ -9,7 +9,7 @@ import {
   userAgent,
   remoteExecutablePath,
 } from "@/utils/utils.js";
-import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX } from "@/utils/helpers";
+import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX, getScreenshotMp4 } from "@/utils/helpers";
 
 export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
@@ -52,6 +52,17 @@ export async function GET(request) {
 
     const pages = await browser.pages();
     const page = pages[0];
+
+    const isMp4 = (await fetch(urlStr).then((res) => res.headers)).get("content-type").startsWith("video/");
+    if (isMp4) {
+      const screenshot = await getScreenshotMp4(page, urlStr);
+
+      const headers = new Headers();
+      headers.set("Content-Type", "image/png");
+      headers.set("Content-Length", screenshot?.length.toString());
+
+      return new NextResponse(screenshot, { status: 200, headers });
+    }
 
     await page.setUserAgent(userAgent);
 
@@ -139,6 +150,7 @@ export async function GET(request) {
         await manualCookieBannerRemoval(page);
 
         for (let shotTry = 1; shotTry <= 2; shotTry++) {
+
           try {
             await page.keyboard.press("Escape");
             try {
