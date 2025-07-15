@@ -53,10 +53,7 @@ export async function GET(request) {
     const pages = await browser.pages();
     const page = pages[0];
 
-    // here we check if the url is mp4 or not, by it's content type
     const isMp4 = (await fetch(urlStr).then((res) => res.headers)).get("content-type").startsWith("video/");
-
-    //  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection 
     if (isMp4) {
       const screenshot = await getScreenshotMp4(page, urlStr);
 

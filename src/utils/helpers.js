@@ -211,7 +211,6 @@ export async function getScreenshotX(page, urlStr) {
 }
 
 
-//in this function we render the urls in the video tag and take the screenshot
 export async function getScreenshotMp4(page, url) {
   // Build simple HTML with a <video> tag
   const htmlContent = `
