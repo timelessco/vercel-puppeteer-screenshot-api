@@ -213,9 +213,24 @@ export async function getScreenshotX(page, urlStr) {
 export async function getScreenshotPdf(browser, urlStr) {
     const page = await browser.newPage();
 
-    await page.goto(urlStr, { waitUntil: "networkidle2" });
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <body style="margin:0; overflow:hidden; display:flex; justify-content:center; align-items:center; background:white;">
+        <embed src="${urlStr}" type="application/pdf" width="1280" height="720" />
+      </body>
+    </html>
+  `;
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+  await page.setContent(htmlContent, { waitUntil: "networkidle2" });
+
+  await page.setViewport({
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 2,
+  });
+    
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const screenshotBuffer = await page.screenshot({ type: "png" });
 
