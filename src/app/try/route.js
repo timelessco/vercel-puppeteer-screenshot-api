@@ -9,7 +9,7 @@ import {
   userAgent,
   remoteExecutablePath,
 } from "@/utils/utils.js";
-import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX, getScreenshotMp4 } from "@/utils/helpers";
+import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX, getScreenshotMp4,getMetadataYoutube } from "@/utils/helpers";
 
 export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
@@ -60,10 +60,10 @@ export async function GET(request) {
       const screenshot = await getScreenshotMp4(page, urlStr);
 
       const headers = new Headers();
-      headers.set("Content-Type", "image/png");
-      headers.set("Content-Length", screenshot?.length.toString());
+      headers.set("Content-Type", "application/json");
 
-      return new NextResponse(screenshot, { status: 200, headers });
+      return new NextResponse( JSON.stringify({ screenshot, metaData:null }),
+      { status: 200, headers });
     }
 
     await page.setUserAgent(userAgent);
@@ -117,12 +117,13 @@ export async function GET(request) {
 
     let screenshot = null;
     let lastError = null;
+    let metaData = null;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
-
         if (urlStr.includes(YOUTUBE)) {
+           metaData = await getMetadataYoutube(page, urlStr);
           // Extract video ID from URL
           const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
           if (videoId) {
@@ -171,10 +172,13 @@ export async function GET(request) {
               const buffer = await getScreenshotInstagram(page, urlStr, imageIndex);
 
               const headers = new Headers();
-              headers.set("Content-Type", "image/png");
-              headers.set("Content-Length", buffer?.length.toString());
+              headers.set("Content-Type", "application/json");
 
-              return new NextResponse(buffer, { status: 200, headers });
+
+              return new NextResponse(
+                JSON.stringify({screenshot: buffer, metaData }),
+                { status: 200, headers }
+              );
             }
 
             //x.com
@@ -225,10 +229,13 @@ export async function GET(request) {
     }
 
     const headers = new Headers();
-    headers.set("Content-Type", "image/png");
-    headers.set("Content-Length", screenshot?.length.toString());
+    headers.set("Content-Type", "application/json");
 
-    return new NextResponse(screenshot, { status: 200, headers });
+
+    return new NextResponse(
+      JSON.stringify({ screenshot, metaData }),
+      { status: 200, headers }
+    );
   } catch (err) {
     console.error("Fatal error:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

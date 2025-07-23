@@ -26,13 +26,16 @@ export default function Home() {
     try {
       setLoading(true);
       const res = await fetch(`/try?url=${encodeURIComponent(url)}&fullpage=${fullPage}`);
-      const data = await res.blob();
-      setImgUrl(URL.createObjectURL(data));
+      const data = await res.json();
+      const base64 = btoa(
+        data.screenshot.data.reduce((acc, byte) => acc + String.fromCharCode(byte), "")
+      );
+      const imageUrl = `data:image/png;base64,${base64}`;
+      setImgUrl(imageUrl);
     } catch (error) {
       console.error(error);
       alert("Something went wrong");
     } finally {
-      // 秒
       setTime((Date.now() - timePoint) / 1000);
       intervalTimer && clearInterval(intervalTimer);
       setLoading(false);

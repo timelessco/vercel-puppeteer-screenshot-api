@@ -190,7 +190,7 @@ export async function getScreenshotX(page, urlStr) {
     if (urlStr.includes("/status/")) {
         return await page.$("article");
     } else {
-         return await page.evaluateHandle(() => {
+        return await page.evaluateHandle(() => {
             const main = document.querySelector('main');
             if (!main) return null;
 
@@ -213,8 +213,8 @@ export async function getScreenshotX(page, urlStr) {
 
 //in this function we render the urls in the video tag and take the screenshot
 export async function getScreenshotMp4(page, url) {
-  // Build simple HTML with a <video> tag
-  const htmlContent = `
+    // Build simple HTML with a <video> tag
+    const htmlContent = `
     <!DOCTYPE html>
     <html>
       <body style="margin:0; background:black;">
@@ -226,25 +226,68 @@ export async function getScreenshotMp4(page, url) {
     </html>
   `;
 
-  await page.setContent(htmlContent);
+    await page.setContent(htmlContent);
 
-  // Wait until the video has enough data to render the first frame
-  await page.waitForFunction(() => {
-    const video = document.getElementById('video');
-    return video && video.readyState >= 2; // HAVE_CURRENT_DATA
-  }, { timeout: 30_000 });
+    // Wait until the video has enough data to render the first frame
+    await page.waitForFunction(() => {
+        const video = document.getElementById('video');
+        return video && video.readyState >= 2; // HAVE_CURRENT_DATA
+    }, { timeout: 30_000 });
 
-  // Optional: wait a little for the frame to render
-  await new Promise(resolve => setTimeout(resolve, 3000));
+    // Optional: wait a little for the frame to render
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Take screenshot of the <video> element
-  const videoHandle = await page.$("video");
-  let screenshot = null;
+    // Take screenshot of the <video> element
+    const videoHandle = await page.$("video");
+    let screenshot = null;
 
-  if (videoHandle) {
-    screenshot = await videoHandle.screenshot({ type: "png" });
-  }
+    if (videoHandle) {
+        screenshot = await videoHandle.screenshot({ type: "png" });
+    }
 
-  console.log("MP4 video screenshot captured.");
-  return screenshot;
+    console.log("MP4 video screenshot captured.");
+    return screenshot;
+}
+
+
+
+export async function getMetadataYoutube(page, urlStr) {
+
+    await page.goto(urlStr, {
+        waitUntil: "networkidle2",
+        timeout: 300_000,
+    });
+
+
+    const metadata = await page.evaluate(() => {
+        const getContent = (selector) => {
+            const el = document.querySelector(selector);
+            return el ? el.getAttribute("content") : null;
+        };
+
+        const ogImage =
+            getContent('meta[property="og:image"]') ||
+            getContent('link[rel="image_src"]');
+
+        const title =
+            getContent('meta[property="og:title"]') ||
+            document.title;
+
+        const description =
+            getContent('meta[property="og:description"]') ||
+            getContent('meta[name="description"]');
+
+        const favIcon =
+            document.querySelector('link[rel="icon"]')?.getAttribute("href") ||
+            document.querySelector('link[rel="shortcut icon"]')?.getAttribute("href");
+
+        return {
+            title,
+            description,
+            ogImage,
+            favIcon,
+        };
+    });
+
+    return metadata;
 }
