@@ -249,9 +249,10 @@ export async function getScreenshotMp4(page, url) {
     return screenshot;
 }
 
-
-
-export async function getMetadataYoutube(page, urlStr) {
+//here in this function we get the metadata for the following websites
+// instagram, youtube 
+// we fetch the metadata here because the ogs fails in the recollect repo
+export async function getMetadata(page, urlStr) {
 
     await page.goto(urlStr, {
         waitUntil: "networkidle2",
