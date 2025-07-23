@@ -194,6 +194,15 @@ export async function GET(request) {
               if (img) screenshotTarget = img;
             }
 
+            await page.waitForFunction(() => {
+              const challengeFrame = document.querySelector('iframe[src*="challenge"]');
+              const title = document.title;
+              return !challengeFrame && !title.includes("Just a moment");
+            }, { timeout: 15000 }).catch(() => {
+              console.warn("Cloudflare challenge may not have cleared");
+            });
+
+
             if (screenshotTarget) {
               await new Promise((res) => setTimeout(res, urlStr.includes("stackoverflow") ? 10000 : 1000));
               screenshot = await screenshotTarget?.screenshot({ type: "png", deviceScaleFactor: 2 });
