@@ -169,6 +169,7 @@ export async function GET(request) {
             // to maintain the  same we are returning the buffer 
             //for other we select the html elemnt and take screenshot of it
             if (urlStr.includes(INSTAGRAM)) {
+              metaData=await getMetadataYoutube(page, urlStr);
               const buffer = await getScreenshotInstagram(page, urlStr, imageIndex);
 
               const headers = new Headers();
