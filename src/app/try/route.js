@@ -9,7 +9,7 @@ import {
   userAgent,
   remoteExecutablePath,
 } from "@/utils/utils.js";
-import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX, getScreenshotMp4,getMetadataYoutube } from "@/utils/helpers";
+import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX, getScreenshotMp4, getMetadata } from "@/utils/helpers";
 
 export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
@@ -62,8 +62,8 @@ export async function GET(request) {
       const headers = new Headers();
       headers.set("Content-Type", "application/json");
 
-      return new NextResponse( JSON.stringify({ screenshot, metaData:null }),
-      { status: 200, headers });
+      return new NextResponse(JSON.stringify({ screenshot, metaData: null }),
+        { status: 200, headers });
     }
 
     await page.setUserAgent(userAgent);
@@ -123,7 +123,8 @@ export async function GET(request) {
       try {
         console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
         if (urlStr.includes(YOUTUBE)) {
-           metaData = await getMetadataYoutube(page, urlStr);
+          // here we use the getMetadata function to get the metadata of the video
+          metaData = await getMetadata(page, urlStr);
           // Extract video ID from URL
           const videoId = urlStr.match(/(?:v=|\/)([\w-]{11})/)?.[1];
           if (videoId) {
@@ -169,15 +170,15 @@ export async function GET(request) {
             // to maintain the  same we are returning the buffer 
             //for other we select the html elemnt and take screenshot of it
             if (urlStr.includes(INSTAGRAM)) {
-              metaData=await getMetadataYoutube(page, urlStr);
+              // here we use the getMetadata function to get the metadata for the post and reel
+              metaData = await getMetadata(page, urlStr);
               const buffer = await getScreenshotInstagram(page, urlStr, imageIndex);
-
               const headers = new Headers();
               headers.set("Content-Type", "application/json");
 
 
               return new NextResponse(
-                JSON.stringify({screenshot: buffer, metaData }),
+                JSON.stringify({ screenshot: buffer, metaData }),
                 { status: 200, headers }
               );
             }
