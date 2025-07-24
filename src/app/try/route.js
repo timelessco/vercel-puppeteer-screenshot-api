@@ -60,7 +60,7 @@ export async function GET(request) {
     const isVideoUrl = videoUrlRegex.test(urlStr);
 
     //  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection 
-    if (isMp4) {
+    if (isMp4 || isVideoUrl) {
       const screenshot = await getScreenshotMp4(page, urlStr);
 
       const headers = new Headers();
