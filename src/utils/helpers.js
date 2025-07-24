@@ -218,7 +218,7 @@ export async function getScreenshotMp4(page, url) {
     <!DOCTYPE html>
     <html>
       <body style="margin:0; background:black;">
-        <video id="video" width="1280" height="720" autoplay muted playsinline>
+        <video id="video" autoplay muted playsinline>
           <source src="${url}" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
