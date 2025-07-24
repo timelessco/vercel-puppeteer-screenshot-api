@@ -27,9 +27,11 @@ export default function Home() {
       setLoading(true);
       const res = await fetch(`/try?url=${encodeURIComponent(url)}&fullpage=${fullPage}`);
       const data = await res.json();
+      console.log(data);
       const base64 = btoa(
-        data.screenshot.data.reduce((acc, byte) => acc + String.fromCharCode(byte), "")
+        data?.screenshot?.data.reduce((acc, byte) => acc + String.fromCharCode(byte), "")
       );
+      console.log(base64);
       const imageUrl = `data:image/png;base64,${base64}`;
       setImgUrl(imageUrl);
     } catch (error) {

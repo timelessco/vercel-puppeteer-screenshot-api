@@ -8,6 +8,7 @@ import {
   isDev,
   userAgent,
   remoteExecutablePath,
+  videoUrlRegex
 } from "@/utils/utils.js";
 import { manualCookieBannerRemoval, blockCookieBanners, getScreenshotInstagram, getScreenshotX, getScreenshotMp4, getMetadata } from "@/utils/helpers";
 
@@ -55,9 +56,11 @@ export async function GET(request) {
 
     // here we check if the url is mp4 or not, by it's content type
     const isMp4 = (await fetch(urlStr).then((res) => res.headers)).get("content-type").startsWith("video/");
+    // here we check if the url is mp4 or not, by using regex
+    const isVideoUrl = videoUrlRegex.test(urlStr);
 
     //  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection 
-    if (isMp4) {
+    if (isMp4 || isVideoUrl) {
       const screenshot = await getScreenshotMp4(page, urlStr);
 
       const headers = new Headers();
@@ -211,7 +214,7 @@ export async function GET(request) {
                 console.log("Only one <video> tag found. Capturing that element.");
                 screenshot = await videoHandle.screenshot({ type: "png" });
               }
-            }else if (screenshotTarget) {
+            } else if (screenshotTarget) {
               await new Promise((res) => setTimeout(res, urlStr.includes("stackoverflow") ? 10000 : 1000));
               screenshot = await screenshotTarget?.screenshot({ type: "png", deviceScaleFactor: 2 });
             } else {
