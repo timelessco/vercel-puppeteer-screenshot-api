@@ -28,7 +28,7 @@ export default function Home() {
       const res = await fetch(`/try?url=${encodeURIComponent(url)}&fullpage=${fullPage}`);
       const data = await res.json();
       const base64 = btoa(
-        data.screenshot.data.reduce((acc, byte) => acc + String.fromCharCode(byte), "")
+        data?.screenshot?.data.reduce((acc, byte) => acc + String.fromCharCode(byte), "")
       );
       const imageUrl = `data:image/png;base64,${base64}`;
       setImgUrl(imageUrl);

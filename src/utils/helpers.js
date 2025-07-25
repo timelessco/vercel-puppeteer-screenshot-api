@@ -218,20 +218,20 @@ export async function getScreenshotMp4(page, url) {
     <!DOCTYPE html>
     <html>
       <body style="margin:0; background:black;">
-        <video id="video" width="1280" height="720" autoplay muted playsinline>
+        <video id="video" autoplay muted playsinline>
           <source src="${url}" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </body>
-    </html>
-  `;
+    </html>`
+  ;
 
     await page.setContent(htmlContent);
 
     // Wait until the video has enough data to render the first frame
     await page.waitForFunction(() => {
         const video = document.getElementById('video');
-        return video && video.readyState >= 2; // HAVE_CURRENT_DATA
+        return video && video.readyState >= 2; 
     }, { timeout: 30_000 });
 
     // Optional: wait a little for the frame to render

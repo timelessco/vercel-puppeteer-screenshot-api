@@ -12,6 +12,7 @@ export const isDev = process.env.NODE_ENV === "development";
 export const userAgent =
   "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36";
 
+  export const videoUrlRegex = /\.(mp4|avi|mov|wmv|flv|webm|mkv|m4v|3gp|ogv|mpg|mpeg|m2v|divx|xvid|rm|rmvb|asf|ts|mts|vob)(\?.*)?$/i;
 
 export const X = "x.com"
 export const INSTAGRAM = "instagram.com"
