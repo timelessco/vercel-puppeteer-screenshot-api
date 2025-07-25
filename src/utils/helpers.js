@@ -251,17 +251,6 @@ export async function getScreenshotMp4(page, url) {
 
         await page.setContent(htmlContent);
 
-        if (!videoLoaded) {
-            // Fallback: try to get video dimensions even if not fully loaded
-            const hasVideo = await page.evaluate(() => {
-                const video = document.getElementById('video');
-                return video && !video.error;
-            });
-
-            if (!hasVideo) {
-                throw new Error('Video failed to load or has error');
-            }
-        }
 
         // Shorter wait time for rendering
         await new Promise(resolve => setTimeout(resolve, 2000));
