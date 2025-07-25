@@ -234,14 +234,14 @@ export async function GET(request) {
               const videoHandle = await page.$("video");
               if (videoHandle) {
                 console.log("Only one <video> tag found. Capturing that element.");
-                screenshot = await videoHandle.screenshot({ type: "png" });
+                screenshot = await videoHandle.screenshot({ type: "jpeg"});
               }
             } else if (screenshotTarget) {
               await new Promise((res) => setTimeout(res, urlStr.includes("stackoverflow") ? 10000 : 1000));
-              screenshot = await screenshotTarget?.screenshot({ type: "png", deviceScaleFactor: 2 });
+              screenshot = await screenshotTarget?.screenshot({ type: "jpeg", deviceScaleFactor: 2 });
             } else {
               await new Promise((res) => setTimeout(res, urlStr.includes("stackoverflow") ? 10000 : 1000));
-              screenshot = await page.screenshot({ type: "png", fullPage: fullPage });
+              screenshot = await page.screenshot({ type: "jpeg", fullPage: fullPage });
             }
 
             console.log("Screenshot captured successfully.");
