@@ -213,134 +213,40 @@ export async function getScreenshotX(page, urlStr) {
 
 //in this function we render the urls in the video tag and take the screenshot
 export async function getScreenshotMp4(page, url) {
-    try {
-        const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>
-              body { 
-                margin: 0; 
-                background: red; 
-                display: flex; 
-                justify-content: center; 
-                align-items: center; 
-                min-height: 100vh; 
-              }
-              canvas { 
-                max-width: 100%; 
-                max-height: 100vh; 
-                border: 2px solid white;
-              }
-              video {
-                display: none;
-              }
-            </style>
-          </head>
-          <body>
-            <video id="video" muted playsinline preload="auto" crossorigin="anonymous">
-              <source src="${url}" type="video/mp4" />
-            </video>
-            <canvas id="canvas" width="1280" height="720"></canvas>
-            
-            <script>
-              const video = document.getElementById('video');
-              const canvas = document.getElementById('canvas');
-              const ctx = canvas.getContext('2d');
-              
-              let frameDrawn = false;
-              
-              function drawFrame() {
-                if (video.videoWidth > 0 && video.videoHeight > 0) {
-                  // Resize canvas to match video
-                  canvas.width = video.videoWidth;
-                  canvas.height = video.videoHeight;
-                  
-                  // Draw the video frame to canvas
-                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                  frameDrawn = true;
-                  console.log('Frame drawn to canvas');
-                }
-              }
-              
-              video.addEventListener('loadeddata', () => {
-                console.log('Video loaded, attempting to draw frame');
-                setTimeout(drawFrame, 100);
-              });
-              
-              video.addEventListener('canplay', () => {
-                console.log('Video can play');
-                video.play().then(() => {
-                  setTimeout(() => {
-                    drawFrame();
-                    video.pause();
-                  }, 500);
-                }).catch(e => {
-                  console.log('Autoplay failed, trying manual frame draw');
-                  setTimeout(drawFrame, 1000);
-                });
-              });
-              
-              video.addEventListener('timeupdate', () => {
-                if (!frameDrawn && video.currentTime > 0) {
-                  drawFrame();
-                }
-              });
-              
-              // Expose status
-              window.isFrameDrawn = () => frameDrawn;
-            </script>
-          </body>
-        </html>
-        `;
+    // Build simple HTML with a <video> tag
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <body style="margin:0; background:black;">
+        <video id="video" autoplay muted playsinline>
+          <source src="${url}" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </body>
+    </html>`
+  ;
 
-        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+    await page.setContent(htmlContent);
 
-        // Wait for frame to be drawn to canvas
-        console.log('Waiting for frame to be drawn...');
-        await page.waitForFunction(() => {
-            return window.isFrameDrawn && window.isFrameDrawn();
-        }, { timeout: 20000 }).catch(() => {
-            console.log('Frame drawing timeout, checking canvas anyway...');
-        });
+    // Wait until the video has enough data to render the first frame
+    await page.waitForFunction(() => {
+        const video = document.getElementById('video');
+        return video && video.readyState >= 2; 
+    }, { timeout: 30_000 });
 
-        // Additional wait
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    // Optional: wait a little for the frame to render
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Check if canvas has any content (not just black)
-        const hasCanvasContent = await page.evaluate(() => {
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Check for non-black pixels
-            for (let i = 0; i < imageData.data.length; i += 4) {
-                const r = imageData.data[i];
-                const g = imageData.data[i + 1];
-                const b = imageData.data[i + 2];
-                if (r > 20 || g > 20 || b > 20) {
-                    return true;
-                }
-            }
-            return false;
-        });
+    // Take screenshot of the <video> element
+    const videoHandle = await page.$("video");
+    let screenshot = null;
 
-        if (!hasCanvasContent) {
-            console.log('Canvas has no meaningful content');
-            return null;
-        }
-
-        console.log('Taking screenshot of canvas...');
-        const canvasHandle = await page.$("canvas");
-        const screenshot = await canvasHandle.screenshot({ type: "png" });
-
-        console.log("Canvas screenshot captured successfully.");
-        return screenshot;
-
-    } catch (error) {
-        console.error("Error capturing canvas screenshot:", error.message);
-        return null;
+    if (videoHandle) {
+        screenshot = await videoHandle.screenshot({ type: "png" });
     }
+
+    console.log("MP4 video screenshot captured.");
+    return screenshot;
 }
 
 //here in this function we get the metadata for the following websites
