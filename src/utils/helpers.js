@@ -315,9 +315,6 @@ export async function getScreenshotMp4(page, url) {
 
         const screenshot = await videoHandle.screenshot({ 
             type: "png",
-            // Add quality settings for better performance
-            quality: 90,
-            // Ensure we capture the actual video dimensions
             clip: null
         });
 
