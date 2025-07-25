@@ -262,16 +262,16 @@ export async function getScreenshotMp4(page, url) {
         const videoLoaded = await page.waitForFunction(() => {
             const video = document.getElementById('video');
             if (!video) return false;
-            
+
             // Check if video has error
             if (video.error) {
                 console.error('Video error:', video.error.message);
                 return false;
             }
-            
+
             // Check if video has loaded enough data
             return video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
-        }, { 
+        }, {
             timeout: 15000 // Reduced from 30s to work better with Vercel limits
         }).catch(() => false);
 
@@ -281,7 +281,7 @@ export async function getScreenshotMp4(page, url) {
                 const video = document.getElementById('video');
                 return video && !video.error;
             });
-            
+
             if (!hasVideo) {
                 throw new Error('Video failed to load or has error');
             }
@@ -313,9 +313,8 @@ export async function getScreenshotMp4(page, url) {
             throw new Error('Video element not found');
         }
 
-        const screenshot = await videoHandle.screenshot({ 
-            type: "png",
-            clip: null
+        const screenshot = await videoHandle.screenshot({
+            type: "png"
         });
 
         console.log("MP4 video screenshot captured successfully.");
@@ -323,19 +322,19 @@ export async function getScreenshotMp4(page, url) {
 
     } catch (error) {
         console.error("Error capturing MP4 screenshot:", error.message);
-        
+
         // Return a fallback error image or null
-        // return null;
-        
+        return null;
+
         // Alternative: Create a simple error image
-        const errorHtml = `
-            <div style="width:640px;height:360px;background:#333;color:white;display:flex;align-items:center;justify-content:center;font-family:Arial;">
-                Error: ${error.message}
-            </div>
-        `;
-        await page.setContent(`<html><body>${errorHtml}</body></html>`);
-        const errorDiv = await page.$('div');
-        return await errorDiv.screenshot({ type: 'png' });
+        // const errorHtml = `
+        //     <div style="width:640px;height:360px;background:#333;color:white;display:flex;align-items:center;justify-content:center;font-family:Arial;">
+        //         Error: ${error.message}
+        //     </div>
+        // `;
+        // await page.setContent(`<html><body>${errorHtml}</body></html>`);
+        // const errorDiv = await page.$('div');
+        // return await errorDiv.screenshot({ type: 'png' });
     }
 }
 
