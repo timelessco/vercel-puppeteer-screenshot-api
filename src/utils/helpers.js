@@ -333,7 +333,7 @@ export async function getScreenshotMp4(page, url) {
         // Alternative: Create a simple error image
         const errorHtml = `
             <div style="width:640px;height:360px;background:#333;color:white;display:flex;align-items:center;justify-content:center;font-family:Arial;">
-                Video Preview Unavailable
+                Error: ${error.message}
             </div>
         `;
         await page.setContent(`<html><body>${errorHtml}</body></html>`);
