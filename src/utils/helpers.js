@@ -214,8 +214,6 @@ export async function getScreenshotX(page, urlStr) {
 //in this function we render the urls in the video tag and take the screenshot
 export async function getScreenshotMp4(page, url) {
     try {
-
-        // Build HTML with better error handling and faster loading
         const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -223,68 +221,125 @@ export async function getScreenshotMp4(page, url) {
             <style>
               body { 
                 margin: 0; 
-                background: black; 
+                background: red; 
                 display: flex; 
                 justify-content: center; 
                 align-items: center; 
                 min-height: 100vh; 
               }
-              video { 
+              canvas { 
                 max-width: 100%; 
                 max-height: 100vh; 
-                object-fit: contain; 
+                border: 2px solid white;
               }
-              .error { 
-                color: white; 
-                font-family: Arial, sans-serif; 
-                text-align: center; 
+              video {
+                display: none;
               }
             </style>
           </head>
           <body>
-            <video id="video" muted playsinline preload="metadata" crossorigin="anonymous">
+            <video id="video" muted playsinline preload="auto" crossorigin="anonymous">
               <source src="${url}" type="video/mp4" />
             </video>
+            <canvas id="canvas" width="1280" height="720"></canvas>
+            
+            <script>
+              const video = document.getElementById('video');
+              const canvas = document.getElementById('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              let frameDrawn = false;
+              
+              function drawFrame() {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                  // Resize canvas to match video
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  
+                  // Draw the video frame to canvas
+                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  frameDrawn = true;
+                  console.log('Frame drawn to canvas');
+                }
+              }
+              
+              video.addEventListener('loadeddata', () => {
+                console.log('Video loaded, attempting to draw frame');
+                setTimeout(drawFrame, 100);
+              });
+              
+              video.addEventListener('canplay', () => {
+                console.log('Video can play');
+                video.play().then(() => {
+                  setTimeout(() => {
+                    drawFrame();
+                    video.pause();
+                  }, 500);
+                }).catch(e => {
+                  console.log('Autoplay failed, trying manual frame draw');
+                  setTimeout(drawFrame, 1000);
+                });
+              });
+              
+              video.addEventListener('timeupdate', () => {
+                if (!frameDrawn && video.currentTime > 0) {
+                  drawFrame();
+                }
+              });
+              
+              // Expose status
+              window.isFrameDrawn = () => frameDrawn;
+            </script>
           </body>
         </html>
         `;
 
-        await page.setContent(htmlContent);
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
 
-
-        // Shorter wait time for rendering
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-
-
-        // Take screenshot of the video element
-        const videoHandle = await page.$("video");
-        if (!videoHandle) {
-            throw new Error('Video element not found');
-        }
-
-        const screenshot = await videoHandle.screenshot({
-            type: "png"
+        // Wait for frame to be drawn to canvas
+        console.log('Waiting for frame to be drawn...');
+        await page.waitForFunction(() => {
+            return window.isFrameDrawn && window.isFrameDrawn();
+        }, { timeout: 20000 }).catch(() => {
+            console.log('Frame drawing timeout, checking canvas anyway...');
         });
 
-        console.log("MP4 video screenshot captured successfully.");
+        // Additional wait
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Check if canvas has any content (not just black)
+        const hasCanvasContent = await page.evaluate(() => {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Check for non-black pixels
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const r = imageData.data[i];
+                const g = imageData.data[i + 1];
+                const b = imageData.data[i + 2];
+                if (r > 20 || g > 20 || b > 20) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if (!hasCanvasContent) {
+            console.log('Canvas has no meaningful content');
+            return null;
+        }
+
+        console.log('Taking screenshot of canvas...');
+        const canvasHandle = await page.$("canvas");
+        const screenshot = await canvasHandle.screenshot({ type: "png" });
+
+        console.log("Canvas screenshot captured successfully.");
         return screenshot;
 
     } catch (error) {
-        console.error("Error capturing MP4 screenshot:", error.message);
-
-        // Return a fallback error image or null
+        console.error("Error capturing canvas screenshot:", error.message);
         return null;
-
-        // Alternative: Create a simple error image
-        // const errorHtml = `
-        //     <div style="width:640px;height:360px;background:#333;color:white;display:flex;align-items:center;justify-content:center;font-family:Arial;">
-        //         Error: ${error.message}
-        //     </div>
-        // `;
-        // await page.setContent(`<html><body>${errorHtml}</body></html>`);
-        // const errorDiv = await page.$('div');
-        // return await errorDiv.screenshot({ type: 'png' });
     }
 }
 
