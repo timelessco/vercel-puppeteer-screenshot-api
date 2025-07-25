@@ -60,14 +60,26 @@ export async function GET(request) {
     const isVideoUrl = videoUrlRegex.test(urlStr);
 
     //  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection 
+    // Replace this part in your main code:
     if (isMp4 || isVideoUrl) {
-      const screenshot = await getScreenshotMp4(page, urlStr);
+      try {
+        const screenshot = await getScreenshotMp4(page, urlStr);
 
-      const headers = new Headers();
-      headers.set("Content-Type", "application/json");
+        if (!screenshot) {
+          // Fallback to regular page screenshot
+          console.warn('Video screenshot failed, falling back to page screenshot');
+          const response = await page.goto(urlStr, { waitUntil: "networkidle2", timeout: 60000 });
+          screenshot = await page.screenshot({ type: "png", fullPage: false });
+        }
 
-      return new NextResponse(JSON.stringify({ screenshot, metaData: null }),
-        { status: 200, headers });
+        const headers = new Headers();
+        headers.set("Content-Type", "application/json");
+        return new NextResponse(JSON.stringify({ screenshot, metaData: null }), { status: 200, headers });
+
+      } catch (error) {
+        console.error('Video screenshot error:', error);
+        // Continue to regular page handling as fallback
+      }
     }
 
     await page.setUserAgent(userAgent);

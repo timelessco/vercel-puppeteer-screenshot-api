@@ -213,40 +213,133 @@ export async function getScreenshotX(page, urlStr) {
 
 //in this function we render the urls in the video tag and take the screenshot
 export async function getScreenshotMp4(page, url) {
-    // Build simple HTML with a <video> tag
-    const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-      <body style="margin:0; background:black;">
-        <video id="video" autoplay muted playsinline>
-          <source src="${url}" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      </body>
-    </html>
-  `;
+    try {
 
-    await page.setContent(htmlContent);
+        // Build HTML with better error handling and faster loading
+        const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { 
+                margin: 0; 
+                background: black; 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                min-height: 100vh; 
+              }
+              video { 
+                max-width: 100%; 
+                max-height: 100vh; 
+                object-fit: contain; 
+              }
+              .error { 
+                color: white; 
+                font-family: Arial, sans-serif; 
+                text-align: center; 
+              }
+            </style>
+          </head>
+          <body>
+            <video id="video" muted playsinline preload="metadata" crossorigin="anonymous">
+              <source src="${url}" type="video/mp4" />
+              <div class="error">Video could not be loaded</div>
+            </video>
+            <script>
+              const video = document.getElementById('video');
+              video.onerror = () => console.error('Video loading error');
+              video.onloadeddata = () => console.log('Video data loaded');
+              video.oncanplay = () => console.log('Video can start playing');
+            </script>
+          </body>
+        </html>
+        `;
 
-    // Wait until the video has enough data to render the first frame
-    await page.waitForFunction(() => {
-        const video = document.getElementById('video');
-        return video && video.readyState >= 2; // HAVE_CURRENT_DATA
-    }, { timeout: 30_000 });
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
 
-    // Optional: wait a little for the frame to render
-    await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait for video to load with shorter timeout for Vercel
+        const videoLoaded = await page.waitForFunction(() => {
+            const video = document.getElementById('video');
+            if (!video) return false;
+            
+            // Check if video has error
+            if (video.error) {
+                console.error('Video error:', video.error.message);
+                return false;
+            }
+            
+            // Check if video has loaded enough data
+            return video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+        }, { 
+            timeout: 15000 // Reduced from 30s to work better with Vercel limits
+        }).catch(() => false);
 
-    // Take screenshot of the <video> element
-    const videoHandle = await page.$("video");
-    let screenshot = null;
+        if (!videoLoaded) {
+            // Fallback: try to get video dimensions even if not fully loaded
+            const hasVideo = await page.evaluate(() => {
+                const video = document.getElementById('video');
+                return video && !video.error;
+            });
+            
+            if (!hasVideo) {
+                throw new Error('Video failed to load or has error');
+            }
+        }
 
-    if (videoHandle) {
-        screenshot = await videoHandle.screenshot({ type: "png" });
+        // Shorter wait time for rendering
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Try to seek to a specific time for better thumbnail
+        await page.evaluate(() => {
+            const video = document.getElementById('video');
+            if (video && video.duration > 0) {
+                // Seek to 10% of video duration or 2 seconds, whichever is smaller
+                video.currentTime = Math.min(video.duration * 0.1, 2);
+            }
+        });
+
+        // Wait for seek to complete
+        await page.waitForFunction(() => {
+            const video = document.getElementById('video');
+            return video && video.readyState >= 2;
+        }, { timeout: 5000 }).catch(() => {
+            console.warn('Seek operation may not have completed');
+        });
+
+        // Take screenshot of the video element
+        const videoHandle = await page.$("video");
+        if (!videoHandle) {
+            throw new Error('Video element not found');
+        }
+
+        const screenshot = await videoHandle.screenshot({ 
+            type: "png",
+            // Add quality settings for better performance
+            quality: 90,
+            // Ensure we capture the actual video dimensions
+            clip: null
+        });
+
+        console.log("MP4 video screenshot captured successfully.");
+        return screenshot;
+
+    } catch (error) {
+        console.error("Error capturing MP4 screenshot:", error.message);
+        
+        // Return a fallback error image or null
+        // return null;
+        
+        // Alternative: Create a simple error image
+        const errorHtml = `
+            <div style="width:640px;height:360px;background:#333;color:white;display:flex;align-items:center;justify-content:center;font-family:Arial;">
+                Video Preview Unavailable
+            </div>
+        `;
+        await page.setContent(`<html><body>${errorHtml}</body></html>`);
+        const errorDiv = await page.$('div');
+        return await errorDiv.screenshot({ type: 'png' });
     }
-
-    console.log("MP4 video screenshot captured.");
-    return screenshot;
 }
 
 //here in this function we get the metadata for the following websites
