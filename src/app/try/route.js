@@ -63,25 +63,22 @@ export async function GET(request) {
     // Replace this part in your main code:
     if (isMp4 || isVideoUrl) {
       try {
-        const screenshot = await getScreenshotMp4(page, urlStr);
+        let screenshot = await getScreenshotMp4(page, urlStr);
 
-        if (!screenshot) {
-          // Fallback to regular page screenshot
-          console.warn('Video screenshot failed, falling back to page screenshot');
-          const response = await page.goto(urlStr, { waitUntil: "networkidle2", timeout: 60000 });
-          screenshot = await page.screenshot({ type: "png", fullPage: false });
+        if (screenshot) {
+          const headers = new Headers();
+          headers.set("Content-Type", "application/json");
+
+          return new NextResponse(JSON.stringify({ screenshot, metaData: null }),
+            { status: 200, headers });
+        } else {
+          // Video screenshot failed, fall back to regular page handling
+          console.warn('Video screenshot failed, falling back to regular page screenshot');
         }
-
-        const headers = new Headers();
-        headers.set("Content-Type", "application/json");
-        return new NextResponse(JSON.stringify({ screenshot, metaData: null }), { status: 200, headers });
-
       } catch (error) {
         console.error('Video screenshot error:', error);
-        // Continue to regular page handling as fallback
       }
     }
-
     await page.setUserAgent(userAgent);
 
     await page.setViewport({ width: 1440, height: 1200, deviceScaleFactor: 2 });
