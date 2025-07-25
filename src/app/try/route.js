@@ -42,6 +42,19 @@ export async function GET(request) {
           "--disable-blink-features=AutomationControlled",
           "--disable-features=site-per-process",
           "--disable-site-isolation-trials",
+          '--disable-blink-features=AutomationControlled',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--enable-features=NetworkService,NetworkServiceLogging',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-field-trial-config',
+          '--disable-back-forward-cache',
+          '--enable-unsafe-swiftshader', // For video rendering
+          '--use-gl=swiftshader', // Software rendering for videos
+          '--ignore-gpu-blacklist',
+          '--disable-gpu-sandbox'
         ]
         : [...chromium.args, "--disable-blink-features=AutomationControlled"],
       executablePath: isDev
