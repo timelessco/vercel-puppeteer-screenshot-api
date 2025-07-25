@@ -244,36 +244,12 @@ export async function getScreenshotMp4(page, url) {
           <body>
             <video id="video" muted playsinline preload="metadata" crossorigin="anonymous">
               <source src="${url}" type="video/mp4" />
-              <div class="error">Video could not be loaded</div>
             </video>
-            <script>
-              const video = document.getElementById('video');
-              video.onerror = () => console.error('Video loading error');
-              video.onloadeddata = () => console.log('Video data loaded');
-              video.oncanplay = () => console.log('Video can start playing');
-            </script>
           </body>
         </html>
         `;
 
-        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-
-        // Wait for video to load with shorter timeout for Vercel
-        const videoLoaded = await page.waitForFunction(() => {
-            const video = document.getElementById('video');
-            if (!video) return false;
-
-            // Check if video has error
-            if (video.error) {
-                console.error('Video error:', video.error.message);
-                return false;
-            }
-
-            // Check if video has loaded enough data
-            return video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
-        }, {
-            timeout: 15000 // Reduced from 30s to work better with Vercel limits
-        }).catch(() => false);
+        await page.setContent(htmlContent);
 
         if (!videoLoaded) {
             // Fallback: try to get video dimensions even if not fully loaded
@@ -288,24 +264,9 @@ export async function getScreenshotMp4(page, url) {
         }
 
         // Shorter wait time for rendering
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Try to seek to a specific time for better thumbnail
-        await page.evaluate(() => {
-            const video = document.getElementById('video');
-            if (video && video.duration > 0) {
-                // Seek to 10% of video duration or 2 seconds, whichever is smaller
-                video.currentTime = Math.min(video.duration * 0.1, 2);
-            }
-        });
 
-        // Wait for seek to complete
-        await page.waitForFunction(() => {
-            const video = document.getElementById('video');
-            return video && video.readyState >= 2;
-        }, { timeout: 5000 }).catch(() => {
-            console.warn('Seek operation may not have completed');
-        });
 
         // Take screenshot of the video element
         const videoHandle = await page.$("video");
