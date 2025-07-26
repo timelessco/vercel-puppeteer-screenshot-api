@@ -16,7 +16,11 @@ export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
 
 const chromium = require("@sparticuz/chromium-min");
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require('puppeteer-extra-plugin-stealth')
+
+puppeteer.use(StealthPlugin())
+
 
 
 export async function GET(request) {
