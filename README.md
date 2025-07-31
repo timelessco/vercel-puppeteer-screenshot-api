@@ -12,7 +12,7 @@
 	<a href="#contributors" target="_blank">
 <!-- prettier-ignore-start -->
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-<img alt="All Contributors: 1" src="https://img.shields.io/badge/all_contributors-1-21bb42.svg" />
+<img alt="All Contributors: 3" src="https://img.shields.io/badge/all_contributors-3-21bb42.svg" />
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 <!-- prettier-ignore-end -->
 	</a>
@@ -88,6 +88,8 @@ Thanks! 💖
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://navinmoorthy.me/"><img src="https://avatars.githubusercontent.com/u/39694575?v=4?s=100" width="100px;" alt="Navin Moorthy"/><br /><sub><b>Navin Moorthy</b></sub></a><br /><a href="https://github.com/timelessco/vercel-puppeteer-screenshot-api/commits?author=navin-moorthy" title="Code">💻</a> <a href="#a11y-navin-moorthy" title="Accessibility">️️️️♿️</a> <a href="https://github.com/timelessco/vercel-puppeteer-screenshot-api/commits?author=navin-moorthy" title="Documentation">📖</a> <a href="#design-navin-moorthy" title="Design">🎨</a> <a href="#ideas-navin-moorthy" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-navin-moorthy" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://balajimariappan.netlify.app/"><img src="https://avatars.githubusercontent.com/u/143426250?v=4?s=100" width="100px;" alt="Balaji"/><br /><sub><b>Balaji</b></sub></a><br /><a href="https://github.com/timelessco/vercel-puppeteer-screenshot-api/commits?author=B-a-l-aj-i" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://creact.app/"><img src="https://avatars.githubusercontent.com/u/34393560?v=4?s=100" width="100px;" alt="abhishekmg"/><br /><sub><b>abhishekmg</b></sub></a><br /><a href="https://github.com/timelessco/vercel-puppeteer-screenshot-api/commits?author=abhishekmg" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

@@ -9,6 +9,20 @@
 			"avatar_url": "https://avatars.githubusercontent.com/u/39694575?v=4",
 			"profile": "https://navinmoorthy.me/",
 			"contributions": ["code", "a11y", "doc", "design", "ideas", "maintenance"]
+		},
+		{
+			"login": "B-a-l-aj-i",
+			"name": "Balaji",
+			"avatar_url": "https://avatars.githubusercontent.com/u/143426250?v=4",
+			"profile": "https://balajimariappan.netlify.app/",
+			"contributions": ["code"]
+		},
+		{
+			"login": "abhishekmg",
+			"name": "abhishekmg",
+			"avatar_url": "https://avatars.githubusercontent.com/u/34393560?v=4",
+			"profile": "https://creact.app/",
+			"contributions": ["code"]
 		}
 	],
 	"contributorsPerLine": 7,
