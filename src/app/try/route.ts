@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { NextResponse, type NextRequest } from "next/server";
-import chromium from "@sparticuz/chromium-min";
 import puppeteer, {
 	type Browser,
 	type ElementHandle,
@@ -29,6 +28,13 @@ import {
 	X,
 	YOUTUBE,
 } from "@/utils/puppeteer/utils";
+
+// @sparticuz/chromium-min must be imported using CommonJS
+// eslint-disable-next-line @typescript-eslint/no-require-imports, unicorn/prefer-module
+const chromium = require("@sparticuz/chromium-min") as {
+	args: string[];
+	executablePath: (url: string) => Promise<string>;
+};
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
