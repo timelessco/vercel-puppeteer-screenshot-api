@@ -1,15 +1,13 @@
-/* eslint-disable @eslint-community/eslint-comments/disable-enable-pair */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 import fs from "node:fs";
 import path from "node:path";
 
 import { NextResponse, type NextRequest } from "next/server";
-import type { ElementHandle, JSHandle } from "puppeteer-core";
+import chromium from "@sparticuz/chromium-min";
+import puppeteer, {
+	type Browser,
+	type ElementHandle,
+	type JSHandle,
+} from "rebrowser-puppeteer-core";
 
 import cfCheck from "@/utils/puppeteer/cfCheck";
 import {
@@ -32,13 +30,10 @@ import {
 	YOUTUBE,
 } from "@/utils/puppeteer/utils";
 
-export const maxDuration = 300; // sec
+// https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
+export const maxDuration = 300;
+// Disable caching for this route
 export const dynamic = "force-dynamic";
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports, unicorn/prefer-module
-const chromium = require("@sparticuz/chromium-min");
-// eslint-disable-next-line @typescript-eslint/no-require-imports, unicorn/prefer-module
-const puppeteer = require("puppeteer-core");
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
 	const url = new URL(request.url);
@@ -58,9 +53,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		);
 	}
 
-	let browser: any = null;
+	let browser: Browser | null = null;
 
 	try {
+		// eslint-disable-next-line import-x/no-named-as-default-member
 		browser = await puppeteer.launch({
 			args: isDev
 				? [
@@ -83,16 +79,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 					]
 				: [...chromium.args, "--disable-blink-features=AutomationControlled"],
 			debuggingPort: isDev ? 9222 : undefined,
-
 			executablePath: isDev
 				? localExecutablePath
 				: await chromium.executablePath(remoteExecutablePath),
-			headless: isDev ? false : "new",
+			headless: !isDev,
 			ignoreDefaultArgs: ["--enable-automation"],
 		});
 
 		const pages = await browser.pages();
-
 		const page = pages[0];
 
 		// here we check if the url is mp4 or not, by it's content type
@@ -142,7 +136,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		await page.evaluateOnNewDocument(preloadFile);
 
 		// Suppress expected JS errors
-		page.on("pageerror", (err: Error) => {
+		page.on("pageerror", (err) => {
 			if (!err.message.includes("stopPropagation")) {
 				console.warn("Page JS error:", err.message);
 			}
@@ -164,7 +158,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			"segment.com",
 		];
 
-		page.on("request", (req: any) => {
+		page.on("request", (req) => {
 			const requestUrl = req.url();
 			if (blocked.some((str) => requestUrl.includes(str))) {
 				void req.abort();
@@ -188,12 +182,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		for (let attempt = 1; attempt <= 2; attempt++) {
 			try {
 				console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
+
 				if (urlStr.includes(YOUTUBE)) {
 					// here we use the getMetadata function to get the metadata of the video
 					metaData = await getMetadata(page, urlStr);
 					// Extract video ID from URL
-					// @ts-expect-error - videoId is not in the type
-					const videoId = /(?:v=|\/)([\w-]{11})/.exec(urlStr)?.[1];
+					const videoIdMatch = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
+					const videoId = videoIdMatch?.[1];
 					if (videoId) {
 						// Create  URL
 						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -260,12 +255,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							);
 						}
 
-						//x.com
+						// X/Twitter: Get specific tweet element
 						if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
 							screenshotTarget = await getScreenshotX(page, urlStr);
 						}
 
-						//youtube.com
+						// YouTube: Get thumbnail image
 						if (urlStr.includes(YOUTUBE)) {
 							const img = await page.$("img");
 							if (img) screenshotTarget = img;
@@ -287,9 +282,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							});
 
 						// Detect if page has ONLY one video tag as the main content
-						const videoElements = await page
-							.$eval("video", () => document.querySelectorAll("video").length)
-							.catch(() => 0);
+						const videoElements = await page.$$eval(
+							"video",
+							(videos) => videos.length,
+						);
 						if (videoElements === 1) {
 							const videoHandle = await page.$("video");
 							if (videoHandle) {

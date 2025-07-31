@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
 	productionBrowserSourceMaps: process.env.SOURCEMAP === "true",
 	serverExternalPackages: [
 		"@sentry/nextjs",
-		"puppeteer-core",
+		"rebrowser-puppeteer-core",
 		"@sparticuz/chromium-min",
 	],
 };

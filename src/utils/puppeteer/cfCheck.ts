@@ -12,7 +12,7 @@
  * https://kaliiiiiiiiii.github.io/brotector/
  */
 
-import type { Page } from "puppeteer-core";
+import type { Page } from "rebrowser-puppeteer-core";
 
 interface CloudflareChallenge {
 	chlApiWidgetId?: string;

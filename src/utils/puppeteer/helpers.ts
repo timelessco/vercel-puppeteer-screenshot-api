@@ -1,5 +1,10 @@
-import { PuppeteerBlocker } from "@cliqz/adblocker-puppeteer";
-import { ElementHandle, type JSHandle, type Page } from "puppeteer-core";
+import { PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
+import fetch from "cross-fetch";
+import {
+	ElementHandle,
+	type JSHandle,
+	type Page,
+} from "rebrowser-puppeteer-core";
 
 export async function manualCookieBannerRemoval(page: Page): Promise<void> {
 	try {
@@ -139,7 +144,7 @@ export async function blockCookieBanners(page: Page): Promise<void> {
 	try {
 		if (!blocker) {
 			console.log("Initializing cookie banner blocker...");
-			blocker = await PuppeteerBlocker.fromLists(globalThis.fetch, [
+			blocker = await PuppeteerBlocker.fromLists(fetch, [
 				// Cookie banners filter list from EasyList
 				"https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
 			]);
@@ -173,7 +178,7 @@ export async function getScreenshotInstagram(
 
 	if (ogImage) {
 		console.log("Found og:image:", ogImage);
-		const imageRes = await globalThis.fetch(ogImage);
+		const imageRes = await fetch(ogImage);
 		const arrayBuffer = await imageRes.arrayBuffer();
 		buffer = Buffer.from(arrayBuffer);
 	} else {
