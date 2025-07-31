@@ -1,12 +1,15 @@
+/* eslint-disable @eslint-community/eslint-comments/disable-enable-pair */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 import fs from "node:fs";
 import path from "node:path";
 
 import { NextResponse, type NextRequest } from "next/server";
-import puppeteer, {
-	type Browser,
-	type ElementHandle,
-	type JSHandle,
-} from "puppeteer-core";
+import type { ElementHandle, JSHandle } from "puppeteer-core";
 
 import cfCheck from "@/utils/puppeteer/cfCheck";
 import {
@@ -29,17 +32,13 @@ import {
 	YOUTUBE,
 } from "@/utils/puppeteer/utils";
 
-// @sparticuz/chromium-min must be imported using CommonJS
-// eslint-disable-next-line @typescript-eslint/no-require-imports, unicorn/prefer-module
-const chromium = require("@sparticuz/chromium-min") as {
-	args: string[];
-	executablePath: (url: string) => Promise<string>;
-};
-
-// https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
-export const maxDuration = 300;
-// Disable caching for this route
+export const maxDuration = 300; // sec
 export const dynamic = "force-dynamic";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports, unicorn/prefer-module
+const chromium = require("@sparticuz/chromium-min");
+// eslint-disable-next-line @typescript-eslint/no-require-imports, unicorn/prefer-module
+const puppeteer = require("puppeteer-core");
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
 	const url = new URL(request.url);
@@ -59,10 +58,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		);
 	}
 
-	let browser: Browser | null = null;
+	let browser: any = null;
 
 	try {
-		// eslint-disable-next-line import-x/no-named-as-default-member
 		browser = await puppeteer.launch({
 			args: isDev
 				? [
@@ -85,14 +83,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 					]
 				: [...chromium.args, "--disable-blink-features=AutomationControlled"],
 			debuggingPort: isDev ? 9222 : undefined,
+
 			executablePath: isDev
 				? localExecutablePath
 				: await chromium.executablePath(remoteExecutablePath),
-			headless: !isDev,
+			headless: isDev ? false : "new",
 			ignoreDefaultArgs: ["--enable-automation"],
 		});
 
 		const pages = await browser.pages();
+
 		const page = pages[0];
 
 		// here we check if the url is mp4 or not, by it's content type
@@ -127,6 +127,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 				console.error("Video screenshot error:", error);
 			}
 		}
+
 		await page.setUserAgent(userAgent);
 
 		await page.setViewport({ deviceScaleFactor: 2, height: 1200, width: 1440 });
@@ -141,7 +142,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		await page.evaluateOnNewDocument(preloadFile);
 
 		// Suppress expected JS errors
-		page.on("pageerror", (err) => {
+		page.on("pageerror", (err: Error) => {
 			if (!err.message.includes("stopPropagation")) {
 				console.warn("Page JS error:", err.message);
 			}
@@ -163,7 +164,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			"segment.com",
 		];
 
-		page.on("request", (req) => {
+		page.on("request", (req: any) => {
 			const requestUrl = req.url();
 			if (blocked.some((str) => requestUrl.includes(str))) {
 				void req.abort();
@@ -187,13 +188,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		for (let attempt = 1; attempt <= 2; attempt++) {
 			try {
 				console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
-
 				if (urlStr.includes(YOUTUBE)) {
 					// here we use the getMetadata function to get the metadata of the video
 					metaData = await getMetadata(page, urlStr);
 					// Extract video ID from URL
-					const videoIdMatch = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
-					const videoId = videoIdMatch?.[1];
+					// @ts-expect-error - videoId is not in the type
+					const videoId = /(?:v=|\/)([\w-]{11})/.exec(urlStr)?.[1];
 					if (videoId) {
 						// Create  URL
 						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -260,12 +260,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							);
 						}
 
-						// X/Twitter: Get specific tweet element
+						//x.com
 						if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
 							screenshotTarget = await getScreenshotX(page, urlStr);
 						}
 
-						// YouTube: Get thumbnail image
+						//youtube.com
 						if (urlStr.includes(YOUTUBE)) {
 							const img = await page.$("img");
 							if (img) screenshotTarget = img;
@@ -287,17 +287,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							});
 
 						// Detect if page has ONLY one video tag as the main content
-						const videoElements = await page.$$eval(
-							"video",
-							(videos) => videos.length,
-						);
+						const videoElements = await page
+							.$eval("video", () => document.querySelectorAll("video").length)
+							.catch(() => 0);
 						if (videoElements === 1) {
 							const videoHandle = await page.$("video");
 							if (videoHandle) {
 								console.log(
 									"Only one <video> tag found. Capturing that element.",
 								);
-								screenshot = await videoHandle.screenshot({ type: "png" });
+								screenshot = await videoHandle.screenshot({ type: "jpeg" });
 							}
 						} else if (screenshotTarget) {
 							await new Promise<void>((res) =>
@@ -308,7 +307,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							);
 							if ("screenshot" in screenshotTarget) {
 								screenshot = await screenshotTarget.screenshot({
-									type: "png",
+									// @ts-expect-error - deviceScaleFactor is not in the type
+									deviceScaleFactor: 2,
+									type: "jpeg",
 								});
 							}
 						} else {
@@ -318,7 +319,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 									urlStr?.includes("stackoverflow") ? 10_000 : 1000,
 								),
 							);
-							screenshot = await page.screenshot({ fullPage, type: "png" });
+							screenshot = await page.screenshot({ fullPage, type: "jpeg" });
 						}
 
 						console.log("Screenshot captured successfully.");
