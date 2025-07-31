@@ -57,14 +57,21 @@ export default function Home() {
 				throw new Error(`Failed to capture screenshot: ${res.statusText}`);
 			}
 
-			const data = await res.blob();
+			const data = (await res.json()) as { screenshot?: { data: number[] } };
 
 			// Revoke previous URL if exists
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
 			}
 
-			setImgUrl(URL.createObjectURL(data));
+			const base64 = btoa(
+				data.screenshot?.data.reduce(
+					(acc: string, byte: number) => acc + String.fromCodePoint(byte),
+					"",
+				) ?? "",
+			);
+			const imageUrl = `data:image/png;base64,${base64}`;
+			setImgUrl(imageUrl);
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
 			alert(

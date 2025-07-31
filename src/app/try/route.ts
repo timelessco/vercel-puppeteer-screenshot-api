@@ -3,12 +3,18 @@ import path from "node:path";
 
 import { NextResponse, type NextRequest } from "next/server";
 import chromium from "@sparticuz/chromium-min";
-import { launch, type Browser } from "puppeteer-core";
+import puppeteer, {
+	type Browser,
+	type ElementHandle,
+	type JSHandle,
+} from "puppeteer-core";
 
 import cfCheck from "@/utils/puppeteer/cfCheck";
 import {
 	blockCookieBanners,
+	getMetadata,
 	getScreenshotInstagram,
+	getScreenshotMp4,
 	getScreenshotX,
 	manualCookieBannerRemoval,
 } from "@/utils/puppeteer/helpers";
@@ -19,6 +25,7 @@ import {
 	remoteExecutablePath,
 	TWITTER,
 	userAgent,
+	videoUrlRegex,
 	X,
 	YOUTUBE,
 } from "@/utils/puppeteer/utils";
@@ -26,13 +33,18 @@ import {
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
 // Disable caching for this route
-// https://nextjs.org/docs/app/api-reference/file-conventions/route#revalidating-cached-data
-// export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-	const searchParams = request.nextUrl.searchParams;
-
-	let urlStr = searchParams.get("url");
+export async function GET(request: NextRequest): Promise<NextResponse> {
+	const url = new URL(request.url);
+	let urlStr = url.searchParams.get("url");
+	const fullPageParam = url.searchParams.get("fullpage");
+	const fullPage = fullPageParam === "true";
+	const url2 = urlStr ? new URL(urlStr) : null;
+	const imageIndex =
+		url2?.searchParams.get("img_index") ??
+		url.searchParams.get("img_index") ??
+		null;
 
 	if (!urlStr) {
 		return NextResponse.json(
@@ -41,35 +53,32 @@ export async function GET(request: NextRequest) {
 		);
 	}
 
-	const fullPageParam = searchParams.get("fullpage");
-	const fullPage = fullPageParam === "true";
-
-	// Parse image index from query params
-	const imageIndex = searchParams.get("img-index") ?? null;
-
 	let browser: Browser | null = null;
 
 	try {
-		browser = await launch({
+		// eslint-disable-next-line import-x/no-named-as-default-member
+		browser = await puppeteer.launch({
 			args: isDev
 				? [
 						"--disable-blink-features=AutomationControlled",
 						"--disable-features=site-per-process",
 						"--disable-site-isolation-trials",
-						"--no-sandbox",
-						"--disable-setuid-sandbox",
-					]
-				: [
-						...chromium.args,
 						"--disable-blink-features=AutomationControlled",
-						"--hide-scrollbars",
 						"--disable-web-security",
-					],
+						"--disable-features=VizDisplayCompositor",
+						"--enable-features=NetworkService,NetworkServiceLogging",
+						"--disable-background-timer-throttling",
+						"--disable-backgrounding-occluded-windows",
+						"--disable-renderer-backgrounding",
+						"--disable-field-trial-config",
+						"--disable-back-forward-cache",
+						"--enable-unsafe-swiftshader", // For video rendering
+						"--use-gl=swiftshader", // Software rendering for videos
+						"--ignore-gpu-blacklist",
+						"--disable-gpu-sandbox",
+					]
+				: [...chromium.args, "--disable-blink-features=AutomationControlled"],
 			debuggingPort: isDev ? 9222 : undefined,
-			defaultViewport: {
-				height: 1080,
-				width: 1920,
-			},
 			executablePath: isDev
 				? localExecutablePath
 				: await chromium.executablePath(remoteExecutablePath),
@@ -80,13 +89,41 @@ export async function GET(request: NextRequest) {
 		const pages = await browser.pages();
 		const page = pages[0];
 
+		// here we check if the url is mp4 or not, by it's content type
+		const contentType = await fetch(urlStr).then((res) =>
+			res.headers.get("content-type"),
+		);
+		const isMp4 = contentType?.startsWith("video/") ?? false;
+		// here we check if the url is mp4 or not, by using regex
+		const isVideoUrl = videoUrlRegex.test(urlStr);
+
+		//  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection
+		// Replace this part in your main code:
+		if (isMp4 || isVideoUrl) {
+			try {
+				const screenshot = await getScreenshotMp4(page, urlStr);
+
+				if (screenshot) {
+					const headers = new Headers();
+					headers.set("Content-Type", "application/json");
+
+					return new NextResponse(
+						JSON.stringify({ metaData: null, screenshot }),
+						{ headers, status: 200 },
+					);
+				} else {
+					// Video screenshot failed, fall back to regular page handling
+					console.warn(
+						"Video screenshot failed, falling back to regular page screenshot",
+					);
+				}
+			} catch (error) {
+				console.error("Video screenshot error:", error);
+			}
+		}
 		await page.setUserAgent(userAgent);
 
-		await page.setViewport({
-			deviceScaleFactor: 2,
-			height: 1200,
-			width: 1440,
-		});
+		await page.setViewport({ deviceScaleFactor: 2, height: 1200, width: 1440 });
 		await page.emulateMediaFeatures([
 			{ name: "prefers-color-scheme", value: "dark" },
 		]);
@@ -98,7 +135,7 @@ export async function GET(request: NextRequest) {
 		await page.evaluateOnNewDocument(preloadFile);
 
 		// Suppress expected JS errors
-		page.on("pageerror", (err: Error) => {
+		page.on("pageerror", (err) => {
 			if (!err.message.includes("stopPropagation")) {
 				console.warn("Page JS error:", err.message);
 			}
@@ -132,17 +169,25 @@ export async function GET(request: NextRequest) {
 		// Initialize cookie banner blocking
 		await blockCookieBanners(page);
 
-		let screenshot: Buffer | null = null;
+		let screenshot: Buffer | null | Uint8Array = null;
 		let lastError: Error | null = null;
+		let metaData: null | {
+			description: null | string;
+			favIcon: null | string;
+			ogImage: null | string;
+			title: null | string;
+		} = null;
 
 		for (let attempt = 1; attempt <= 2; attempt++) {
 			try {
 				console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
 
 				if (urlStr.includes(YOUTUBE)) {
+					// here we use the getMetadata function to get the metadata of the video
+					metaData = await getMetadata(page, urlStr);
 					// Extract video ID from URL
-					const match = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
-					const videoId = match?.[1];
+					const videoIdMatch = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
+					const videoId = videoIdMatch?.[1];
 					if (videoId) {
 						// Create  URL
 						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -178,29 +223,35 @@ export async function GET(request: NextRequest) {
 								timeout: 2000,
 							});
 						} catch {
-							// Dialog did not close after Escape — continuing anyway
+							console.warn(
+								"[role='dialog'] did not close after Escape — continuing anyway",
+							);
 						}
 						console.log(`Taking screenshot attempt ${shotTry}`);
-						let screenshotTarget: Awaited<ReturnType<typeof page.$>> | null =
-							null;
+						let screenshotTarget:
+							| ElementHandle<HTMLElement>
+							| JSHandle<HTMLDivElement | null>
+							| null = null;
 
-						// Instagram: Handle special screenshot logic
+						//instagram.com
+						// in instagram we directly take screenshot in the function itself, because for reel we get the og:image
+						// to maintain the  same we are returning the buffer
+						//for other we select the html elemnt and take screenshot of it
 						if (urlStr.includes(INSTAGRAM)) {
+							// here we use the getMetadata function to get the metadata for the post and reel
+							metaData = await getMetadata(page, urlStr);
 							const buffer = await getScreenshotInstagram(
 								page,
 								urlStr,
 								imageIndex ?? undefined,
 							);
-
 							const headers = new Headers();
-							headers.set("Content-Type", "image/png");
-							headers.set("Content-Length", buffer.length.toString());
-							headers.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+							headers.set("Content-Type", "application/json");
 
-							return new NextResponse(buffer, {
-								headers,
-								status: 200,
-							});
+							return new NextResponse(
+								JSON.stringify({ metaData, screenshot: buffer }),
+								{ headers, status: 200 },
+							);
 						}
 
 						// X/Twitter: Get specific tweet element
@@ -211,55 +262,79 @@ export async function GET(request: NextRequest) {
 						// YouTube: Get thumbnail image
 						if (urlStr.includes(YOUTUBE)) {
 							const img = await page.$("img");
-							screenshotTarget = img;
+							if (img) screenshotTarget = img;
 						}
 
-						if (screenshotTarget) {
-							await new Promise((res) =>
+						await page
+							.waitForFunction(
+								() => {
+									const challengeFrame = document.querySelector(
+										'iframe[src*="challenge"]',
+									);
+									const title = document.title;
+									return !challengeFrame && !title.includes("Just a moment");
+								},
+								{ timeout: 15_000 },
+							)
+							.catch(() => {
+								console.warn("Cloudflare challenge may not have cleared");
+							});
+
+						// Detect if page has ONLY one video tag as the main content
+						const videoElements = await page.$$eval(
+							"video",
+							(videos) => videos.length,
+						);
+						if (videoElements === 1) {
+							const videoHandle = await page.$("video");
+							if (videoHandle) {
+								console.log(
+									"Only one <video> tag found. Capturing that element.",
+								);
+								screenshot = await videoHandle.screenshot({ type: "png" });
+							}
+						} else if (screenshotTarget) {
+							await new Promise<void>((res) =>
 								setTimeout(
 									res,
 									urlStr?.includes("stackoverflow") ? 10_000 : 1000,
 								),
 							);
-							screenshot = Buffer.from(
-								await screenshotTarget.screenshot({
+							if ("screenshot" in screenshotTarget) {
+								screenshot = await screenshotTarget.screenshot({
 									type: "png",
-								}),
-							);
+								});
+							}
 						} else {
-							await new Promise((res) =>
+							await new Promise<void>((res) =>
 								setTimeout(
 									res,
 									urlStr?.includes("stackoverflow") ? 10_000 : 1000,
 								),
 							);
-							screenshot = Buffer.from(
-								await page.screenshot({
-									fullPage,
-									type: "png",
-								}),
-							);
+							screenshot = await page.screenshot({ fullPage, type: "png" });
 						}
 
 						console.log("Screenshot captured successfully.");
 						break; // Exit loop on success
 					} catch (error) {
-						const errorMessage =
-							error instanceof Error ? error.message : String(error);
-						if (errorMessage.includes("frame was detached")) {
+						if (
+							error instanceof Error &&
+							error.message.includes("frame was detached")
+						) {
 							break;
 						}
-						lastError =
-							error instanceof Error ? error : new Error(errorMessage);
+						lastError = error as Error;
 					}
 				}
 
 				if (screenshot) break;
 			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : String(error);
-				if (errorMessage.includes("frame was detached")) {
-					lastError = error instanceof Error ? error : new Error(errorMessage);
+				if (
+					error instanceof Error &&
+					error.message.includes("frame was detached")
+				) {
+					lastError = error;
 				} else {
 					throw error;
 				}
@@ -268,20 +343,18 @@ export async function GET(request: NextRequest) {
 
 		if (!screenshot) {
 			return NextResponse.json(
-				{
-					details: lastError?.message,
-					error: "Failed to capture screenshot",
-				},
+				{ details: lastError?.message, error: "Failed to capture screenshot" },
 				{ status: 500 },
 			);
 		}
 
 		const headers = new Headers();
-		headers.set("Content-Type", "image/png");
-		headers.set("Content-Length", screenshot.length.toString());
-		headers.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+		headers.set("Content-Type", "application/json");
 
-		return new NextResponse(screenshot, { headers, status: 200 });
+		return new NextResponse(JSON.stringify({ metaData, screenshot }), {
+			headers,
+			status: 200,
+		});
 	} catch (error) {
 		console.error("Fatal error:", error);
 		return NextResponse.json(

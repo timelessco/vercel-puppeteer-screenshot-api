@@ -43,7 +43,7 @@ async function cfCheck(page: Page): Promise<boolean> {
 						const input = document.querySelector<HTMLInputElement>(
 							`#cf-chl-widget-${widgetId}_response`,
 						);
-						return input?.value && input.value !== "";
+						return input?.value && input.value != "";
 					},
 					{ timeout: 300_000 },
 					id,
