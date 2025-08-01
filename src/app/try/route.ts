@@ -56,7 +56,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	let browser: Browser | null = null;
 
 	try {
-		// eslint-disable-next-line import-x/no-named-as-default-member
 		browser = await puppeteer.launch({
 			args: isDev
 				? [
@@ -286,7 +285,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							"video",
 							(videos) => videos.length,
 						);
-						if (videoElements === 1) {
+						if (videoElements === 1 && (isMp4 || isVideoUrl)) {
 							const videoHandle = await page.$("video");
 							if (videoHandle) {
 								console.log(
