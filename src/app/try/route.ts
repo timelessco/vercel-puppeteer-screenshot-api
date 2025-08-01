@@ -286,7 +286,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							"video",
 							(videos) => videos.length,
 						);
-						if (videoElements === 1) {
+						if (videoElements === 1 && (isMp4 || isVideoUrl)) {
 							const videoHandle = await page.$("video");
 							if (videoHandle) {
 								console.log(
