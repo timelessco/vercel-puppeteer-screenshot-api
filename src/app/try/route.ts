@@ -3,7 +3,8 @@ import path from "node:path";
 
 import { NextResponse, type NextRequest } from "next/server";
 import chromium from "@sparticuz/chromium-min";
-import puppeteer, {
+import {
+	launch,
 	type Browser,
 	type ElementHandle,
 	type JSHandle,
@@ -18,6 +19,7 @@ import {
 	getScreenshotX,
 	manualCookieBannerRemoval,
 } from "@/utils/puppeteer/helpers";
+import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
 import {
 	INSTAGRAM,
 	isDev,
@@ -32,32 +34,23 @@ import {
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
-// Disable caching for this route
+// Disable caching for this route - https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-	const url = new URL(request.url);
-	let urlStr = url.searchParams.get("url");
-	const fullPageParam = url.searchParams.get("fullpage");
-	const fullPage = fullPageParam === "true";
-	const url2 = urlStr ? new URL(urlStr) : null;
-	const imageIndex =
-		url2?.searchParams.get("img_index") ??
-		url.searchParams.get("img_index") ??
-		null;
+	const config = parseRequestConfig(request);
 
-	if (!urlStr) {
-		return NextResponse.json(
-			{ error: "Missing url parameter" },
-			{ status: 400 },
-		);
+	if ("error" in config) {
+		return NextResponse.json({ error: config.error }, { status: 400 });
 	}
+
+	const { fullPage, headless, imageIndex, url } = config;
+	let urlStr = url;
 
 	let browser: Browser | null = null;
 
 	try {
-		// eslint-disable-next-line import-x/no-named-as-default-member
-		browser = await puppeteer.launch({
+		browser = await launch({
 			args: isDev
 				? [
 						"--disable-blink-features=AutomationControlled",
@@ -82,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			executablePath: isDev
 				? localExecutablePath
 				: await chromium.executablePath(remoteExecutablePath),
-			headless: !isDev,
+			headless,
 			ignoreDefaultArgs: ["--enable-automation"],
 		});
 
@@ -298,7 +291,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							await new Promise<void>((res) =>
 								setTimeout(
 									res,
-									urlStr?.includes("stackoverflow") ? 10_000 : 1000,
+									urlStr.includes("stackoverflow") ? 10_000 : 1000,
 								),
 							);
 							if ("screenshot" in screenshotTarget) {
@@ -312,7 +305,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							await new Promise<void>((res) =>
 								setTimeout(
 									res,
-									urlStr?.includes("stackoverflow") ? 10_000 : 1000,
+									urlStr.includes("stackoverflow") ? 10_000 : 1000,
 								),
 							);
 							screenshot = await page.screenshot({ fullPage, type: "jpeg" });
@@ -365,8 +358,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			{ status: 500 },
 		);
 	} finally {
-		if (browser) {
-			await browser.close();
-		}
+		if (browser) await browser.close();
 	}
 }

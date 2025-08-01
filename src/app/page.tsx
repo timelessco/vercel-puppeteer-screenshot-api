@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { GithubIcon } from "@/ui/home-page/GithubIcon";
 import { Spotlight } from "@/ui/home-page/Spotlight";
+import { ToggleButton } from "@/ui/home-page/ToggleButton";
 import { StyledButton } from "@/components/StyledButton";
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
 	const [time, setTime] = useState<number>(0);
 	const [duration, setDuration] = useState<number>(0);
 	const [fullPage, setFullPage] = useState<boolean>(false);
+	const [headless, setHeadless] = useState<boolean>(false);
 
 	useEffect(() => {
 		// Cleanup function to revoke object URL when component unmounts or imgUrl changes
@@ -49,9 +51,16 @@ export default function Home() {
 
 		try {
 			setLoading(true);
-			const res = await fetch(
-				`/try?url=${encodeURIComponent(url)}&fullpage=${fullPage}`,
-			);
+			const params = new URLSearchParams({
+				fullpage: fullPage.toString(),
+				url,
+			});
+
+			if (headless) {
+				params.append("headless", "true");
+			}
+
+			const res = await fetch(`/try?${params.toString()}`);
 
 			if (!res.ok) {
 				throw new Error(`Failed to capture screenshot: ${res.statusText}`);
@@ -189,32 +198,33 @@ export default function Home() {
 									</span>
 								</StyledButton>
 
-								<StyledButton
+								<ToggleButton
 									aria-label={`Full page capture: ${fullPage ? "enabled" : "disabled"}`}
-									aria-pressed={fullPage}
-									className="group relative overflow-hidden rounded-xl px-5 py-2.5 shadow-[0_1000px_0_0_hsl(0_0%_20%)_inset] transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50"
 									disabled={loading}
-									onClick={() => {
+									isActive={fullPage}
+									labelOff="Full Page: OFF"
+									labelOn="Full Page: ON"
+									onToggle={() => {
 										setFullPage((prev) => !prev);
 									}}
-								>
-									<span
-										className={`absolute inset-px rounded-[11px] transition-all duration-200 group-hover:bg-neutral-900 ${
-											fullPage ? "bg-neutral-950" : "bg-neutral-900"
-										}`}
-									/>
-
-									<span
-										className={`relative z-10 flex items-center text-base transition-colors duration-200 ${
-											fullPage ? "text-white" : "text-neutral-500"
-										}`}
-									>
-										{fullPage ? "Full Page: ON" : "Full Page: OFF"}
-									</span>
-								</StyledButton>
+								/>
 							</div>
 						</div>
 					</div>
+
+					{process.env.NODE_ENV !== "production" && (
+						<ToggleButton
+							aria-label={`Headless mode: ${headless ? "enabled" : "disabled"}`}
+							className="mt-2"
+							disabled={loading}
+							isActive={headless}
+							labelOff="Headless: OFF"
+							labelOn="Headless: ON"
+							onToggle={() => {
+								setHeadless((prev) => !prev);
+							}}
+						/>
+					)}
 				</form>
 
 				{imgUrl && (
