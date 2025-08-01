@@ -56,6 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	let browser: Browser | null = null;
 
 	try {
+		// eslint-disable-next-line import-x/no-named-as-default-member
 		browser = await puppeteer.launch({
 			args: isDev
 				? [
