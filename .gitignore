@@ -78,3 +78,4 @@ public/sitemap-0.xml
 
 # Extras(if any)
 .claude/settings.local.json
+.claude/docs
