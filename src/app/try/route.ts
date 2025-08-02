@@ -53,9 +53,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		};
 
 		if (isVercel) {
-			const chromium = (await import(
+			const chromiumModule = (await import(
 				"@sparticuz/chromium"
-			)) as unknown as typeof import("@sparticuz/chromium").default;
+			)) as unknown as typeof import("@sparticuz/chromium");
+			const chromium = chromiumModule.default;
+
 			puppeteer = await import("rebrowser-puppeteer-core");
 			launchOptions = {
 				...launchOptions,
