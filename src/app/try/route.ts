@@ -96,13 +96,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		}
 
 		browser = await puppeteer.launch(launchOptions);
-		// eslint-disable-next-line unicorn/no-await-expression-member
-		const page = (await browser.pages())[0] || (await browser.newPage());
+		// Using a pre-loaded page reduces startup time by avoiding new page creation unless necessary.
+		const pages = await browser.pages();
+		const page = pages[0] || (await browser.newPage());
 
 		// here we check if the url is mp4 or not, by it's content type
-		const contentType = await fetch(urlStr).then((res) =>
-			res.headers.get("content-type"),
-		);
+		const response = await fetch(urlStr);
+		const contentType = response.headers.get("content-type");
 		const isMp4 = contentType?.startsWith("video/") ?? false;
 		// here we check if the url is mp4 or not, by using regex
 		const isVideoUrl = videoUrlRegex.test(urlStr);

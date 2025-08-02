@@ -19,13 +19,13 @@ export function parseRequestConfig(
 		return { error: "Please provide a url parameter." };
 	}
 
-	// Prepend http:// if missing
+	// Prepend http:// if missing to ensure valid URL construction for navigation
 	let inputUrl = urlParam.trim();
 	if (!/^https?:\/\//i.test(inputUrl)) {
 		inputUrl = `http://${inputUrl}`;
 	}
 
-	// Validate the URL is a valid HTTP/HTTPS URL
+	// Validate URL format and ensure it's HTTP/HTTPS to prevent security issues and navigation errors
 	let parsedUrl: URL;
 	try {
 		parsedUrl = new URL(inputUrl);
