@@ -11,7 +11,8 @@ const config: KnipConfig = {
 		"commitlint",
 		"prettier",
 	],
-	ignoreDependencies: [],
+	// Needed for Rebrowser during build to disable errors
+	ignoreDependencies: ["puppeteer-core"],
 	include: ["nsExports"],
 	project: [
 		"src/**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}!",

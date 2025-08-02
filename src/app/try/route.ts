@@ -91,11 +91,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 			// @ts-expect-error - Type incompatibility between puppeteer and puppeteer-core
 			puppeteer = await import("rebrowser-puppeteer");
-			browser = await puppeteer.launch(launchOptions);
 		}
 
+		browser = await puppeteer.launch(launchOptions);
 		// eslint-disable-next-line unicorn/no-await-expression-member
-		const page = (await browser!.pages())[0] || (await browser!.newPage());
+		const page = (await browser.pages())[0] || (await browser.newPage());
 
 		// here we check if the url is mp4 or not, by it's content type
 		const contentType = await fetch(urlStr).then((res) =>
