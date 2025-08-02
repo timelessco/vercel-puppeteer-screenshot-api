@@ -13,10 +13,27 @@ export function parseRequestConfig(
 	request: NextRequest,
 ): RequestConfig | { error: string } {
 	const searchParams = request.nextUrl.searchParams;
-	const url = searchParams.get("url");
+	const urlParam = searchParams.get("url");
 
-	if (!url) {
-		return { error: "Missing url parameter" };
+	if (!urlParam) {
+		return { error: "Please provide a url parameter." };
+	}
+
+	// Prepend http:// if missing
+	let inputUrl = urlParam.trim();
+	if (!/^https?:\/\//i.test(inputUrl)) {
+		inputUrl = `http://${inputUrl}`;
+	}
+
+	// Validate the URL is a valid HTTP/HTTPS URL
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(inputUrl);
+		if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+			return { error: "URL must start with http:// or https://" };
+		}
+	} catch {
+		return { error: "Invalid URL provided." };
 	}
 
 	// Determine full page mode based on query parameter
@@ -28,12 +45,12 @@ export function parseRequestConfig(
 	const headless = isDev ? forceHeadless : true;
 
 	// Extract image index from the target URL params
-	const imageIndex = new URL(url).searchParams.get("img_index") ?? null;
+	const imageIndex = parsedUrl.searchParams.get("img_index") ?? null;
 
 	return {
 		fullPage,
 		headless,
 		imageIndex,
-		url,
+		url: inputUrl,
 	};
 }

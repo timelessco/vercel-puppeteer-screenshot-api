@@ -2,12 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { NextResponse, type NextRequest } from "next/server";
-import chromium from "@sparticuz/chromium-min";
-import {
-	launch,
-	type Browser,
-	type ElementHandle,
-	type JSHandle,
+import type {
+	Browser,
+	ElementHandle,
+	JSHandle,
+	LaunchOptions,
 } from "rebrowser-puppeteer-core";
 
 import cfCheck from "@/utils/puppeteer/cfCheck";
@@ -22,11 +21,7 @@ import {
 import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
 import {
 	INSTAGRAM,
-	isDev,
-	localExecutablePath,
-	remoteExecutablePath,
 	TWITTER,
-	userAgent,
 	videoUrlRegex,
 	X,
 	YOUTUBE,
@@ -50,37 +45,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	let browser: Browser | null = null;
 
 	try {
-		browser = await launch({
-			args: isDev
-				? [
-						"--disable-blink-features=AutomationControlled",
-						"--disable-features=site-per-process",
-						"--disable-site-isolation-trials",
-						"--disable-blink-features=AutomationControlled",
-						"--disable-web-security",
-						"--disable-features=VizDisplayCompositor",
-						"--enable-features=NetworkService,NetworkServiceLogging",
-						"--disable-background-timer-throttling",
-						"--disable-backgrounding-occluded-windows",
-						"--disable-renderer-backgrounding",
-						"--disable-field-trial-config",
-						"--disable-back-forward-cache",
-						"--enable-unsafe-swiftshader", // For video rendering
-						"--use-gl=swiftshader", // Software rendering for videos
-						"--ignore-gpu-blacklist",
-						"--disable-gpu-sandbox",
-					]
-				: [...chromium.args, "--disable-blink-features=AutomationControlled"],
-			debuggingPort: isDev ? 9222 : undefined,
-			executablePath: isDev
-				? localExecutablePath
-				: await chromium.executablePath(remoteExecutablePath),
+		const isVercel = !!process.env.VERCEL_ENV;
+		let puppeteer: typeof import("rebrowser-puppeteer-core");
+		let launchOptions: LaunchOptions = {
 			headless,
 			ignoreDefaultArgs: ["--enable-automation"],
-		});
+		};
 
-		const pages = await browser.pages();
-		const page = pages[0];
+		if (isVercel) {
+			const chromium = (await import(
+				"@sparticuz/chromium"
+			)) as unknown as typeof import("@sparticuz/chromium").default;
+			puppeteer = await import("rebrowser-puppeteer-core");
+			launchOptions = {
+				...launchOptions,
+				args: [
+					...chromium.args,
+					"--disable-blink-features=AutomationControlled",
+				],
+				executablePath: await chromium.executablePath(),
+			};
+		} else {
+			launchOptions = {
+				...launchOptions,
+				args: [
+					"--disable-blink-features=AutomationControlled",
+					"--disable-features=site-per-process",
+					"--disable-site-isolation-trials",
+					"--disable-blink-features=AutomationControlled",
+					"--disable-web-security",
+					"--disable-features=VizDisplayCompositor",
+					"--enable-features=NetworkService,NetworkServiceLogging",
+					"--disable-background-timer-throttling",
+					"--disable-backgrounding-occluded-windows",
+					"--disable-renderer-backgrounding",
+					"--disable-field-trial-config",
+					"--disable-back-forward-cache",
+					"--enable-unsafe-swiftshader", // For video rendering
+					"--use-gl=swiftshader", // Software rendering for videos
+					"--ignore-gpu-blacklist",
+					"--disable-gpu-sandbox",
+				],
+				debuggingPort: 9222,
+			};
+
+			// @ts-expect-error - Type incompatibility between puppeteer and puppeteer-core
+			puppeteer = await import("rebrowser-puppeteer");
+			browser = await puppeteer.launch(launchOptions);
+		}
+
+		// eslint-disable-next-line unicorn/no-await-expression-member
+		const page = (await browser!.pages())[0] || (await browser!.newPage());
 
 		// here we check if the url is mp4 or not, by it's content type
 		const contentType = await fetch(urlStr).then((res) =>
@@ -114,8 +129,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 				console.error("Video screenshot error:", error);
 			}
 		}
-
-		await page.setUserAgent(userAgent);
 
 		await page.setViewport({ deviceScaleFactor: 2, height: 1200, width: 1440 });
 		await page.emulateMediaFeatures([
