@@ -1,11 +1,13 @@
 import { type NextRequest } from "next/server";
 
+import { createLogger, type Logger } from "./logger";
 import { isDev } from "./utils";
 
 export interface RequestConfig {
 	fullPage: boolean;
 	headless: boolean;
 	imageIndex: null | string;
+	logger: Logger;
 	url: string;
 }
 
@@ -47,10 +49,15 @@ export function parseRequestConfig(
 	// Extract image index from the target URL params
 	const imageIndex = parsedUrl.searchParams.get("img_index") ?? null;
 
+	// Setup logger
+	const verbose = searchParams.get("verbose") === "true";
+	const logger = createLogger(verbose, headless);
+
 	return {
 		fullPage,
 		headless,
 		imageIndex,
+		logger,
 		url: inputUrl,
 	};
 }

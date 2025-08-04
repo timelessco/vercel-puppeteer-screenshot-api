@@ -14,6 +14,8 @@
 
 import type { Page } from "rebrowser-puppeteer-core";
 
+import type { Logger } from "./logger";
+
 interface CloudflareChallenge {
 	chlApiWidgetId?: string;
 }
@@ -22,7 +24,7 @@ interface CloudflareWindow extends Window {
 	_cf_chl_opt?: CloudflareChallenge;
 }
 
-async function cfCheck(page: Page): Promise<boolean> {
+export async function cfCheck(page: Page, logger: Logger): Promise<boolean> {
 	const frames = page.frames();
 
 	for (const frame of frames) {
@@ -31,12 +33,17 @@ async function cfCheck(page: Page): Promise<boolean> {
 			const domain = new URL(frameUrl).hostname;
 
 			if (domain === "challenges.cloudflare.com") {
+				logger.info("Cloudflare challenge detected");
 				const id = await frame.evaluate(() => {
 					return (globalThis as unknown as CloudflareWindow)._cf_chl_opt
 						?.chlApiWidgetId;
 				});
 
-				if (!id) continue;
+				if (!id) {
+					logger.debug("No Cloudflare widget ID found");
+					continue;
+				}
+				logger.debug("Cloudflare widget ID found", { widgetId: id });
 
 				await frame.waitForFunction(
 					(widgetId: string) => {
@@ -55,16 +62,13 @@ async function cfCheck(page: Page): Promise<boolean> {
 					)?.value;
 				}, id);
 
-				console.log("Cloudflare challenge solved with value:", result);
+				logger.info("Cloudflare challenge solved", { value: result });
 				return true;
 			}
 		} catch (error) {
-			console.warn("cfCheck error:", (error as Error).message);
+			logger.error("cfCheck frame error", { error: (error as Error).message });
 		}
 	}
 
-	console.log("cfCheck: No Cloudflare challenge frame detected.");
 	return false;
 }
-
-export default cfCheck;

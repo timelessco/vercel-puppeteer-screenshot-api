@@ -14,7 +14,10 @@ export default function Home() {
 	const [time, setTime] = useState<number>(0);
 	const [duration, setDuration] = useState<number>(0);
 	const [fullPage, setFullPage] = useState<boolean>(false);
-	const [headless, setHeadless] = useState<boolean>(false);
+	const [headless, setHeadless] = useState<boolean>(
+		process.env.NODE_ENV === "development" ? false : true,
+	);
+	const [verbose, setVerbose] = useState<boolean>(true);
 
 	useEffect(() => {
 		// Cleanup function to revoke object URL when component unmounts or imgUrl changes
@@ -56,8 +59,14 @@ export default function Home() {
 				url,
 			});
 
-			if (headless) {
+			// In production, always use headless mode
+			// In development, respect the toggle button state
+			if (process.env.NODE_ENV !== "development" || headless) {
 				params.append("headless", "true");
+			}
+
+			if (verbose) {
+				params.append("verbose", "true");
 			}
 
 			const res = await fetch(`/try?${params.toString()}`);
@@ -212,19 +221,30 @@ export default function Home() {
 						</div>
 					</div>
 
-					{process.env.NODE_ENV !== "production" && (
+					<div className="mt-2 flex gap-2">
+						{process.env.NODE_ENV !== "production" && (
+							<ToggleButton
+								aria-label={`Headless mode: ${headless ? "enabled" : "disabled"}`}
+								disabled={loading}
+								isActive={headless}
+								labelOff="Headless: OFF"
+								labelOn="Headless: ON"
+								onToggle={() => {
+									setHeadless((prev) => !prev);
+								}}
+							/>
+						)}
 						<ToggleButton
-							aria-label={`Headless mode: ${headless ? "enabled" : "disabled"}`}
-							className="mt-2"
+							aria-label={`Verbose mode: ${verbose ? "enabled" : "disabled"}`}
 							disabled={loading}
-							isActive={headless}
-							labelOff="Headless: OFF"
-							labelOn="Headless: ON"
+							isActive={verbose}
+							labelOff="Verbose: OFF"
+							labelOn="Verbose: ON"
 							onToggle={() => {
-								setHeadless((prev) => !prev);
+								setVerbose((prev) => !prev);
 							}}
 						/>
-					)}
+					</div>
 				</form>
 
 				{imgUrl && (
