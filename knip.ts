@@ -11,8 +11,9 @@ const config: KnipConfig = {
 		"commitlint",
 		"prettier",
 	],
-	// Needed for Rebrowser during build to disable errors
-	ignoreDependencies: ["puppeteer-core"],
+	// "puppeteer-core" - Needed for Rebrowser during build to disable errors
+	// "@duckduckgo/autoconsent" - Needed for cookie consent handling dynamically imported
+	ignoreDependencies: ["puppeteer-core", "@duckduckgo/autoconsent"],
 	include: ["nsExports"],
 	project: [
 		"src/**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}!",
