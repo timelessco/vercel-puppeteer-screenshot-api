@@ -92,43 +92,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		const pages = await browser.pages();
 		const page = pages[0] || (await browser.newPage());
 
-		// here we check if the url is mp4 or not, by it's content type
-		const response = await fetch(urlStr);
-		const contentType = response.headers.get("content-type");
-		const isMp4 = contentType?.startsWith("video/") ?? false;
-		// here we check if the url is mp4 or not, by using regex
-		const isVideoUrl = videoUrlRegex.test(urlStr);
-		if (isMp4 || isVideoUrl) {
-			logger.info("Video URL detected", { contentType, isVideoUrl });
-		}
-
-		//  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection
-		// Replace this part in your main code:
-		if (isMp4 || isVideoUrl) {
-			try {
-				const screenshot = await getScreenshotMp4(page, urlStr, logger);
-
-				if (screenshot) {
-					const headers = new Headers();
-					headers.set("Content-Type", "application/json");
-
-					return new NextResponse(
-						JSON.stringify({ metaData: null, screenshot }),
-						{ headers, status: 200 },
-					);
-				} else {
-					// Video screenshot failed, fall back to regular page handling
-					logger.warn(
-						"Video screenshot failed, falling back to regular page screenshot",
-					);
-				}
-			} catch (error) {
-				logger.warn("Video screenshot error", {
-					error: (error as Error).message,
-				});
-			}
-		}
-
 		await page.setViewport({ deviceScaleFactor: 2, height: 1200, width: 1440 });
 		await page.emulateMediaFeatures([
 			{ name: "prefers-color-scheme", value: "dark" },
@@ -178,6 +141,43 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 		// Initialize cookie banner blocking
 		await blockCookieBanners(page, logger);
+
+		// here we check if the url is mp4 or not, by it's content type
+		const response = await fetch(urlStr);
+		const contentType = response.headers.get("content-type");
+		const isMp4 = contentType?.startsWith("video/") ?? false;
+		// here we check if the url is mp4 or not, by using regex
+		const isVideoUrl = videoUrlRegex.test(urlStr);
+		if (isMp4 || isVideoUrl) {
+			logger.info("Video URL detected", { contentType, isVideoUrl });
+		}
+
+		//  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection
+		// Replace this part in your main code:
+		if (isMp4 || isVideoUrl) {
+			try {
+				const screenshot = await getScreenshotMp4(page, urlStr, logger);
+
+				if (screenshot) {
+					const headers = new Headers();
+					headers.set("Content-Type", "application/json");
+
+					return new NextResponse(
+						JSON.stringify({ metaData: null, screenshot }),
+						{ headers, status: 200 },
+					);
+				} else {
+					// Video screenshot failed, fall back to regular page handling
+					logger.warn(
+						"Video screenshot failed, falling back to regular page screenshot",
+					);
+				}
+			} catch (error) {
+				logger.warn("Video screenshot error", {
+					error: (error as Error).message,
+				});
+			}
+		}
 
 		let screenshot: Buffer | null | Uint8Array = null;
 		let lastError: Error | null = null;
