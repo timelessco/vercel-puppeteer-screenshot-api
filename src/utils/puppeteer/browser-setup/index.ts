@@ -1,22 +1,8 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
-import { setupCookieBannerBlocker } from "./cookie-banner-removal";
-import type { Logger } from "./logger";
-
-// Constants
-const BLOCKED_DOMAINS = [
-	"googletagmanager",
-	"otBannerSdk.js",
-	"doubleclick",
-	"adnxs.com",
-	"google-analytics",
-	"googleadservices",
-	"facebook.com/tr",
-	"connect.facebook.net",
-	"hotjar",
-	"mixpanel",
-	"segment.com",
-];
+import type { Logger } from "../logger";
+import { setupAdBlocker } from "./ad-blocker";
+import { setupCookieConsent } from "./cookie-consent";
 
 const DEFAULT_VIEWPORT = {
 	deviceScaleFactor: 2,
@@ -26,7 +12,7 @@ const DEFAULT_VIEWPORT = {
 
 /**
  * Sets up a Puppeteer page with standard configuration including viewport,
- * media features, preload scripts, error handling, and request interception.
+ * media features, ad blocking, and cookie consent handling.
  * Should be called immediately after page creation and before navigation.
  * @param {Page} page - The Puppeteer page instance to configure
  * @param {Logger} logger - Logger instance for debugging and monitoring
@@ -45,9 +31,11 @@ export async function setupBrowserPage(
 		{ name: "prefers-color-scheme", value: "dark" },
 	]);
 
-	await setupRequestInterception(page, logger);
+	// Set up ad blocking with Ghostery
+	await setupAdBlocker(page, logger);
 
-	await setupCookieBannerBlocker(page, logger);
+	// Set up cookie consent handling with DuckDuckGo autoconsent
+	await setupCookieConsent(page, logger);
 }
 
 /**
@@ -64,29 +52,5 @@ function setupLogging(page: Page, logger: Logger): void {
 
 	page.on("pageerror", (err) => {
 		logger.debug("Page JS error", { error: err.message });
-	});
-}
-
-/**
- * Configures request interception to block tracking scripts and ads
- * @param {Page} page - The Puppeteer page instance
- * @param {Logger} logger - Logger instance for network logging
- */
-async function setupRequestInterception(
-	page: Page,
-	logger: Logger,
-): Promise<void> {
-	await page.setRequestInterception(true);
-
-	page.on("request", (req) => {
-		const requestUrl = req.url();
-		const method = req.method();
-
-		if (BLOCKED_DOMAINS.some((domain) => requestUrl.includes(domain))) {
-			logger.logNetworkRequest(requestUrl, method, undefined, true);
-			void req.abort();
-		} else {
-			void req.continue();
-		}
 	});
 }

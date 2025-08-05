@@ -94,7 +94,7 @@ export const createLogger = (verbose = false, headless = true) => {
 
 	const logSummary = (success: boolean, screenshotSize?: number): void => {
 		const totalTime = Date.now() - startTime;
-		info("Screenshot capture completed", {
+		info("Summary", {
 			duration: `${totalTime}ms`,
 			screenshotSize,
 			success,

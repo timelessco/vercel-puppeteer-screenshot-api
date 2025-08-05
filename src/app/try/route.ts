@@ -136,18 +136,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 				for (let shotTry = 1; shotTry <= 2; shotTry++) {
 					try {
-						await page.keyboard.press("Escape");
+						// Check if a dialog exists before trying to close it
+						const dialogElement = await page.$('div[role="dialog"]');
+						if (dialogElement) {
+							logger.info("Dialog detected, attempting to close");
+							await page.keyboard.press("Escape");
 
-						try {
-							await page.waitForSelector('div[role="dialog"]', {
-								hidden: true,
-								timeout: 2000,
-							});
-							logger.info("Dialog closed");
-						} catch {
-							logger.warn(
-								"[role='dialog'] did not close after Escape — continuing anyway",
-							);
+							try {
+								await page.waitForSelector('div[role="dialog"]', {
+									hidden: true,
+									timeout: 2000,
+								});
+								logger.info("Dialog closed");
+							} catch {
+								logger.warn(
+									"[role='dialog'] did not close after Escape — continuing anyway",
+								);
+							}
+						} else {
+							logger.debug("No dialog detected, skipping dialog handling");
 						}
 
 						logger.info(`Taking screenshot attempt ${shotTry}`);
