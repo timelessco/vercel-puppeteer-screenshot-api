@@ -3,9 +3,12 @@ import type {
 	Browser,
 	ElementHandle,
 	JSHandle,
-	LaunchOptions,
 } from "rebrowser-puppeteer-core";
 
+import {
+	closeBrowser,
+	launchBrowser,
+} from "@/utils/puppeteer/browser-launcher";
 import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
 import { cfCheck } from "@/utils/puppeteer/cfCheck";
 import { manualCookieBannerRemoval } from "@/utils/puppeteer/helpers";
@@ -40,52 +43,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	let browser: Browser | null = null;
 
 	try {
-		// https://vercel.com/docs/environment-variables/system-environment-variables#VERCEL_ENV
-		const isVercel = !!process.env.VERCEL_ENV;
-		logger.info("Starting screenshot capture", {
-			environment: isVercel ? "Vercel" : "Local",
-			fullPage,
-			url,
-		});
+		logger.info("Starting screenshot capture", { fullPage, url });
 
-		let puppeteer: typeof import("rebrowser-puppeteer-core");
-		let launchOptions: LaunchOptions = {
-			args: [
-				// Autoset in headless environment but needed for development
-				"--enable-automation",
-				// X.com doesn't work without this
-				"--disable-field-trial-config",
-				// Disable certain features to avoid detection
-				"--disable-blink-features=AutomationControlled",
-			],
+		// Launch browser with environment-specific configuration
+		const { browser: launchedBrowser, page } = await launchBrowser({
 			headless,
-		};
-
-		if (isVercel) {
-			const chromiumModule = (await import(
-				"@sparticuz/chromium"
-			)) as unknown as typeof import("@sparticuz/chromium");
-			const chromium = chromiumModule.default;
-
-			puppeteer = await import("rebrowser-puppeteer-core");
-			launchOptions = {
-				...launchOptions,
-				args: [...chromium.args, ...(launchOptions.args ?? [])],
-				executablePath: await chromium.executablePath(),
-			};
-		} else {
-			// @ts-expect-error - Type incompatibility between puppeteer and puppeteer-core
-			puppeteer = await import("rebrowser-puppeteer");
-		}
-
-		const launchTimer = logger.time("Browser launch");
-		browser = await puppeteer.launch(launchOptions);
-		launchTimer();
-		logger.info("Browser launched successfully");
-
-		// Using a pre-loaded page reduces startup time by avoiding new page creation unless necessary.
-		const pages = await browser.pages();
-		const page = pages[0] || (await browser.newPage());
+			logger,
+			timeout: 300_000, // Match maxDuration
+		});
+		browser = launchedBrowser;
 
 		// Apply all browser setup configurations
 		await setupBrowserPage(page, logger);
@@ -350,9 +316,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			{ status: 500 },
 		);
 	} finally {
-		if (browser) {
-			logger.info("Closing browser");
-			await browser.close();
-		}
+		if (browser) await closeBrowser(browser, logger);
 	}
 }

@@ -119,7 +119,6 @@ export async function blockCookieBanners(
 ): Promise<void> {
 	try {
 		if (!blocker) {
-			logger.info("Initializing cookie banner blocker...");
 			blocker = await PuppeteerBlocker.fromLists(fetch, [
 				// Cookie banners filter list from EasyList
 				"https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
