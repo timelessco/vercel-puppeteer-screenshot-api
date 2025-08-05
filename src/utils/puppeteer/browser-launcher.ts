@@ -26,6 +26,19 @@ const BASE_LAUNCH_ARGS = [
 	"--disable-field-trial-config",
 	// Disable certain features to avoid detection
 	"--disable-blink-features=AutomationControlled",
+
+	// Extras
+	// "--disable-features=site-per-process",
+	// "--disable-site-isolation-trials",
+	// "--disable-web-security",
+	// "--disable-features=VizDisplayCompositor",
+	// "--enable-features=NetworkService,NetworkServiceLogging",
+	// "--disable-background-timer-throttling",
+	// "--disable-backgrounding-occluded-windows",
+	// "--disable-renderer-backgrounding",
+	// "--disable-back-forward-cache",
+	// "--ignore-gpu-blacklist",
+	// "--disable-gpu-sandbox",
 ] as const;
 
 /**

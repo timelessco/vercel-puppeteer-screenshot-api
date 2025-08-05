@@ -15,6 +15,9 @@ importers:
       '@ariakit/react':
         specifier: 0.4.17
         version: 0.4.17(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@duckduckgo/autoconsent':
+        specifier: 14.10.1
+        version: 14.10.1
       '@ghostery/adblocker-puppeteer':
         specifier: 2.11.3
         version: 2.11.3(puppeteer@24.15.0(typescript@5.8.3))
@@ -709,6 +712,9 @@ packages:
 
   '@dual-bundle/import-meta-resolve@4.1.0':
     resolution: {integrity: sha512-+nxncfwHM5SgAtrVzgpzJOI1ol0PkumhVo469KCf9lUi21IGcY90G98VuHm9VRrUypmAzawAHO9bs6hqeADaVg==}
+
+  '@duckduckgo/autoconsent@14.10.1':
+    resolution: {integrity: sha512-UIoMI8y09MzlQfj+cbKFfDCXmh9EesDviW/ethrVGx0xhpv991P/pL8wBZyce+DrezFYa47nFuULS+nu7wAuCw==}
 
   '@effect/cli@0.69.0':
     resolution: {integrity: sha512-FmqShG4TRDYq8lWsPM3q6BE77NgADVno9q1sIaVL36cgzEDogwbbiL5cPzeD6HmoMZI+oQWja8ew9o5E4rgp9Q==}
@@ -7092,6 +7098,12 @@ snapshots:
   '@discoveryjs/json-ext@0.5.7': {}
 
   '@dual-bundle/import-meta-resolve@4.1.0': {}
+
+  '@duckduckgo/autoconsent@14.10.1':
+    dependencies:
+      '@ghostery/adblocker': 2.11.3
+      '@ghostery/adblocker-content': 2.11.3
+      tldts-experimental: 7.0.10
 
   '@effect/cli@0.69.0(@effect/platform@0.90.0(effect@3.17.4))(@effect/printer-ansi@0.44.14(@effect/typeclass@0.35.14(effect@3.17.4))(effect@3.17.4))(@effect/printer@0.44.14(@effect/typeclass@0.35.14(effect@3.17.4))(effect@3.17.4))(effect@3.17.4)':
     dependencies:

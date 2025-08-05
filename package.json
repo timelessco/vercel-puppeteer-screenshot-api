@@ -70,6 +70,7 @@
 	},
 	"dependencies": {
 		"@ariakit/react": "0.4.17",
+		"@duckduckgo/autoconsent": "14.10.1",
 		"@ghostery/adblocker-puppeteer": "2.11.3",
 		"@serwist/next": "9.1.1",
 		"@sparticuz/chromium": "138.0.2",

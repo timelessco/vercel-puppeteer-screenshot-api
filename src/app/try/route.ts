@@ -10,8 +10,8 @@ import {
 	launchBrowser,
 } from "@/utils/puppeteer/browser-launcher";
 import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
-import { cfCheck } from "@/utils/puppeteer/cfCheck";
-import { manualCookieBannerRemoval } from "@/utils/puppeteer/helpers";
+import { cloudflareChecker } from "@/utils/puppeteer/cloudflareChecker";
+import { navigateWithFallback } from "@/utils/puppeteer/navigation";
 import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
 import { getScreenshotInstagram } from "@/utils/puppeteer/site-handlers/instagram";
 import { getMetadata } from "@/utils/puppeteer/site-handlers/metadata";
@@ -115,17 +115,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 					const videoIdMatch = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
 					const videoId = videoIdMatch?.[1];
 					if (videoId) {
-						// Create  URL
 						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 					}
 				}
 
-				const navTimer = logger.time("Page navigation");
-				const response = await page.goto(urlStr, {
-					timeout: 300_000,
-					waitUntil: "networkidle2",
-				});
-				navTimer();
+				const response = await navigateWithFallback(
+					page,
+					{ url: urlStr },
+					logger,
+				);
 
 				if (!response?.ok()) {
 					logger.warn(`Navigation attempt ${attempt} failed`, {
@@ -134,25 +132,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 					});
 				}
 
-				// Wait for fonts to load
-				logger.info("Waiting for fonts to load");
-				await page.evaluate(() => document.fonts.ready);
-
-				// Run Cloudflare check
-				logger.info("Running Cloudflare check");
-				await cfCheck(page, logger);
-
-				// Manual cookie banner removal as fallback
-				await manualCookieBannerRemoval(page, logger);
+				await cloudflareChecker(page, logger);
 
 				for (let shotTry = 1; shotTry <= 2; shotTry++) {
 					try {
 						await page.keyboard.press("Escape");
+
 						try {
 							await page.waitForSelector('div[role="dialog"]', {
 								hidden: true,
 								timeout: 2000,
 							});
+							logger.info("Dialog closed");
 						} catch {
 							logger.warn(
 								"[role='dialog'] did not close after Escape — continuing anyway",
