@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { NextResponse, type NextRequest } from "next/server";
 import type {
 	Browser,
@@ -9,11 +6,9 @@ import type {
 	LaunchOptions,
 } from "rebrowser-puppeteer-core";
 
+import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
 import { cfCheck } from "@/utils/puppeteer/cfCheck";
-import {
-	blockCookieBanners,
-	manualCookieBannerRemoval,
-} from "@/utils/puppeteer/helpers";
+import { manualCookieBannerRemoval } from "@/utils/puppeteer/helpers";
 import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
 import { getScreenshotInstagram } from "@/utils/puppeteer/site-handlers/instagram";
 import { getMetadata } from "@/utils/puppeteer/site-handlers/metadata";
@@ -92,55 +87,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		const pages = await browser.pages();
 		const page = pages[0] || (await browser.newPage());
 
-		await page.setViewport({ deviceScaleFactor: 2, height: 1200, width: 1440 });
-		await page.emulateMediaFeatures([
-			{ name: "prefers-color-scheme", value: "dark" },
-		]);
-
-		const preloadFile = fs.readFileSync(
-			path.join(process.cwd(), "/src/utils/puppeteer/preload.js"),
-			"utf8",
-		);
-		await page.evaluateOnNewDocument(preloadFile);
-
-		// Suppress expected JS errors
-		page.on("pageerror", (err) => {
-			if (!err.message.includes("stopPropagation")) {
-				logger.debug("Page JS error", { error: err.message });
-			}
-		});
-
-		// Block noisy 3rd-party scripts and tracking
-		await page.setRequestInterception(true);
-		const blocked = [
-			"googletagmanager",
-			"otBannerSdk.js",
-			"doubleclick",
-			"adnxs.com",
-			"google-analytics",
-			"googleadservices",
-			"facebook.com/tr",
-			"connect.facebook.net",
-			"hotjar",
-			"mixpanel",
-			"segment.com",
-		];
-
-		page.on("request", (req) => {
-			const requestUrl = req.url();
-			const method = req.method();
-
-			if (blocked.some((str) => requestUrl.includes(str))) {
-				logger.logNetworkRequest(requestUrl, method, undefined, true);
-
-				void req.abort();
-			} else {
-				void req.continue();
-			}
-		});
-
-		// Initialize cookie banner blocking
-		await blockCookieBanners(page, logger);
+		// Apply all browser setup configurations
+		await setupBrowserPage(page, logger);
 
 		// here we check if the url is mp4 or not, by it's content type
 		const response = await fetch(urlStr);

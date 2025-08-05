@@ -1,5 +1,3 @@
-import { PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
-import fetch from "cross-fetch";
 import type { Page } from "rebrowser-puppeteer-core";
 
 import type { Logger } from "./logger";
@@ -140,33 +138,5 @@ export async function manualCookieBannerRemoval(
 		logger.warn("Manual cookie banner removal failed", {
 			error: (error as Error).message,
 		});
-	}
-}
-
-let blocker: null | PuppeteerBlocker = null;
-
-export async function blockCookieBanners(
-	page: Page,
-	logger: Logger,
-): Promise<void> {
-	try {
-		if (!blocker) {
-			logger.info("Initializing cookie banner blocker...");
-			blocker = await PuppeteerBlocker.fromLists(fetch, [
-				// Cookie banners filter list from EasyList
-				"https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
-			]);
-			logger.info("Cookie banner blocker initialized successfully");
-		}
-
-		// @ts-expect-error - Type mismatch between puppeteer and puppeteer-core
-		await blocker.enableBlockingInPage(page);
-		logger.info("Cookie banner blocking enabled for page");
-	} catch (error) {
-		logger.warn("Failed to initialize cookie blocker", {
-			error: (error as Error).message,
-		});
-
-		// Continue without blocker - manual removal will still work
 	}
 }
