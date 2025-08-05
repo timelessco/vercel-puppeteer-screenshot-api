@@ -175,7 +175,7 @@ export default function Home() {
 								type="url"
 							/>
 
-							<div className="flex gap-3">
+							<div className="flex flex-wrap gap-3">
 								<StyledButton
 									aria-label={
 										loading ? "Loading screenshot" : "Take screenshot"
@@ -221,7 +221,7 @@ export default function Home() {
 						</div>
 					</div>
 
-					<div className="mt-2 flex gap-2">
+					<div className="mt-2 flex flex-wrap gap-2">
 						{process.env.NODE_ENV !== "production" && (
 							<ToggleButton
 								aria-label={`Headless mode: ${headless ? "enabled" : "disabled"}`}
