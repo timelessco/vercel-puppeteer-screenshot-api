@@ -2,7 +2,10 @@ import type { Page } from "rebrowser-puppeteer-core";
 
 import type { Logger } from "../logger";
 import { setupAdBlocker } from "./ad-blocker";
-import { applyAntiDetectionEvasions } from "./anti-detection";
+import {
+	applyAntiDetectionEvasions,
+	applyCDPWebdriverRemoval,
+} from "./anti-detection";
 
 const DEFAULT_VIEWPORT = {
 	deviceScaleFactor: 1,
@@ -29,29 +32,11 @@ export async function setupBrowserPage(
 		{ name: "prefers-color-scheme", value: "dark" },
 	]);
 
-	// Custom anti-detection evasions
+	// JavaScript-level anti-detection evasions
 	await applyAntiDetectionEvasions(page, logger);
 
-	// Additional CDP-level webdriver removal for production
-	try {
-		const client = await page.createCDPSession();
-		await client.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `
-				// Remove webdriver at the earliest possible stage
-				delete Object.getPrototypeOf(navigator).webdriver;
-				
-				// Ensure chrome automation is hidden
-				if (window.chrome) {
-					window.chrome.runtime = window.chrome.runtime || {};
-					Object.defineProperty(window.chrome.runtime, 'id', {
-						get: () => undefined
-					});
-				}
-			`,
-		});
-	} catch (error) {
-		logger.warn("CDP script injection failed", { error });
-	}
+	// CDP-level webdriver removal
+	await applyCDPWebdriverRemoval(page, logger);
 
 	// Set up ad blocking with Ghostery
 	await setupAdBlocker(page, logger);
