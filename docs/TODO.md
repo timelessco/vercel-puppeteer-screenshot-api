@@ -1,0 +1,1 @@
+- Investigate <https://puppeteer.guide/posts/handling-navigation-errors/>

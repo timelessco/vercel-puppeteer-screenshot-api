@@ -17,28 +17,48 @@ export interface BrowserLaunchResult {
 }
 
 /**
- * Base launch options shared between environments
+ * Shared arguments for consistent behavior between environments
+ * These args work well in both Vercel and local development
  */
-const BASE_LAUNCH_ARGS = [
-	// Autoset in headless environment but needed for development
-	"--enable-automation",
-	// X.com doesn't work without this
+const SHARED_LAUNCH_ARGS = [
+	// Anti-detection for social media sites (X.com/Twitter)
+	// Prevents Chrome from downloading field trial configs that sites detect
 	"--disable-field-trial-config",
-	// Disable certain features to avoid detection
+	// Removes "Chrome is being controlled by automated software" flag
 	"--disable-blink-features=AutomationControlled",
 
-	// Extras
-	// "--disable-features=site-per-process",
-	// "--disable-site-isolation-trials",
-	// "--disable-web-security",
-	// "--disable-features=VizDisplayCompositor",
-	// "--enable-features=NetworkService,NetworkServiceLogging",
-	// "--disable-background-timer-throttling",
-	// "--disable-backgrounding-occluded-windows",
-	// "--disable-renderer-backgrounding",
-	// "--disable-back-forward-cache",
-	// "--ignore-gpu-blacklist",
-	// "--disable-gpu-sandbox",
+	// Performance optimizations
+	"--disable-domain-reliability",
+	"--no-default-browser-check",
+	"--no-pings",
+	"--disable-print-preview",
+
+	// Consistent rendering across environments
+	"--font-render-hinting=none",
+
+	// Enable automation
+	"--enable-automation",
+] as const;
+
+/**
+ * Vercel-specific arguments for serverless environment
+ * These are critical for Vercel but may cause issues locally
+ */
+const VERCEL_ONLY_ARGS = [
+	// Critical for Vercel - prevents /dev/shm memory issues
+	// Forces Chrome to use /tmp instead of /dev/shm for shared memory
+	// /dev/shm is limited to 64MB in serverless causing crashes
+	"--disable-dev-shm-usage",
+] as const;
+
+/**
+ * Local development specific arguments
+ * Provides better debugging and stability for local testing
+ */
+const LOCAL_DEV_ARGS = [
+	// Better stability with multi-process (avoid --single-process locally)
+	// Keep sandboxing enabled for security during development
+	// Use hardware acceleration when available
 ] as const;
 
 /**
@@ -72,7 +92,7 @@ export async function launchBrowser(
 
 	let puppeteer: typeof import("rebrowser-puppeteer-core");
 	let launchOptions: LaunchOptions = {
-		args: [...BASE_LAUNCH_ARGS],
+		args: [...SHARED_LAUNCH_ARGS],
 		headless,
 		timeout,
 	};
@@ -90,20 +110,27 @@ export async function launchBrowser(
 
 			puppeteer = await import("rebrowser-puppeteer-core");
 
-			// Merge Chromium args with our base args
 			launchOptions = {
 				...launchOptions,
-				args: [...chromium.args, ...(launchOptions.args ?? [])],
+				args: [
+					// chromium.args already includes: --single-process, --no-zygote, --no-sandbox, etc.
+					...chromium.args,
+					...VERCEL_ONLY_ARGS,
+					...(launchOptions.args ?? []),
+				],
 				executablePath: await chromium.executablePath(),
 			};
 
-			logger.info("Chromium configured", {
+			logger.info("Chromium configured for Vercel", {
 				argsCount: launchOptions.args?.length,
 				executablePath: launchOptions.executablePath,
 			});
 		} else {
 			// Development: Use full puppeteer with bundled browser
-			logger.info("Using rebrowser-puppeteer for local development");
+			launchOptions.args = [...(launchOptions.args ?? []), ...LOCAL_DEV_ARGS];
+			logger.info("Using rebrowser-puppeteer for local development", {
+				argsCount: launchOptions.args.length,
+			});
 
 			// @ts-expect-error - Type incompatibility between puppeteer and puppeteer-core
 			puppeteer = await import("rebrowser-puppeteer");
@@ -139,7 +166,36 @@ export async function launchBrowser(
 }
 
 /**
- * Gracefully closes a browser instance with proper cleanup
+ * Helper to close a single page safely
+ * @param {Page} page - The page to close
+ * @param {Logger} logger - Logger for debugging
+ */
+async function closePageSafely(page: Page, logger: Logger): Promise<void> {
+	try {
+		await page.close();
+	} catch (error: unknown) {
+		logger.warn("Failed to close page", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+/**
+ * Helper to create a timeout promise
+ * @param {number} ms - Timeout in milliseconds
+ */
+function createTimeoutPromise(ms: number): Promise<never> {
+	return new Promise((_, reject) => {
+		setTimeout(() => {
+			reject(new Error("Browser close timeout"));
+		}, ms);
+	});
+}
+
+/**
+ * Gracefully closes browser with timeout protection for Vercel.
+ * Issue: browser.close() hangs with @sparticuz/chromium v138 causing 300s timeout
+ * Solution: Race condition with 5s timeout + disconnect fallback
  * @param {Browser} browser - The browser instance to close
  * @param {Logger} logger - Logger for debugging
  */
@@ -147,14 +203,30 @@ export async function closeBrowser(
 	browser: Browser,
 	logger: Logger,
 ): Promise<void> {
+	logger.info("Closing browser");
+
+	// Close all pages first - reduces chance of browser.close() hanging
+	const pages = await browser.pages();
+	logger.info(`Closing ${pages.length} pages`);
+
+	const pageClosePromises = pages.map((page) => closePageSafely(page, logger));
+	await Promise.all(pageClosePromises);
+
+	// Try to close browser with timeout protection
 	try {
-		logger.info("Closing browser");
-		await browser.close();
+		// Race: browser.close() vs 5-second timeout
+		// Prevents infinite hang that causes Vercel 300s timeout
+		await Promise.race([browser.close(), createTimeoutPromise(5000)]);
+
 		logger.info("Browser closed successfully");
+		return;
 	} catch (error) {
-		logger.error("Error closing browser", {
+		// Fallback to disconnect if close times out
+		// In Vercel, container cleanup kills Chrome process anyway
+		// Better to return success than timeout after 300s
+		logger.warn("Browser.close() timed out, using disconnect", {
 			error: error instanceof Error ? error.message : String(error),
 		});
-		// Don't re-throw as browser might already be closed
+		void browser.disconnect();
 	}
 }

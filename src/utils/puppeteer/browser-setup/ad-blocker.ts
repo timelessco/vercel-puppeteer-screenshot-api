@@ -1,5 +1,3 @@
-import { promises as fs } from "node:fs";
-
 import { fullLists, PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
 import fetch from "cross-fetch";
 import type { Page } from "rebrowser-puppeteer-core";
@@ -25,11 +23,6 @@ import type { Logger } from "../logger";
  * - Analytics: mixpanel, segment.com, hotjar
  * - Ad networks: adnxs.com, and thousands more
  * - Cookie banners: OneTrust (otBannerSdk.js), and others
- *
- * Performance optimizations:
- * - Uses efficient C++ engine with caching (engine.bin)
- * - Minimal performance impact compared to request interception
- * - No browser cache disruption unlike setRequestInterception
  * @param {Page} page - The Puppeteer page instance
  * @param {Logger} logger - Logger instance for debugging
  */
@@ -46,12 +39,6 @@ export async function setupAdBlocker(
 				"https://secure.fanboy.co.nz/fanboy-annoyance.txt",
 			],
 			{ enableCompression: true },
-			{
-				// Cache the compiled engine for faster subsequent loads
-				path: "engine.bin",
-				read: fs.readFile,
-				write: fs.writeFile,
-			},
 		);
 
 		// Enable blocking in page
@@ -105,6 +92,7 @@ export async function setupAdBlocker(
 		logger.warn("Failed to initialize ad blocker", {
 			error: (error as Error).message,
 		});
+
 		// Continue without blocker - page will still function
 	}
 }
