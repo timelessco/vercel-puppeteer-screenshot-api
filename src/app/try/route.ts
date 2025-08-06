@@ -117,7 +117,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 					const { id: videoId } = getVideoId(urlStr);
 					if (videoId) {
-						logger.info("Video ID found redirecting to YOUTUBE_THUMBNAIL_URL");
+						logger.info("Video ID found, changing YOUTUBE URL to YOUTUBE_THUMBNAIL_URL");
 						urlStr = `${YOUTUBE_THUMBNAIL_URL}/${videoId}/maxresdefault.jpg`;
 					}
 				}
