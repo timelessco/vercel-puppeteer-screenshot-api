@@ -32,6 +32,27 @@ export async function setupBrowserPage(
 	// Custom anti-detection evasions
 	await applyAntiDetectionEvasions(page, logger);
 
+	// Additional CDP-level webdriver removal for production
+	try {
+		const client = await page.createCDPSession();
+		await client.send("Page.addScriptToEvaluateOnNewDocument", {
+			source: `
+				// Remove webdriver at the earliest possible stage
+				delete Object.getPrototypeOf(navigator).webdriver;
+				
+				// Ensure chrome automation is hidden
+				if (window.chrome) {
+					window.chrome.runtime = window.chrome.runtime || {};
+					Object.defineProperty(window.chrome.runtime, 'id', {
+						get: () => undefined
+					});
+				}
+			`,
+		});
+	} catch (error) {
+		logger.warn("CDP script injection failed", { error });
+	}
+
 	// Set up ad blocking with Ghostery
 	await setupAdBlocker(page, logger);
 

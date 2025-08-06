@@ -24,7 +24,10 @@ const SHARED_LAUNCH_ARGS = [
 	// Prevents Chrome from downloading field trial configs that sites detect
 	"--disable-field-trial-config",
 	// Disable features that might reveal automation
-	"--disable-features=IsolateOrigins,site-per-process",
+	"--disable-features=IsolateOrigins,site-per-process,TranslateUI",
+	// Additional anti-detection flags
+	"--enable-automation=false",
+	"--disable-web-security=false",
 	// Window size for realistic browsing
 	"--window-size=1920,1080",
 	"--start-maximized",

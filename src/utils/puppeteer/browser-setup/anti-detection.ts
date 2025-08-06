@@ -35,6 +35,20 @@ export async function applyAntiDetectionEvasions(
 ): Promise<void> {
 	logger.info("Applying comprehensive anti-detection evasions");
 
+	// Remove CDP runtime indicators
+	await page.evaluateOnNewDocument(() => {
+		// Remove Runtime.enable indicators
+		if ((globalThis as any).chrome && (globalThis as any).chrome.runtime) {
+			const originalRuntime = (globalThis as any).chrome.runtime;
+			(globalThis as any).chrome.runtime = new Proxy(originalRuntime, {
+				get(target, prop) {
+					if (prop === "id") return;
+					return target[prop];
+				},
+			});
+		}
+	});
+
 	// Override navigator properties and browser APIs before any page loads
 	await page.evaluateOnNewDocument(() => {
 		// ========================================
@@ -42,9 +56,17 @@ export async function applyAntiDetectionEvasions(
 		// ========================================
 
 		// Fix webdriver property - most basic detection
+		// Use delete first to ensure clean override
+		try {
+			delete (navigator as any).__proto__.webdriver;
+		} catch {
+			// Ignore error if delete fails
+		}
+
 		Object.defineProperty(navigator, "webdriver", {
 			configurable: true,
-			get: () => false,
+			enumerable: false,
+			get: () => {},
 		});
 
 		// Fix vendor for Chrome browsers
@@ -54,96 +76,122 @@ export async function applyAntiDetectionEvasions(
 		});
 
 		// Fix plugins to appear populated with realistic plugins
+		// Delete existing to ensure clean override
+		try {
+			delete (navigator as any).__proto__.plugins;
+		} catch {
+			// Ignore error if delete fails
+		}
+
+		// Create proper PluginArray mock that passes detection
+		const pluginData = [
+			{
+				description: "Portable Document Format",
+				filename: "internal-pdf-viewer",
+				mimeTypes: [
+					{
+						description: "Portable Document Format",
+						suffixes: "pdf",
+						type: "application/pdf",
+					},
+					{
+						description: "Portable Document Format",
+						suffixes: "pdf",
+						type: "text/pdf",
+					},
+				],
+				name: "Chrome PDF Plugin",
+			},
+			{
+				description: "Portable Document Format",
+				filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
+				mimeTypes: [
+					{
+						description: "Portable Document Format",
+						suffixes: "pdf",
+						type: "application/pdf",
+					},
+				],
+				name: "Chrome PDF Viewer",
+			},
+		];
+
+		// Create plugins array with proper prototype chain
+		const PluginArray = (globalThis as any).PluginArray || Array;
+		const plugins = Object.create(PluginArray.prototype);
+
+		pluginData.forEach((p, index) => {
+			const Plugin = (globalThis as any).Plugin || Object;
+			const plugin = Object.create(Plugin.prototype);
+
+			// Set plugin properties
+			Object.defineProperties(plugin, {
+				description: { enumerable: true, value: p.description },
+				filename: { enumerable: true, value: p.filename },
+				length: { enumerable: true, value: p.mimeTypes.length },
+				name: { enumerable: true, value: p.name },
+			});
+
+			// Add MimeType entries
+			const MimeTypeArray = (globalThis as any).MimeTypeArray || Array;
+			const mimeTypes = Object.create(MimeTypeArray.prototype);
+
+			p.mimeTypes.forEach((m, i) => {
+				const MimeType = (globalThis as any).MimeType || Object;
+				const mimeType = Object.create(MimeType.prototype);
+
+				Object.defineProperties(mimeType, {
+					description: { enumerable: true, value: m.description },
+					enabledPlugin: { enumerable: true, value: plugin },
+					suffixes: { enumerable: true, value: m.suffixes },
+					type: { enumerable: true, value: m.type },
+				});
+
+				mimeTypes[i] = mimeType;
+			});
+
+			Object.defineProperty(mimeTypes, "length", { value: p.mimeTypes.length });
+			mimeTypes.item = (index: number) => mimeTypes[index] || null;
+			mimeTypes.namedItem = (name: string) => {
+				for (const mimeType of mimeTypes) {
+					if (mimeType.type === name) return mimeType;
+				}
+				return null;
+			};
+
+			// Add mimeTypes to plugin
+			for (let i = 0; i < p.mimeTypes.length; i++) {
+				plugin[i] = mimeTypes[i];
+			}
+
+			plugin.item = (index: number) => plugin[index] || null;
+			plugin.namedItem = (name: string) => mimeTypes.namedItem(name);
+
+			// Add plugin to array
+			plugins[index] = plugin;
+		});
+
+		// Set PluginArray properties
+		Object.defineProperty(plugins, "length", {
+			configurable: true,
+			enumerable: false,
+			value: pluginData.length,
+		});
+
+		plugins.item = (index: number) => plugins[index] || null;
+		plugins.namedItem = (name: string) => {
+			for (const plugin of plugins) {
+				if (plugin && plugin.name === name) return plugin;
+			}
+			return null;
+		};
+		plugins.refresh = () => {};
+
+		// Override navigator.plugins
 		Object.defineProperty(navigator, "plugins", {
 			configurable: true,
-			get: () => {
-				const pluginData = [
-					{
-						description: "Portable Document Format",
-						filename: "internal-pdf-viewer",
-						mimeTypes: [
-							{
-								description: "Portable Document Format",
-								suffixes: "pdf",
-								type: "application/pdf",
-							},
-							{
-								description: "Portable Document Format",
-								suffixes: "pdf",
-								type: "text/pdf",
-							},
-						],
-						name: "Chrome PDF Plugin",
-					},
-					{
-						description: "Portable Document Format",
-						filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
-						mimeTypes: [
-							{
-								description: "Portable Document Format",
-								suffixes: "pdf",
-								type: "application/pdf",
-							},
-						],
-						name: "Chrome PDF Viewer",
-					},
-					{
-						description: "Native Client Executable",
-						filename: "internal-nacl-plugin",
-						mimeTypes: [
-							{
-								description: "Native Client Executable",
-								suffixes: "",
-								type: "application/x-nacl",
-							},
-							{
-								description: "Portable Native Client Executable",
-								suffixes: "",
-								type: "application/x-pnacl",
-							},
-						],
-						name: "Native Client",
-					},
-				];
-
-				// Create a more realistic PluginArray mock
-				const plugins = pluginData.map((p) => {
-					const plugin = {
-						description: p.description,
-						filename: p.filename,
-						length: p.mimeTypes.length,
-						name: p.name,
-					};
-					// Add MimeType entries
-					p.mimeTypes.forEach((m, i) => {
-						(plugin as any)[i] = {
-							description: m.description,
-							enabledPlugin: plugin,
-							suffixes: m.suffixes,
-							type: m.type,
-						};
-					});
-
-					(plugin as any).item = (index: number) => (plugin as any)[index];
-
-					(plugin as any).namedItem = (name: string) =>
-						p.mimeTypes.find((m) => m.type === name);
-					return plugin;
-				});
-
-				// Add array methods
-				Object.defineProperty(plugins, "length", {
-					value: pluginData.length,
-				});
-				(plugins as any).item = (index: number) => plugins[index] ?? null;
-				(plugins as any).namedItem = (name: string) =>
-					plugins.find((p) => p.name === name) || null;
-
-				(plugins as any).refresh = () => {};
-
-				// eslint-disable-next-line @typescript-eslint/no-deprecated
-				return plugins as unknown as PluginArray;
-			},
+			enumerable: true,
+			get: () => plugins,
 		});
 
 		// Enhanced permissions handling
