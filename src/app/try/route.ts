@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import getVideoId from "get-video-id";
 import type {
 	Browser,
 	ElementHandle,
@@ -23,6 +24,7 @@ import {
 	videoUrlRegex,
 	X,
 	YOUTUBE,
+	YOUTUBE_THUMBNAIL_URL,
 } from "@/utils/puppeteer/utils";
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
@@ -104,20 +106,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			try {
 				logger.info(`Navigation attempt ${attempt}`, { url: urlStr });
 
-				let videoId = null;
+				// here we check if the url is youtube or not, if the url has videoId we redirect to the YOUTUBE_THUMBNAIL_URL
 				if (urlStr.includes(YOUTUBE)) {
-					logger.info("YouTube URL detected, fetching metadata");
+					logger.info(
+						"YouTube URL detected, fetching metadata and checking for videoId",
+					);
 
 					// here we use the getMetadata function to get the metadata of the video
 					metaData = await getMetadata(page, urlStr, logger);
-					// Extract video ID from URL
-					const videoIdMatch =
-						/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/|.*[?&]v=))([\w-]{11})/.exec(
-							urlStr,
-						);
-					videoId = videoIdMatch?.[1];
+
+					const { id: videoId } = getVideoId(urlStr);
 					if (videoId) {
-						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+						logger.info("Video ID found redirecting to YOUTUBE_THUMBNAIL_URL");
+						urlStr = `${YOUTUBE_THUMBNAIL_URL}/${videoId}/maxresdefault.jpg`;
 					}
 				}
 
@@ -199,13 +200,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							screenshotTarget = await getScreenshotX(page, urlStr, logger);
 						}
 
-						// YouTube: Get thumbnail image
-						if (urlStr.includes(YOUTUBE)) {
-							logger.info("YouTube: Looking for thumbnail image");
+						// YouTube: Get thumbnail image only if it is an video else take entire page screenshot
+						if (
+							urlStr.includes(YOUTUBE) &&
+							urlStr.includes(YOUTUBE_THUMBNAIL_URL)
+						) {
+							logger.info("YouTube: Looking for thumbnail image for video");
 
 							const img = await page.$("img");
-							if (img && videoId) {
-								logger.debug("Thumbnail image found");
+							if (img) {
+								logger.info("YouTube: Thumbnail image found for video");
 								screenshotTarget = img;
 							}
 						}
