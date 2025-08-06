@@ -117,7 +117,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 					const { id: videoId } = getVideoId(urlStr);
 					if (videoId) {
-						logger.info("Video ID found, changing YOUTUBE URL to YOUTUBE_THUMBNAIL_URL");
+						logger.info(
+							"Video ID found, changing YOUTUBE URL to YOUTUBE_THUMBNAIL_URL",
+						);
 						urlStr = `${YOUTUBE_THUMBNAIL_URL}/${videoId}/maxresdefault.jpg`;
 					}
 				}
@@ -201,10 +203,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 						}
 
 						// YouTube: Get thumbnail image only if it is an video else take entire page screenshot
-						if (
-							urlStr.includes(YOUTUBE) &&
-							urlStr.includes(YOUTUBE_THUMBNAIL_URL)
-						) {
+						if (urlStr.includes(YOUTUBE_THUMBNAIL_URL)) {
 							logger.info("YouTube: Looking for thumbnail image for video");
 
 							const img = await page.$("img");
