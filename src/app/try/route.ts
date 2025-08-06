@@ -213,7 +213,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							}
 						} else {
 							logger.info("No screenshot target found, taking page screenshot");
-							screenshot = await page.screenshot({ fullPage, type: "jpeg" });
+							screenshot = await page.screenshot({
+								fullPage,
+								optimizeForSpeed: true,
+								type: "jpeg",
+							});
 						}
 
 						logger.info(
