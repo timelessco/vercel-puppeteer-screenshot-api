@@ -104,14 +104,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			try {
 				logger.info(`Navigation attempt ${attempt}`, { url: urlStr });
 
+				let videoId = null;
 				if (urlStr.includes(YOUTUBE)) {
 					logger.info("YouTube URL detected, fetching metadata");
 
 					// here we use the getMetadata function to get the metadata of the video
 					metaData = await getMetadata(page, urlStr, logger);
 					// Extract video ID from URL
-					const videoIdMatch = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
-					const videoId = videoIdMatch?.[1];
+					const videoIdMatch =
+						/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/|.*[?&]v=))([\w-]{11})/.exec(
+							urlStr,
+						);
+					videoId = videoIdMatch?.[1];
 					if (videoId) {
 						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 					}
@@ -200,7 +204,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							logger.info("YouTube: Looking for thumbnail image");
 
 							const img = await page.$("img");
-							if (img) screenshotTarget = img;
+							if (img && videoId) {
+								logger.debug("Thumbnail image found");
+								screenshotTarget = img;
+							}
 						}
 
 						if (screenshotTarget) {
