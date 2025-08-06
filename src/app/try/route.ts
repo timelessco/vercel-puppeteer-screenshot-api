@@ -47,15 +47,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	try {
 		logger.info("Starting screenshot capture", { fullPage, url });
 
-		// Launch browser with environment-specific configuration
 		const { browser: launchedBrowser, page } = await launchBrowser({
 			headless,
 			logger,
-			timeout: 300_000, // Match maxDuration
+			// Match maxDuration
+			timeout: 300_000,
 		});
 		browser = launchedBrowser;
 
-		// Apply all browser setup configurations
 		await setupBrowserPage(page, logger);
 
 		// here we check if the url is mp4 or not, by it's content type

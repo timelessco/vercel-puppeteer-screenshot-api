@@ -4,15 +4,12 @@ import type { Logger } from "./logger";
 
 export interface BrowserLaunchOptions {
 	headless: LaunchOptions["headless"];
-
 	logger: Logger;
-
 	timeout?: number;
 }
 
 export interface BrowserLaunchResult {
 	browser: Browser;
-
 	page: Page;
 }
 
@@ -21,11 +18,16 @@ export interface BrowserLaunchResult {
  * These args work well in both Vercel and local development
  */
 const SHARED_LAUNCH_ARGS = [
-	// Anti-detection for social media sites (X.com/Twitter)
-	// Prevents Chrome from downloading field trial configs that sites detect
-	"--disable-field-trial-config",
+	// Anti-detection arguments
 	// Removes "Chrome is being controlled by automated software" flag
 	"--disable-blink-features=AutomationControlled",
+	// Prevents Chrome from downloading field trial configs that sites detect
+	"--disable-field-trial-config",
+	// Disable features that might reveal automation
+	"--disable-features=IsolateOrigins,site-per-process",
+	// Window size for realistic browsing
+	"--window-size=1920,1080",
+	"--start-maximized",
 
 	// Performance optimizations
 	"--disable-domain-reliability",
@@ -35,9 +37,6 @@ const SHARED_LAUNCH_ARGS = [
 
 	// Consistent rendering across environments
 	"--font-render-hinting=none",
-
-	// Enable automation
-	"--enable-automation",
 ] as const;
 
 /**

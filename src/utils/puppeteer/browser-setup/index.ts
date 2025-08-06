@@ -2,11 +2,12 @@ import type { Page } from "rebrowser-puppeteer-core";
 
 import type { Logger } from "../logger";
 import { setupAdBlocker } from "./ad-blocker";
+import { applyAntiDetectionEvasions } from "./anti-detection";
 
 const DEFAULT_VIEWPORT = {
-	deviceScaleFactor: 2,
-	height: 1200,
-	width: 1440,
+	deviceScaleFactor: 1,
+	height: 1080,
+	width: 1920,
 };
 
 /**
@@ -20,15 +21,16 @@ export async function setupBrowserPage(
 	page: Page,
 	logger: Logger,
 ): Promise<void> {
-	// Set up logging FIRST (before any navigation or script injection) for debugging
+	// Set up logging before any navigation for debugging
 	setupLogging(page, logger);
 
-	// Configure viewport (should be done before navigation per Puppeteer docs)
 	await page.setViewport(DEFAULT_VIEWPORT);
-
 	await page.emulateMediaFeatures([
 		{ name: "prefers-color-scheme", value: "dark" },
 	]);
+
+	// Custom anti-detection evasions
+	await applyAntiDetectionEvasions(page, logger);
 
 	// Set up ad blocking with Ghostery
 	await setupAdBlocker(page, logger);
