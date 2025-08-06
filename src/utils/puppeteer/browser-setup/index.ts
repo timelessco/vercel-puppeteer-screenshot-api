@@ -8,7 +8,7 @@ import {
 } from "./anti-detection";
 
 const DEFAULT_VIEWPORT = {
-	deviceScaleFactor: 1,
+	deviceScaleFactor: 2,
 	height: 1080,
 	width: 1920,
 };
