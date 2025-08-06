@@ -59,16 +59,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		// here we check if the url is mp4 or not, by it's content type
 		const response = await fetch(urlStr);
 		const contentType = response.headers.get("content-type");
-		const isMp4 = contentType?.startsWith("video/") ?? false;
+		const urlHasVideoContentType = contentType?.startsWith("video/") ?? false;
 		// here we check if the url is mp4 or not, by using regex
 		const isVideoUrl = videoUrlRegex.test(urlStr);
-		if (isMp4 || isVideoUrl) {
-			logger.info("Video URL detected", { contentType, isVideoUrl });
-		}
 
 		//  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection
-		// Replace this part in your main code:
-		if (isMp4 || isVideoUrl) {
+		if (urlHasVideoContentType || isVideoUrl) {
+			logger.info("Video URL detected", { contentType, isVideoUrl });
+
 			try {
 				const screenshot = await getScreenshotMp4(page, urlStr, logger);
 
@@ -205,56 +203,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							if (img) screenshotTarget = img;
 						}
 
-						await page
-							.waitForFunction(
-								() => {
-									const challengeFrame = document.querySelector(
-										'iframe[src*="challenge"]',
-									);
-									const title = document.title;
-									return !challengeFrame && !title.includes("Just a moment");
-								},
-								{ timeout: 15_000 },
-							)
-							.catch(() => {
-								logger.warn("Cloudflare challenge may not have cleared");
-							});
+						if (screenshotTarget) {
+							logger.info("Screenshot target found");
 
-						// Detect if page has ONLY one video tag as the main content
-						const videoElements = await page.$$eval(
-							"video",
-							(videos) => videos.length,
-						);
-						if (videoElements === 1 && (isMp4 || isVideoUrl)) {
-							const videoHandle = await page.$("video");
-							if (videoHandle) {
-								logger.info(
-									"Only one <video> tag found. Capturing that element.",
-								);
-
-								screenshot = await videoHandle.screenshot({ type: "jpeg" });
-							}
-						} else if (screenshotTarget) {
-							await new Promise<void>((res) =>
-								setTimeout(
-									res,
-									urlStr.includes("stackoverflow") ? 10_000 : 1000,
-								),
-							);
 							if ("screenshot" in screenshotTarget) {
 								screenshot = await screenshotTarget.screenshot({
-									// @ts-expect-error - deviceScaleFactor is not in the type
-									deviceScaleFactor: 2,
 									type: "jpeg",
 								});
 							}
 						} else {
-							await new Promise<void>((res) =>
-								setTimeout(
-									res,
-									urlStr.includes("stackoverflow") ? 10_000 : 1000,
-								),
-							);
+							logger.info("No screenshot target found, taking page screenshot");
 							screenshot = await page.screenshot({ fullPage, type: "jpeg" });
 						}
 
