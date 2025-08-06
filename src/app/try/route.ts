@@ -207,17 +207,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							logger.info("Screenshot target found");
 
 							if ("screenshot" in screenshotTarget) {
+								const screenshotTimer = logger.time(
+									"Element screenshot capture",
+								);
 								screenshot = await screenshotTarget.screenshot({
 									type: "jpeg",
 								});
+								screenshotTimer();
 							}
 						} else {
 							logger.info("No screenshot target found, taking page screenshot");
+							const screenshotTimer = logger.time("Page screenshot capture");
 							screenshot = await page.screenshot({
 								fullPage,
 								optimizeForSpeed: true,
 								type: "jpeg",
 							});
+							screenshotTimer();
 						}
 
 						logger.info(

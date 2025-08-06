@@ -1,9 +1,12 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
 import type { Page } from "rebrowser-puppeteer-core";
 
 import type { Logger } from "../logger";
+
+const AUTOCONSENT_CDN_URL =
+	"https://cdn.jsdelivr.net/npm/@duckduckgo/autoconsent@14.10.1/dist/autoconsent.playwright.js";
+
+// Cache the script in memory to avoid repeated CDN fetches
+let cachedAutoconsentScript: null | string = null;
 
 /**
  * Interactive Cookie Consent Handling via @duckduckgo/autoconsent
@@ -39,6 +42,7 @@ import type { Logger } from "../logger";
  * - Support for both "reject all" and "accept necessary only" patterns
  *
  * How it works:
+ * - Fetches autoconsent script from CDN (cached in memory)
  * - Injects JavaScript rules that programmatically navigate consent popups
  * - Attempts to click "reject all" or minimal consent options
  * - Falls back to hiding banners if interaction fails
@@ -51,16 +55,23 @@ export async function setupCookieConsent(
 	logger: Logger,
 ): Promise<void> {
 	try {
-		// Read the Playwright-specific autoconsent script
-		const autoconsentPath = path.join(
-			process.cwd(),
-			"node_modules/@duckduckgo/autoconsent/dist/autoconsent.playwright.js",
-		);
-		const autoconsentScript = await fs.readFile(autoconsentPath, "utf8");
+		// Use cached script if available, otherwise fetch from CDN
+		if (!cachedAutoconsentScript) {
+			const response = await fetch(AUTOCONSENT_CDN_URL);
+
+			if (!response.ok) {
+				throw new Error(
+					`Failed to fetch autoconsent script: ${response.status} ${response.statusText}`,
+				);
+			}
+
+			cachedAutoconsentScript = await response.text();
+			logger.info("Fetched autoconsent script from CDN");
+		}
 
 		// Inject the script to run on every page load
 		// This handles consent popups that appear after navigation
-		await page.evaluateOnNewDocument(autoconsentScript);
+		await page.evaluateOnNewDocument(cachedAutoconsentScript);
 
 		logger.info("Cookie consent handler (autoconsent) injected successfully");
 

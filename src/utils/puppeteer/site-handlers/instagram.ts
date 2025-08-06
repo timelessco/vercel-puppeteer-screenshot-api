@@ -140,7 +140,9 @@ export async function getScreenshotInstagram(
 		logger.warn(
 			"No Instagram image found via DOM or og:image, falling back to page screenshot",
 		);
+		const screenshotTimer = logger.time("Instagram fallback screenshot");
 		const screenshot = await page.screenshot({ type: "jpeg" });
+		screenshotTimer();
 		logger.info("Fallback page screenshot taken successfully", {
 			size: screenshot.byteLength,
 		});
@@ -154,7 +156,11 @@ export async function getScreenshotInstagram(
 		);
 
 		try {
+			const screenshotTimer = logger.time(
+				"Instagram emergency fallback screenshot",
+			);
 			const screenshot = await page.screenshot({ type: "jpeg" });
+			screenshotTimer();
 			logger.info("Emergency fallback page screenshot taken", {
 				size: screenshot.byteLength,
 			});

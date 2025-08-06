@@ -146,7 +146,9 @@ export async function getScreenshotMp4(
 			return null;
 		}
 
+		const screenshotTimer = logger.time("Video canvas screenshot");
 		const screenshot = await canvasHandle.screenshot({ type: "png" });
+		screenshotTimer();
 		logger.info("Video screenshot captured successfully", {
 			size: screenshot.length,
 		});
