@@ -33,6 +33,9 @@ importers:
       cross-fetch:
         specifier: 4.1.0
         version: 4.1.0
+      get-video-id:
+        specifier: 4.1.7
+        version: 4.1.7
       ky:
         specifier: 1.8.2
         version: 1.8.2
@@ -3984,6 +3987,10 @@ packages:
   get-uri@6.0.5:
     resolution: {integrity: sha512-b1O07XYq8eRuVzBNgJLstU6FYc1tS6wnMtF1I1D9lE8LxZSOGZ7LhxN54yPP6mGw5f2CkXY2BQUL9Fx41qvcIg==}
     engines: {node: '>= 14'}
+
+  get-video-id@4.1.7:
+    resolution: {integrity: sha512-bYHXe3BTbFbiViuNFyfFnZPnSDVWBu5N06p35LW7dD/ul4O1sdPSs3Brw8U/m5JlQUnkj3tht3luSz0k05vEYg==}
+    engines: {node: '>=16'}
 
   giget@2.0.0:
     resolution: {integrity: sha512-L5bGsVkxJbJgdnwyuheIunkGatUF/zssUoxxjACCseZYAVbaqdh9Tsmmlkl8vYan09H7sbvKt4pS8GqKLBrEzA==}
@@ -10733,6 +10740,10 @@ snapshots:
       debug: 4.4.1
     transitivePeerDependencies:
       - supports-color
+
+  get-video-id@4.1.7:
+    dependencies:
+      '@babel/runtime': 7.28.2
 
   giget@2.0.0:
     dependencies:

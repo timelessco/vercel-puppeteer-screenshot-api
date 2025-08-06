@@ -7,3 +7,4 @@ export const X = "x.com";
 export const INSTAGRAM = "instagram.com";
 export const YOUTUBE = "youtube.com";
 export const TWITTER = "twitter.com";
+export const YOUTUBE_THUMBNAIL_URL = "https://img.youtube.com/vi";
