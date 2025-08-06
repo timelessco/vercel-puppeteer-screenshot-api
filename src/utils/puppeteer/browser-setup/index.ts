@@ -2,7 +2,10 @@ import type { Page } from "rebrowser-puppeteer-core";
 
 import type { Logger } from "../logger";
 import { setupAdBlocker } from "./ad-blocker";
-import { applyAntiDetectionEvasions } from "./anti-detection";
+import {
+	applyAntiDetectionEvasions,
+	applyCDPWebdriverRemoval,
+} from "./anti-detection";
 
 const DEFAULT_VIEWPORT = {
 	deviceScaleFactor: 1,
@@ -29,8 +32,11 @@ export async function setupBrowserPage(
 		{ name: "prefers-color-scheme", value: "dark" },
 	]);
 
-	// Custom anti-detection evasions
+	// JavaScript-level anti-detection evasions
 	await applyAntiDetectionEvasions(page, logger);
+
+	// CDP-level webdriver removal
+	await applyCDPWebdriverRemoval(page, logger);
 
 	// Set up ad blocking with Ghostery
 	await setupAdBlocker(page, logger);
