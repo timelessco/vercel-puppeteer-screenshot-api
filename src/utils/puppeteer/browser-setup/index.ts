@@ -2,7 +2,6 @@ import type { Page } from "rebrowser-puppeteer-core";
 
 import type { Logger } from "../logger";
 import { setupAdBlocker } from "./ad-blocker";
-import { setupCookieConsent } from "./cookie-consent";
 
 const DEFAULT_VIEWPORT = {
 	deviceScaleFactor: 2,
@@ -34,8 +33,10 @@ export async function setupBrowserPage(
 	// Set up ad blocking with Ghostery
 	await setupAdBlocker(page, logger);
 
+	// Most of the ad blocking and cookie consent handling is handled by the Ghostery ad blocker
+	// Enable this if when you encounter a site that is not blocked by Ghostery
 	// Set up cookie consent handling with DuckDuckGo autoconsent
-	await setupCookieConsent(page, logger);
+	// await setupCookieConsent(page, logger);
 }
 
 /**
