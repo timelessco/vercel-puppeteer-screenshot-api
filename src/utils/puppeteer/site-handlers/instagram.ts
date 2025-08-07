@@ -66,7 +66,7 @@ export async function getScreenshotInstagram(
 			})),
 		);
 
-		console.log("ARIA Labels with tags:", ariaLabels);
+		logger.info("Instagram aria-labels extracted", { ariaLabels });
 
 		const ariaLabel = "Next";
 		const index = imageIndex ? Number.parseInt(imageIndex) : null;
@@ -85,9 +85,9 @@ export async function getScreenshotInstagram(
 							visible: true,
 						},
 					);
-					console.log("found next button", nextButton);
+					logger.info("found next button", { nextButton });
 					await page.click(`[aria-label="${ariaLabel}"]`);
-					console.log("clicked next button");
+					logger.info("clicked next button");
 				}
 
 				logger.debug("Carousel navigation completed");
