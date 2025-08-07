@@ -153,7 +153,6 @@ export async function getScreenshotInstagram(
 			"No Instagram image found via DOM or og:image, falling back to page screenshot",
 		);
 		const screenshotTimer = logger.time("Instagram fallback screenshot");
-		await new Promise((res) => setTimeout(res, 25_000));
 		const screenshot = await page.screenshot({ type: "jpeg" });
 		screenshotTimer();
 		logger.info("Fallback page screenshot taken successfully", {
