@@ -59,6 +59,15 @@ export async function getScreenshotInstagram(
 
 	try {
 		logger.info("Instagram Post detected");
+		const ariaLabels = await page.$$eval("[aria-label]", (elements) =>
+			elements.map((el) => ({
+				label: el.getAttribute("aria-label"),
+				tag: el.tagName.toLowerCase(),
+			})),
+		);
+
+		console.log("ARIA Labels with tags:", ariaLabels);
+
 		const ariaLabel = "Next";
 		const index = imageIndex ? Number.parseInt(imageIndex) : null;
 
