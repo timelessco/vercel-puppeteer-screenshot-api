@@ -70,11 +70,15 @@ export async function getScreenshotInstagram(
 					logger.debug(
 						`Carousel navigation: clicking next (${i + 1}/${index})`,
 					);
-					await page.waitForSelector(`[aria-label="${ariaLabel}"]`, {
-						visible: true,
-					});
+					const nextButton = await page.waitForSelector(
+						`[aria-label="${ariaLabel}"]`,
+						{
+							visible: true,
+						},
+					);
+					console.log("found next button", nextButton);
 					await page.click(`[aria-label="${ariaLabel}"]`);
-					await new Promise((res) => setTimeout(res, 500));
+					console.log("clicked next button");
 				}
 
 				logger.debug("Carousel navigation completed");
@@ -111,7 +115,6 @@ export async function getScreenshotInstagram(
 						logger.info("Instagram post image fetched successfully", {
 							size: arrayBuffer.byteLength,
 						});
-
 						return Buffer.from(arrayBuffer);
 					} else {
 						logger.error("Failed to fetch Instagram image", {
@@ -141,6 +144,7 @@ export async function getScreenshotInstagram(
 			"No Instagram image found via DOM or og:image, falling back to page screenshot",
 		);
 		const screenshotTimer = logger.time("Instagram fallback screenshot");
+		await new Promise((res) => setTimeout(res, 25_000));
 		const screenshot = await page.screenshot({ type: "jpeg" });
 		screenshotTimer();
 		logger.info("Fallback page screenshot taken successfully", {
