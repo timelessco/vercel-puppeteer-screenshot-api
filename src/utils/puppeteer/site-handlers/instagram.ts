@@ -1,7 +1,5 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
-import page from "@/app/page";
-
 import type { Logger } from "../logger";
 
 async function fetchOgImage(
@@ -88,6 +86,7 @@ export async function getScreenshotInstagram(
 					const nextButton = await page.waitForSelector(
 						`[aria-label="${ariaLabel}"]`,
 						{
+							timeout: 30_000,
 							visible: true,
 						},
 					);
