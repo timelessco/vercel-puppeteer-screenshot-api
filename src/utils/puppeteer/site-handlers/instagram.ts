@@ -1,5 +1,7 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
+import page from "@/app/page";
+
 import type { Logger } from "../logger";
 
 async function fetchOgImage(
@@ -58,20 +60,24 @@ export async function getScreenshotInstagram(
 	});
 
 	try {
-		logger.info("Instagram Post detected");
-		const ariaLabels = await page.$$eval("[aria-label]", (elements) =>
-			elements.map((el) => ({
-				label: el.getAttribute("aria-label"),
-				tag: el.tagName.toLowerCase(),
-			})),
-		);
-
-		logger.info("Instagram aria-labels extracted", { ariaLabels });
-
-		const ariaLabel = "Next";
 		const index = imageIndex ? Number.parseInt(imageIndex) : null;
 
 		if (index && index > 1) {
+			const ariaLabel = "Next";
+
+			await page.waitForSelector("[aria-label=Next]", {
+				timeout: 30_000,
+				visible: true,
+			});
+
+			const ariaLabels = await page.$$eval("[aria-label]", (elements) =>
+				elements.map((el) => ({
+					label: el.getAttribute("aria-label"),
+					tag: el.tagName.toLowerCase(),
+				})),
+			);
+
+			logger.info("Instagram aria-labels extracted", { ariaLabels });
 			logger.info("Navigating carousel to image", { targetIndex: index });
 
 			try {
@@ -105,6 +111,11 @@ export async function getScreenshotInstagram(
 		if (divs.length > 0) {
 			try {
 				const imgs = await divs[1].$$("img");
+				logger.info("first div found", { div: divs[1] });
+
+				const src = await page.$eval("img", (el) => el.src);
+				logger.info("first image src found", { src });
+
 				logger.debug("Found Instagram images", { count: imgs.length });
 
 				if (imgs.length > 0) {
@@ -115,6 +126,9 @@ export async function getScreenshotInstagram(
 					});
 
 					const srcHandle = await imgs[targetIndex].getProperty("src");
+					logger.info("Found Instagram image URL", {
+						url: await srcHandle.jsonValue(),
+					});
 					const src = await srcHandle.jsonValue();
 					logger.debug("Fetching image from URL", { url: src });
 
