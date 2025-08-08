@@ -52,6 +52,28 @@ const VERCEL_ONLY_ARGS = [
 	// Forces Chrome to use /tmp instead of /dev/shm for shared memory
 	// /dev/shm is limited to 64MB in serverless causing crashes
 	"--disable-dev-shm-usage",
+
+	// Memory management for serverless environment
+	"--max_old_space_size=512", // Limit V8 memory to prevent OOM
+	"--max-semi-space-size=64", // Limit semi-space size
+	"--max-heap-size=512", // Overall heap limit
+
+	// Disable GPU features to save memory
+	"--disable-gpu",
+	"--disable-gpu-sandbox",
+	"--disable-accelerated-2d-canvas",
+	"--disable-accelerated-jpeg-decoding",
+	"--disable-accelerated-mjpeg-decode",
+	"--disable-accelerated-video-decode",
+
+	// Additional stability flags
+	"--disable-background-timer-throttling", // Prevent timer issues
+	"--disable-renderer-backgrounding", // Keep renderer active
+	"--disable-features=TranslateUI,BlinkGenPropertyTrees", // Disable unnecessary features
+
+	// Process management
+	"--disable-backgrounding-occluded-windows",
+	"--disable-ipc-flooding-protection",
 ] as const;
 
 /**

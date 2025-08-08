@@ -12,12 +12,14 @@ import {
 } from "@/utils/puppeteer/core/response-builder";
 import { navigateWithFallback } from "@/utils/puppeteer/navigation";
 import {
+	checkAndCleanPageMemory,
 	closePageSafely,
 	closePageWithBrowser,
 	getOrCreatePage,
 } from "@/utils/puppeteer/page-utils";
 import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
 import { retryWithBackoff } from "@/utils/puppeteer/retry-helpers";
+import { takeScreenshotWithFallback } from "@/utils/puppeteer/screenshot-helper";
 import { getScreenshotInstagram } from "@/utils/puppeteer/site-handlers/instagram";
 import { getMetadata } from "@/utils/puppeteer/site-handlers/metadata";
 import { getScreenshotX } from "@/utils/puppeteer/site-handlers/twitter";
@@ -81,6 +83,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 						logger.info("Starting navigation and screenshot attempt", {
 							url: urlStr,
 						});
+
+						// Set page timeout for all operations
+						page.setDefaultTimeout(30_000);
 
 						await setupBrowserPage(page, logger);
 
@@ -156,6 +161,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							logger.debug("No dialog detected, skipping dialog handling");
 						}
 
+						// Check memory and cleanup if needed before taking screenshot
+						await checkAndCleanPageMemory(page, logger, 350);
+
 						let capturedScreenshot: Buffer | Uint8Array;
 
 						// Instagram special handling
@@ -206,10 +214,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 									const screenshotTimer = logger.time(
 										"X/Twitter element screenshot capture",
 									);
-									capturedScreenshot = await screenshotTarget.screenshot({
-										optimizeForSpeed: true,
-										type: "jpeg",
-									});
+									// Use Promise.race for timeout protection on element screenshot
+									const timeoutPromise = new Promise<never>((_, reject) =>
+										setTimeout(() => {
+											reject(new Error("Element screenshot timeout"));
+										}, 10_000),
+									);
+									capturedScreenshot = await Promise.race([
+										screenshotTarget.screenshot({
+											optimizeForSpeed: true,
+											type: "jpeg",
+										}),
+										timeoutPromise,
+									]);
 									screenshotTimer();
 									logger.info("X/Twitter screenshot captured successfully");
 									return {
@@ -243,10 +260,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 									const screenshotTimer = logger.time(
 										"YouTube thumbnail screenshot capture",
 									);
-									capturedScreenshot = await img.screenshot({
-										optimizeForSpeed: true,
-										type: "jpeg",
-									});
+									// Use Promise.race for timeout protection on element screenshot
+									const timeoutPromise = new Promise<never>((_, reject) =>
+										setTimeout(() => {
+											reject(new Error("Element screenshot timeout"));
+										}, 8000),
+									);
+									capturedScreenshot = await Promise.race([
+										img.screenshot({
+											optimizeForSpeed: true,
+											type: "jpeg",
+										}),
+										timeoutPromise,
+									]);
 									screenshotTimer();
 									logger.info("YouTube thumbnail captured successfully");
 									return {
@@ -271,13 +297,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 						// Default: regular page screenshot for all sites
 						logger.info("Taking page screenshot");
-						const screenshotTimer = logger.time("Page screenshot capture");
-						capturedScreenshot = await page.screenshot({
-							fullPage,
-							optimizeForSpeed: true,
-							type: "jpeg",
-						});
-						screenshotTimer();
+						capturedScreenshot = await takeScreenshotWithFallback(
+							page,
+							{
+								fullPage,
+								optimizeForSpeed: true,
+								timeout: 15_000,
+								type: "jpeg",
+							},
+							logger,
+						);
 						logger.info("Page screenshot captured successfully");
 
 						return {

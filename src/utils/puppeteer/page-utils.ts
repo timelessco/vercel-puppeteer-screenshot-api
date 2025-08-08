@@ -98,3 +98,116 @@ export async function closePageWithBrowser(
 		void browser.disconnect();
 	}
 }
+
+/**
+ * Monitors and reports page memory usage
+ * @param {Page} page - The page to monitor
+ * @param {Logger} logger - Logger for debugging
+ * @returns {Promise<object>} Memory metrics
+ */
+export async function getPageMemoryMetrics(
+	page: Page,
+	logger: Logger,
+): Promise<{ JSHeapTotalSize: number; JSHeapUsedSize: number }> {
+	try {
+		const metrics = await page.metrics();
+		const heapUsed = metrics.JSHeapUsedSize ?? 0;
+		const heapTotal = metrics.JSHeapTotalSize ?? 0;
+
+		logger.debug("Page memory metrics", {
+			heapTotalMB: Math.round(heapTotal / 1024 / 1024),
+			heapUsedMB: Math.round(heapUsed / 1024 / 1024),
+			usagePercent: Math.round((heapUsed / heapTotal) * 100),
+		});
+
+		return { JSHeapTotalSize: heapTotal, JSHeapUsedSize: heapUsed };
+	} catch (error) {
+		logger.warn("Failed to get page memory metrics", {
+			error: getErrorMessage(error),
+		});
+		return { JSHeapTotalSize: 0, JSHeapUsedSize: 0 };
+	}
+}
+
+/**
+ * Performs aggressive cleanup on page to free memory
+ * @param {Page} page - The page to clean up
+ * @param {Logger} logger - Logger for debugging
+ */
+export async function performPageCleanup(
+	page: Page,
+	logger: Logger,
+): Promise<void> {
+	try {
+		logger.debug("Performing page cleanup");
+
+		// Clear browser cache
+		const client = await page.createCDPSession();
+		await client.send("Network.clearBrowserCache");
+		await client.send("Network.clearBrowserCookies");
+
+		// Run garbage collection in page context
+		await page.evaluate(() => {
+			// Stop all media
+			document.querySelectorAll("video, audio").forEach((media) => {
+				if (media instanceof HTMLMediaElement) {
+					media.pause();
+					media.src = "";
+					media.load();
+				}
+			});
+
+			// Clear iframes
+			document.querySelectorAll("iframe").forEach((iframe) => {
+				iframe.src = "about:blank";
+			});
+
+			// Remove heavy elements
+			document.querySelectorAll("canvas, object, embed").forEach((el) => {
+				el.remove();
+			});
+
+			// Force garbage collection if available
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+			if (typeof (globalThis as any).gc === "function") {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+				(globalThis as any).gc();
+			}
+		});
+
+		// Disconnect CDP session to free resources
+		await client.detach();
+
+		logger.debug("Page cleanup completed");
+	} catch (error) {
+		logger.warn("Page cleanup failed", {
+			error: getErrorMessage(error),
+		});
+	}
+}
+
+/**
+ * Checks if page memory usage is high and performs cleanup if needed
+ * @param {Page} page - The page to check
+ * @param {Logger} logger - Logger for debugging
+ * @param {number} thresholdMB - Memory threshold in MB (default: 400)
+ * @returns {Promise<boolean>} True if cleanup was performed
+ */
+export async function checkAndCleanPageMemory(
+	page: Page,
+	logger: Logger,
+	thresholdMB = 400,
+): Promise<boolean> {
+	const metrics = await getPageMemoryMetrics(page, logger);
+	const usedMB = metrics.JSHeapUsedSize / 1024 / 1024;
+
+	if (usedMB > thresholdMB) {
+		logger.warn(`High memory usage detected: ${Math.round(usedMB)}MB`, {
+			threshold: thresholdMB,
+		});
+		await performPageCleanup(page, logger);
+		return true;
+	}
+
+	return false;
+}
