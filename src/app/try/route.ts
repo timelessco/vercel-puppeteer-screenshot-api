@@ -6,14 +6,17 @@ import type {
 	JSHandle,
 } from "rebrowser-puppeteer-core";
 
-import {
-	closeBrowser,
-	launchBrowser,
-} from "@/utils/puppeteer/browser-launcher";
+import { launchBrowser } from "@/utils/puppeteer/browser-launcher";
 import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
 import { cloudflareChecker } from "@/utils/puppeteer/cloudflareChecker";
 import { navigateWithFallback } from "@/utils/puppeteer/navigation";
+import {
+	closePageSafely,
+	closePageWithBrowser,
+	getOrCreatePage,
+} from "@/utils/puppeteer/page-utils";
 import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
+import { retryWithBackoff } from "@/utils/puppeteer/retry-helpers";
 import { getScreenshotInstagram } from "@/utils/puppeteer/site-handlers/instagram";
 import { getMetadata } from "@/utils/puppeteer/site-handlers/metadata";
 import { getScreenshotX } from "@/utils/puppeteer/site-handlers/twitter";
@@ -47,53 +50,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	try {
 		logger.info("Starting screenshot capture", { fullPage, url });
 
-		const { browser: launchedBrowser, page } = await launchBrowser({
+		const { browser: browserInstance } = await launchBrowser({
 			headless,
 			logger,
-			// Match maxDuration
-			timeout: 300_000,
 		});
-		browser = launchedBrowser;
+		browser = browserInstance;
 
-		await setupBrowserPage(page, logger);
-
-		// here we check if the url is mp4 or not, by it's content type
+		// Check if URL is a video before page processing
 		const response = await fetch(urlStr);
 		const contentType = response.headers.get("content-type");
 		const urlHasVideoContentType = contentType?.startsWith("video/") ?? false;
-		// here we check if the url is mp4 or not, by using regex
-		const isVideoUrl = videoUrlRegex.test(urlStr);
-
-		//  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection
-		if (urlHasVideoContentType || isVideoUrl) {
-			logger.info("Video URL detected", { contentType, isVideoUrl });
-
-			try {
-				const screenshot = await getScreenshotMp4(page, urlStr, logger);
-
-				if (screenshot) {
-					const headers = new Headers();
-					headers.set("Content-Type", "application/json");
-
-					return new NextResponse(
-						JSON.stringify({ metaData: null, screenshot }),
-						{ headers, status: 200 },
-					);
-				} else {
-					// Video screenshot failed, fall back to regular page handling
-					logger.warn(
-						"Video screenshot failed, falling back to regular page screenshot",
-					);
-				}
-			} catch (error) {
-				logger.warn("Video screenshot error", {
-					error: (error as Error).message,
-				});
-			}
-		}
+		const isVideoUrl = urlHasVideoContentType || videoUrlRegex.test(urlStr);
 
 		let screenshot: Buffer | null | Uint8Array = null;
-		let lastError: Error | null = null;
 		let metaData: null | {
 			description: null | string;
 			favIcon: null | string;
@@ -101,46 +70,70 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			title: null | string;
 		} = null;
 
-		for (let attempt = 1; attempt <= 2; attempt++) {
-			try {
-				logger.info(`Navigation attempt ${attempt}`, { url: urlStr });
+		try {
+			const result = await retryWithBackoff(
+				async () => {
+					// Fresh page for each attempt
+					const page = await getOrCreatePage(browserInstance, logger);
 
-				// here we check if the url is youtube or not, if the url has videoId we redirect to the YOUTUBE_THUMBNAIL_URL
-				if (urlStr.includes(YOUTUBE)) {
-					logger.info(
-						"YouTube URL detected, fetching metadata and checking for videoId",
-					);
-
-					// here we use the getMetadata function to get the metadata of the video
-					metaData = await getMetadata(page, urlStr, logger);
-
-					const { id: videoId } = getVideoId(urlStr);
-					if (videoId) {
-						logger.info(
-							"Video ID found, changing YOUTUBE URL to YOUTUBE_THUMBNAIL_URL",
-						);
-						urlStr = `${YOUTUBE_THUMBNAIL_URL}/${videoId}/maxresdefault.jpg`;
-					}
-				}
-
-				const response = await navigateWithFallback(
-					page,
-					{ url: urlStr },
-					logger,
-				);
-
-				if (!response?.ok()) {
-					logger.warn(`Navigation attempt ${attempt} failed`, {
-						status: response?.status(),
-						statusText: response?.statusText(),
-					});
-				}
-
-				await cloudflareChecker(page, logger);
-
-				for (let shotTry = 1; shotTry <= 2; shotTry++) {
 					try {
-						// Check if a dialog exists before trying to close it
+						logger.info("Starting navigation and screenshot attempt", {
+							url: urlStr,
+						});
+
+						await setupBrowserPage(page, logger);
+
+						if (isVideoUrl) {
+							logger.info("Video URL detected", { contentType, isVideoUrl });
+							const videoScreenshot = await getScreenshotMp4(
+								page,
+								urlStr,
+								logger,
+							);
+
+							if (videoScreenshot) {
+								return { metaData: null, screenshot: videoScreenshot };
+							}
+
+							// If video screenshot fails, continue to regular screenshot
+							logger.warn(
+								"Video screenshot failed, falling back to regular screenshot",
+							);
+						}
+
+						// Check if the url is youtube and handle videoId
+						if (urlStr.includes(YOUTUBE)) {
+							logger.info(
+								"YouTube URL detected, fetching metadata and checking for videoId",
+							);
+
+							metaData = await getMetadata(page, urlStr, logger);
+
+							const { id: videoId } = getVideoId(urlStr);
+							if (videoId) {
+								logger.info(
+									"Video ID found, changing YOUTUBE URL to YOUTUBE_THUMBNAIL_URL",
+								);
+								urlStr = `${YOUTUBE_THUMBNAIL_URL}/${videoId}/maxresdefault.jpg`;
+							}
+						}
+
+						const response = await navigateWithFallback(
+							page,
+							{ url: urlStr },
+							logger,
+						);
+
+						if (!response?.ok()) {
+							logger.warn("Navigation response not ok", {
+								status: response?.status(),
+								statusText: response?.statusText(),
+							});
+						}
+
+						await cloudflareChecker(page, logger);
+
+						// Handle dialogs if present
 						const dialogElement = await page.$('div[role="dialog"]');
 						if (dialogElement) {
 							logger.info("Dialog detected, attempting to close");
@@ -161,20 +154,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							logger.debug("No dialog detected, skipping dialog handling");
 						}
 
-						logger.info(`Taking screenshot attempt ${shotTry}`);
-						let screenshotTarget:
-							| ElementHandle<HTMLElement>
-							| JSHandle<HTMLDivElement | null>
-							| null = null;
+						logger.info("Taking screenshot");
+						let capturedScreenshot: Buffer | Uint8Array;
 
-						//instagram.com
-						// in instagram we directly take screenshot in the function itself, because for reel we get the og:image
-						// to maintain the  same we are returning the buffer
-						//for other we select the html elemnt and take screenshot of it
+						// Instagram special handling
 						if (urlStr.includes(INSTAGRAM)) {
 							logger.info("Instagram URL detected");
-
-							// here we use the getMetadata function to get the metadata for the post and reel
 							metaData = await getMetadata(page, urlStr, logger);
 							const buffer = await getScreenshotInstagram(
 								page,
@@ -183,93 +168,87 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 								logger,
 							);
 
-							if (buffer) {
-								const headers = new Headers();
-								headers.set("Content-Type", "application/json");
-
-								return new NextResponse(
-									JSON.stringify({ metaData, screenshot: buffer }),
-									{ headers, status: 200 },
-								);
+							if (!buffer) {
+								throw new Error("Failed to capture Instagram screenshot");
 							}
-						}
 
-						// X/Twitter: Get specific tweet element
-						if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
-							logger.info("X/Twitter URL detected");
+							capturedScreenshot = buffer;
+						} else {
+							// Handle other URL types with potential specific screenshot targets
+							let screenshotTarget:
+								| ElementHandle<HTMLElement>
+								| JSHandle<HTMLDivElement | null>
+								| null = null;
 
-							screenshotTarget = await getScreenshotX(page, urlStr, logger);
-						}
-
-						// YouTube: Get thumbnail image only if it is an video else take entire page screenshot
-						if (urlStr.includes(YOUTUBE_THUMBNAIL_URL)) {
-							logger.info("YouTube: Looking for thumbnail image for video");
-
-							const img = await page.$("img");
-							if (img) {
-								logger.info("YouTube: Thumbnail image found for video");
-								screenshotTarget = img;
+							// X/Twitter: Get specific tweet element
+							if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
+								logger.info("X/Twitter URL detected");
+								screenshotTarget = await getScreenshotX(page, urlStr, logger);
 							}
-						}
 
-						if (screenshotTarget) {
-							logger.info("Screenshot target found");
+							// YouTube: Get thumbnail image only if it is an video else take entire page screenshot
+							if (urlStr.includes(YOUTUBE_THUMBNAIL_URL)) {
+								logger.info("YouTube: Looking for thumbnail image for video");
+								const img = await page.$("img");
+								if (img) {
+									logger.info("YouTube: Thumbnail image found for video");
+									screenshotTarget = img;
+								}
+							}
 
-							if ("screenshot" in screenshotTarget) {
+							// Take screenshot based on target
+							if (screenshotTarget && "screenshot" in screenshotTarget) {
 								const screenshotTimer = logger.time(
 									"Element screenshot capture",
 								);
-								screenshot = await screenshotTarget.screenshot({
+								capturedScreenshot = await screenshotTarget.screenshot({
+									optimizeForSpeed: true,
+									type: "jpeg",
+								});
+								screenshotTimer();
+							} else {
+								logger.info(
+									"No screenshot target found, taking page screenshot",
+								);
+								const screenshotTimer = logger.time("Page screenshot capture");
+								capturedScreenshot = await page.screenshot({
+									fullPage,
+									optimizeForSpeed: true,
 									type: "jpeg",
 								});
 								screenshotTimer();
 							}
-						} else {
-							logger.info("No screenshot target found, taking page screenshot");
-							const screenshotTimer = logger.time("Page screenshot capture");
-							screenshot = await page.screenshot({
-								fullPage,
-								optimizeForSpeed: true,
-								type: "jpeg",
-							});
-							screenshotTimer();
 						}
 
-						logger.info(
-							`Screenshot captured successfully in ${shotTry} attempt`,
-						);
-
-						break; // Exit loop on success
-					} catch (error) {
-						if (
-							error instanceof Error &&
-							error.message.includes("frame was detached")
-						) {
-							break;
-						}
-						lastError = error as Error;
+						logger.info("Screenshot captured successfully");
+						return {
+							metaData,
+							screenshot: capturedScreenshot,
+						};
+					} finally {
+						await closePageSafely(page, logger);
 					}
-				}
+				},
+				{
+					baseDelay: 1000,
+					logger,
+					maxRetries: 1,
+				},
+			);
 
-				if (screenshot) break;
-			} catch (error) {
-				if (
-					error instanceof Error &&
-					error.message.includes("frame was detached")
-				) {
-					lastError = error;
-				} else {
-					throw error;
-				}
-			}
-		}
-
-		if (!screenshot) {
-			logger.error("Failed to capture screenshot", {
-				details: lastError?.message,
+			screenshot = result.screenshot;
+			metaData = result.metaData;
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			logger.error("Failed to capture screenshot after retries", {
+				details: errorMessage,
 			});
 			return NextResponse.json(
-				{ details: lastError?.message, error: "Failed to capture screenshot" },
+				{
+					details: errorMessage,
+					error: "Failed to capture screenshot",
+				},
 				{ status: 500 },
 			);
 		}
@@ -291,6 +270,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			{ status: 500 },
 		);
 	} finally {
-		if (browser) await closeBrowser(browser, logger);
+		if (browser) await closePageWithBrowser(browser, logger);
 	}
 }
