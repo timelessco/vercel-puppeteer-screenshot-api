@@ -2,6 +2,8 @@ import { fullLists, PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
 import fetch from "cross-fetch";
 import type { Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "../logger";
 
 /**
@@ -90,7 +92,7 @@ export async function setupAdBlocker(
 		*/
 	} catch (error) {
 		logger.warn("Failed to initialize ad blocker", {
-			error: (error as Error).message,
+			error: getErrorMessage(error),
 		});
 
 		// Continue without blocker - page will still function

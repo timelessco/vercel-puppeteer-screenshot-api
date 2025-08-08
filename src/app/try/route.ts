@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import getVideoId from "get-video-id";
 import type { Browser } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
 import { launchBrowser } from "@/utils/puppeteer/browser-launcher";
 import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
 import { cloudflareChecker } from "@/utils/puppeteer/cloudflareChecker";
@@ -155,7 +156,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							logger.debug("No dialog detected, skipping dialog handling");
 						}
 
-						logger.info("Taking screenshot");
 						let capturedScreenshot: Buffer | Uint8Array;
 
 						// Instagram special handling
@@ -184,8 +184,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 								logger.warn(
 									"Instagram screenshot failed, falling back to page screenshot",
 									{
-										error:
-											error instanceof Error ? error.message : String(error),
+										error: getErrorMessage(error),
 									},
 								);
 
@@ -225,8 +224,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 								logger.warn(
 									"X/Twitter screenshot failed, falling back to page screenshot",
 									{
-										error:
-											error instanceof Error ? error.message : String(error),
+										error: getErrorMessage(error),
 									},
 								);
 
@@ -263,8 +261,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 								logger.warn(
 									"YouTube thumbnail screenshot failed, falling back to page screenshot",
 									{
-										error:
-											error instanceof Error ? error.message : String(error),
+										error: getErrorMessage(error),
 									},
 								);
 
@@ -294,15 +291,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 				{
 					baseDelay: 1000,
 					logger,
-					maxRetries: 1,
+					maxRetries: 2,
 				},
 			);
 
 			screenshot = result.screenshot;
 			metaData = result.metaData;
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = getErrorMessage(error);
 			logger.error("Failed to capture screenshot after retries", {
 				details: errorMessage,
 			});
@@ -313,7 +309,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 		return buildSuccessResponse(screenshot, metaData);
 	} catch (error) {
-		logger.error("Fatal error", { error: (error as Error).message });
+		logger.error("Fatal error", { error: getErrorMessage(error) });
 		logger.logSummary(false);
 		return buildErrorResponse();
 	} finally {

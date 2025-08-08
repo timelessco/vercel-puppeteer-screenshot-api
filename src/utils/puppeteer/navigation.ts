@@ -1,5 +1,6 @@
 import type { HTTPResponse, Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
 import type { Logger } from "@/utils/puppeteer/logger";
 
 export interface NavigationOptions {
@@ -28,7 +29,7 @@ export async function navigateWithFallback(
 		logger.info("DOM content loaded with networkidle2");
 	} catch (error) {
 		logger.warn("Navigation timeout or error, continuing with current state", {
-			error: (error as Error).message,
+			error: getErrorMessage(error),
 		});
 		// Continue with whatever state we got, don't throw
 	}

@@ -1,5 +1,7 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "../logger";
 
 async function fetchOgImage(
@@ -39,7 +41,7 @@ async function fetchOgImage(
 		return Buffer.from(arrayBuffer);
 	} catch (error) {
 		logger.error("Error fetching og:image", {
-			error: (error as Error).message,
+			error: getErrorMessage(error),
 			url: ogImage,
 		});
 		return null;
@@ -80,7 +82,7 @@ export async function getScreenshotInstagram(
 				logger.debug("Carousel navigation completed");
 			} catch (error) {
 				logger.warn("Failed to navigate carousel", {
-					error: (error as Error).message,
+					error: getErrorMessage(error),
 					targetIndex: index,
 				});
 			}
@@ -124,7 +126,7 @@ export async function getScreenshotInstagram(
 				}
 			} catch (error) {
 				logger.error("Error processing Instagram post images", {
-					error: (error as Error).message,
+					error: getErrorMessage(error),
 				});
 			}
 		}
@@ -151,7 +153,7 @@ export async function getScreenshotInstagram(
 		logger.error(
 			"Critical error in Instagram screenshot handler, using page screenshot fallback",
 			{
-				error: error instanceof Error ? error.message : String(error),
+				error: getErrorMessage(error),
 			},
 		);
 

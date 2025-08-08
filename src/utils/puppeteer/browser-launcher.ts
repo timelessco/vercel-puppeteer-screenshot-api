@@ -1,5 +1,7 @@
 import type { Browser, LaunchOptions } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "./logger";
 
 export interface BrowserLaunchOptions {
@@ -145,7 +147,7 @@ export async function launchBrowser(
 
 		return { browser };
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
+		const errorMessage = getErrorMessage(error);
 		logger.error("Failed to launch browser", {
 			environment: isVercel ? "Vercel" : "Local",
 			error: errorMessage,

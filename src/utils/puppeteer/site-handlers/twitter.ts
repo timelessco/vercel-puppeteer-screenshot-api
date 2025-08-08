@@ -4,6 +4,8 @@ import {
 	type Page,
 } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "../logger";
 
 export async function getScreenshotX(
@@ -70,7 +72,7 @@ export async function getScreenshotX(
 		logger.error(
 			"Error in X/Twitter screenshot selection, using page fallback",
 			{
-				error: error instanceof Error ? error.message : String(error),
+				error: getErrorMessage(error),
 			},
 		);
 		return null;

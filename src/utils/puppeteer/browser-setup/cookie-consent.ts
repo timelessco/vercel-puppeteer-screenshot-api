@@ -1,5 +1,7 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "../logger";
 
 const AUTOCONSENT_CDN_URL =
@@ -91,7 +93,7 @@ export async function setupCookieConsent(
 		*/
 	} catch (error) {
 		logger.warn("Failed to inject cookie consent handler", {
-			error: (error as Error).message,
+			error: getErrorMessage(error),
 		});
 		// Continue without autoconsent - the ad blocker will still hide many banners
 	}

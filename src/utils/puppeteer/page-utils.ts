@@ -1,5 +1,7 @@
 import type { Browser, Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "./logger";
 
 /**
@@ -40,7 +42,7 @@ export async function closePageSafely(
 		logger.debug("Page closed successfully");
 	} catch (error: unknown) {
 		logger.warn("Failed to close page", {
-			error: error instanceof Error ? error.message : String(error),
+			error: getErrorMessage(error),
 		});
 	}
 }
@@ -91,7 +93,7 @@ export async function closePageWithBrowser(
 		// In Vercel, container cleanup kills Chrome process anyway
 		// Better to return success than timeout after 300s
 		logger.warn("Browser.close() timed out, using disconnect", {
-			error: error instanceof Error ? error.message : String(error),
+			error: getErrorMessage(error),
 		});
 		void browser.disconnect();
 	}

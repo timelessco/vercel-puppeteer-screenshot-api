@@ -1,5 +1,7 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "../logger";
 
 export async function getScreenshotMp4(
@@ -156,7 +158,7 @@ export async function getScreenshotMp4(
 		return Buffer.from(screenshot);
 	} catch (error) {
 		logger.error("Error capturing canvas screenshot", {
-			error: (error as Error).message,
+			error: getErrorMessage(error),
 		});
 		return null;
 	}

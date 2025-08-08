@@ -17,6 +17,8 @@
 
 import type { Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "./logger";
 
 interface CloudflareChallenge {
@@ -109,7 +111,7 @@ async function injectCloudflareAutoSolver(
 		logger.debug("[CF-Solver] Auto-solver injected successfully");
 	} catch (error) {
 		logger.warn("[CF-Solver] Failed to inject auto-solver", {
-			error: error instanceof Error ? error.message : String(error),
+			error: getErrorMessage(error),
 		});
 	}
 }
@@ -169,7 +171,7 @@ export async function cloudflareChecker(
 			}
 		} catch (error) {
 			logger.error("[CF-Checker] Frame error", {
-				error: (error as Error).message,
+				error: getErrorMessage(error),
 			});
 		}
 	}

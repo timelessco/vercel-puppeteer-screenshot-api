@@ -1,5 +1,7 @@
 import type { Page } from "rebrowser-puppeteer-core";
 
+import { getErrorMessage } from "@/utils/errorUtils";
+
 import type { Logger } from "../logger";
 
 export async function getMetadata(
@@ -81,7 +83,7 @@ export async function getMetadata(
 		return metadata;
 	} catch (error) {
 		logger.error("Failed to extract metadata, returning empty metadata", {
-			error: error instanceof Error ? error.message : String(error),
+			error: getErrorMessage(error),
 			url: urlStr,
 		});
 		return fallbackMetadata;
