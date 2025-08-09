@@ -98,3 +98,59 @@ export async function closePageWithBrowser(
 		void browser.disconnect();
 	}
 }
+
+/**
+ * Monitors and reports page memory usage
+ * @param {Page} page - The page to monitor
+ * @param {Logger} logger - Logger for debugging
+ * @returns {Promise<object>} Memory metrics
+ */
+export async function getPageMetrics(
+	page: Page,
+	logger: Logger,
+): Promise<{
+	Frames: number;
+	JSEventListeners: number;
+	JSHeapTotalSize: number;
+	JSHeapUsedSize: number;
+	Nodes: number;
+	TaskDuration: number;
+}> {
+	try {
+		const metrics = await page.metrics();
+		const heapUsed = metrics.JSHeapUsedSize ?? 0;
+		const heapTotal = metrics.JSHeapTotalSize ?? 0;
+
+		logger.debug("Page resource metrics", {
+			documents: metrics.Documents,
+			domNodes: metrics.Nodes,
+			eventListeners: metrics.JSEventListeners,
+			frames: metrics.Frames,
+			heapTotalMB: Math.round(heapTotal / 1024 / 1024),
+			heapUsagePercent: Math.round((heapUsed / Math.max(heapTotal, 1)) * 100),
+			heapUsedMB: Math.round(heapUsed / 1024 / 1024),
+			taskDurationMs: Math.round(metrics.TaskDuration ?? 0),
+		});
+
+		return {
+			Frames: metrics.Frames ?? 0,
+			JSEventListeners: metrics.JSEventListeners ?? 0,
+			JSHeapTotalSize: heapTotal,
+			JSHeapUsedSize: heapUsed,
+			Nodes: metrics.Nodes ?? 0,
+			TaskDuration: metrics.TaskDuration ?? 0,
+		};
+	} catch (error) {
+		logger.warn("Failed to get page memory metrics", {
+			error: getErrorMessage(error),
+		});
+		return {
+			Frames: 0,
+			JSEventListeners: 0,
+			JSHeapTotalSize: 0,
+			JSHeapUsedSize: 0,
+			Nodes: 0,
+			TaskDuration: 0,
+		};
+	}
+}

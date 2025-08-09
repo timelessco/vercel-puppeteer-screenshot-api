@@ -15,6 +15,7 @@ import {
 	closePageSafely,
 	closePageWithBrowser,
 	getOrCreatePage,
+	getPageMetrics,
 } from "@/utils/puppeteer/page-utils";
 import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
 import { retryWithBackoff } from "@/utils/puppeteer/retry-helpers";
@@ -43,7 +44,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 		return buildErrorResponse(config.error, 400);
 	}
 
-	const { fullPage, headless, imageIndex, logger, url } = config;
+	const { fullPage, headless, imageIndex, logger, shouldGetPageMetrics, url } =
+		config;
 	let urlStr = url;
 
 	let browser: Browser | null = null;
@@ -126,6 +128,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							logger,
 						);
 
+						if (shouldGetPageMetrics) await getPageMetrics(page, logger);
+
 						if (!response?.ok()) {
 							logger.warn("Navigation response not ok", {
 								status: response?.status(),
@@ -136,24 +140,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 						await cloudflareChecker(page, logger);
 
 						// Handle dialogs if present
-						const dialogElement = await page.$('div[role="dialog"]');
-						if (dialogElement) {
-							logger.info("Dialog detected, attempting to close");
-							await page.keyboard.press("Escape");
+						try {
+							const dialogElement = await page.$('div[role="dialog"]');
+							if (dialogElement) {
+								logger.info("Dialog detected, attempting to close");
+								await page.keyboard.press("Escape");
 
-							try {
-								await page.waitForSelector('div[role="dialog"]', {
-									hidden: true,
-									timeout: 2000,
-								});
-								logger.info("Dialog closed");
-							} catch {
-								logger.warn(
-									"[role='dialog'] did not close after Escape — continuing anyway",
-								);
+								try {
+									await page.waitForSelector('div[role="dialog"]', {
+										hidden: true,
+										timeout: 2000,
+									});
+									logger.info("Dialog closed");
+								} catch {
+									logger.warn(
+										"[role='dialog'] did not close after Escape — continuing anyway",
+									);
+								}
+							} else {
+								logger.debug("No dialog detected, skipping dialog handling");
 							}
-						} else {
-							logger.debug("No dialog detected, skipping dialog handling");
+						} catch (error) {
+							logger.debug("Skipping dialog check due to page state", {
+								error,
+							});
 						}
 
 						let capturedScreenshot: Buffer | Uint8Array;
@@ -285,6 +295,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 							screenshot: capturedScreenshot,
 						};
 					} finally {
+						if (shouldGetPageMetrics) await getPageMetrics(page, logger);
+
 						await closePageSafely(page, logger);
 					}
 				},
@@ -302,6 +314,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			logger.error("Failed to capture screenshot after retries", {
 				details: errorMessage,
 			});
+
+			// Get page metrics in error scenario for debugging
+			if (shouldGetPageMetrics) {
+				try {
+					// Browser is guaranteed to exist here since we're inside the try block after browser creation
+					const pages = await browser.pages();
+					if (pages.length > 0) {
+						await getPageMetrics(pages[0], logger);
+					}
+				} catch {
+					// Ignore monitoring errors
+				}
+			}
+
 			return buildErrorResponse(error, 500);
 		}
 

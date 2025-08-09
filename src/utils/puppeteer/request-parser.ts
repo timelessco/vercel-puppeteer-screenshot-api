@@ -10,6 +10,7 @@ export interface RequestConfig {
 	headless: boolean;
 	imageIndex: null | string;
 	logger: Logger;
+	shouldGetPageMetrics: boolean;
 	url: string;
 }
 
@@ -56,11 +57,16 @@ export function parseRequestConfig(
 		const verbose = searchParams.get("verbose") === "true";
 		const logger = createLogger(verbose, headless);
 
+		// Monitor page metrics when verbose mode is enabled or in development
+		const shouldGetPageMetrics =
+			process.env.NODE_ENV === "development" || verbose;
+
 		return {
 			fullPage,
 			headless,
 			imageIndex,
 			logger,
+			shouldGetPageMetrics,
 			url: inputUrl,
 		};
 	} catch (error) {

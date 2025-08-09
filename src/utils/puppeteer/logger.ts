@@ -75,23 +75,6 @@ export const createLogger = (verbose = false, headless = true) => {
 	// Log runtime info immediately upon creation
 	logRuntimeInfo();
 
-	const logNetworkRequest = (
-		url: string,
-		method: string,
-		status?: number,
-		blocked = false,
-	): void => {
-		if (!verbose) return;
-
-		if (blocked) {
-			debug(`Network request blocked: ${method} ${url}`);
-		} else {
-			debug(`Network request: ${method} ${url}`, {
-				status: status ?? "pending",
-			});
-		}
-	};
-
 	const logSummary = (success: boolean, screenshotSize?: number): void => {
 		const totalTime = Date.now() - startTime;
 		info("Summary", {
@@ -113,7 +96,6 @@ export const createLogger = (verbose = false, headless = true) => {
 		debug,
 		error,
 		info,
-		logNetworkRequest,
 		logSummary,
 		time,
 		warn,
