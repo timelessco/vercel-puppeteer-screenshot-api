@@ -25,6 +25,7 @@ const SHARED_LAUNCH_ARGS = [
 	// Prevents Chrome from downloading field trial configs that sites detect
 	"--disable-field-trial-config",
 	// Disable features that might reveal automation
+	// site-per-process disabled to prevent "detached frame" errors
 	"--disable-features=IsolateOrigins,site-per-process,TranslateUI",
 	// Additional anti-detection flags
 	"--enable-automation=false",
@@ -49,9 +50,45 @@ const SHARED_LAUNCH_ARGS = [
  */
 const VERCEL_ONLY_ARGS = [
 	// Critical for Vercel - prevents /dev/shm memory issues
-	// Forces Chrome to use /tmp instead of /dev/shm for shared memory
-	// /dev/shm is limited to 64MB in serverless causing crashes
+	// Forces Chrome to use /tmp instead of limited 64MB /dev/shm in serverless
 	"--disable-dev-shm-usage",
+
+	// Below Memory management for serverless environment was necessary to address the below issue
+	// https://github.com/timelessco/vercel-puppeteer-screenshot-api/issues/46
+	// Limits V8 heap to 512MB to prevent OOM kills in serverless
+	"--max_old_space_size=512",
+	// Limits V8 semi-space (young generation) to reduce memory spikes
+	"--max-semi-space-size=64",
+	// Hard limit on total heap size to stay within container limits
+	"--max-heap-size=512",
+
+	// Disable GPU features to save memory
+	// Disables GPU hardware acceleration which isn't available in serverless
+	"--disable-gpu",
+	// Disables GPU sandbox to reduce overhead in headless mode
+	"--disable-gpu-sandbox",
+	// Disables canvas hardware acceleration to save memory
+	"--disable-accelerated-2d-canvas",
+	// Uses software JPEG decoding to reduce memory usage
+	"--disable-accelerated-jpeg-decoding",
+	// Uses software MJPEG decoding to reduce memory usage
+	"--disable-accelerated-mjpeg-decode",
+	// Uses software video decoding to reduce memory usage
+	"--disable-accelerated-video-decode",
+
+	// Additional stability flags
+	// Prevents Chrome from throttling timers in background tabs
+	"--disable-background-timer-throttling",
+	// Keeps renderer process active preventing "Target closed" errors
+	"--disable-renderer-backgrounding",
+	// Disables unused features to reduce memory footprint
+	"--disable-features=TranslateUI,BlinkGenPropertyTrees",
+
+	// Process management
+	// Prevents Chrome from suspending hidden windows
+	"--disable-backgrounding-occluded-windows",
+	// Prevents IPC message limits that can close connections
+	"--disable-ipc-flooding-protection",
 ] as const;
 
 /**
