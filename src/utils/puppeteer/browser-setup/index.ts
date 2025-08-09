@@ -26,7 +26,7 @@ export async function setupBrowserPage(
 ): Promise<void> {
 	// * Disabled to reduce noise in logging
 	// Set up logging before any navigation for debugging
-	// setupLogging(page, logger);
+	setupLogging(page, logger);
 
 	await page.setViewport(DEFAULT_VIEWPORT);
 	await page.emulateMediaFeatures([
@@ -53,14 +53,14 @@ export async function setupBrowserPage(
  * @param {Page} page - The Puppeteer page instance
  * @param {Logger} logger - Logger instance for debugging
  */
-// function setupLogging(page: Page, logger: Logger): void {
-// 	page.on("console", (msg) => {
-// 		const type = msg.type();
-// 		const text = msg.text();
-// 		logger.debug(`[setupLogging] Browser console.${type}`, { message: text });
-// 	});
+function setupLogging(page: Page, logger: Logger): void {
+	page.on("console", (msg) => {
+		const type = msg.type();
+		const text = msg.text();
+		logger.debug(`[setupLogging] Browser console.${type}`, { message: text });
+	});
 
-// 	page.on("pageerror", (err) => {
-// 		logger.debug("[setupLogging] Page JS error", { error: err.message });
-// 	});
-// }
+	page.on("pageerror", (err) => {
+		logger.debug("[setupLogging] Page JS error", { error: err.message });
+	});
+}

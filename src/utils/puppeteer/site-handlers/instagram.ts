@@ -3,6 +3,7 @@ import type { Page } from "rebrowser-puppeteer-core";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import type { Logger } from "../logger";
+import { captureScreenshot } from "../screenshot-helper";
 
 async function fetchOgImage(
 	page: Page,
@@ -142,9 +143,12 @@ export async function getScreenshotInstagram(
 		logger.warn(
 			"No Instagram image found via DOM or og:image, falling back to page screenshot",
 		);
-		const screenshotTimer = logger.time("Instagram fallback screenshot");
-		const screenshot = await page.screenshot({ type: "jpeg" });
-		screenshotTimer();
+		const screenshot = await captureScreenshot(
+			page,
+			{ type: "jpeg" },
+			logger,
+			"Instagram fallback screenshot",
+		);
 		logger.info("Fallback page screenshot taken successfully", {
 			size: screenshot.byteLength,
 		});
@@ -157,24 +161,16 @@ export async function getScreenshotInstagram(
 			},
 		);
 
-		try {
-			const screenshotTimer = logger.time(
-				"Instagram emergency fallback screenshot",
-			);
-			const screenshot = await page.screenshot({ type: "jpeg" });
-			screenshotTimer();
-			logger.info("Emergency fallback page screenshot taken", {
-				size: screenshot.byteLength,
-			});
-			return Buffer.from(screenshot);
-		} catch (screenshotError) {
-			logger.error("Failed to take fallback page screenshot", {
-				error:
-					screenshotError instanceof Error
-						? screenshotError.message
-						: String(screenshotError),
-			});
-			return null;
-		}
+		// captureScreenshot will always return something, even if it's a fallback image
+		const screenshot = await captureScreenshot(
+			page,
+			{ type: "jpeg" },
+			logger,
+			"Instagram emergency fallback screenshot",
+		);
+		logger.info("Emergency fallback page screenshot taken", {
+			size: screenshot.byteLength,
+		});
+		return Buffer.from(screenshot);
 	}
 }

@@ -52,7 +52,7 @@ export async function retryWithBackoff<T>(
 		shouldRetry?: (error: Error) => boolean;
 	},
 ): Promise<T> {
-	const maxRetries = options?.maxRetries ?? 3;
+	const maxRetries = options?.maxRetries ?? 2;
 	const baseDelay = options?.baseDelay ?? 1000;
 	const logger = options?.logger;
 	const shouldRetryFn = options?.shouldRetry ?? shouldRetry;

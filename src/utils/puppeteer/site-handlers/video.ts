@@ -3,6 +3,7 @@ import type { Page } from "rebrowser-puppeteer-core";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import type { Logger } from "../logger";
+import { captureScreenshot } from "../screenshot-helper";
 
 export async function getScreenshotMp4(
 	page: Page,
@@ -148,9 +149,12 @@ export async function getScreenshotMp4(
 			return null;
 		}
 
-		const screenshotTimer = logger.time("Video canvas screenshot");
-		const screenshot = await canvasHandle.screenshot({ type: "png" });
-		screenshotTimer();
+		const screenshot = await captureScreenshot(
+			canvasHandle,
+			{ type: "png" },
+			logger,
+			"Video canvas screenshot",
+		);
 		logger.info("Video screenshot captured successfully", {
 			size: screenshot.length,
 		});

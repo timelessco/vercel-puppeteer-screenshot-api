@@ -8,3 +8,8 @@ export const INSTAGRAM = "instagram.com";
 export const YOUTUBE = "youtube.com";
 export const TWITTER = "twitter.com";
 export const YOUTUBE_THUMBNAIL_URL = "https://img.youtube.com/vi";
+
+export const RESPONSE_HEADERS = {
+	"X-Content-Type-Options": "nosniff",
+	"X-Render-Engine": "puppeteer",
+};

@@ -16,6 +16,7 @@ export async function navigateWithFallback(
 ): Promise<HTTPResponse | null> {
 	const { fontTimeout = 1000, navigationTimeout = 15_000, url } = options;
 
+	logger.info("Starting page navigation", { url });
 	const navTimer = logger.time("Page navigation");
 	let response: HTTPResponse | null = null;
 
