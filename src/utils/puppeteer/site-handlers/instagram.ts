@@ -143,12 +143,11 @@ export async function getScreenshotInstagram(
 		logger.warn(
 			"No Instagram image found via DOM or og:image, falling back to page screenshot",
 		);
-		const screenshot = await captureScreenshot(
-			page,
-			{ type: "jpeg" },
+		const screenshot = await captureScreenshot({
 			logger,
-			"Instagram fallback screenshot",
-		);
+			target: page,
+			timerLabel: "Instagram fallback screenshot",
+		});
 		logger.info("Fallback page screenshot taken successfully", {
 			size: screenshot.byteLength,
 		});
@@ -161,16 +160,6 @@ export async function getScreenshotInstagram(
 			},
 		);
 
-		// captureScreenshot will always return something, even if it's a fallback image
-		const screenshot = await captureScreenshot(
-			page,
-			{ type: "jpeg" },
-			logger,
-			"Instagram emergency fallback screenshot",
-		);
-		logger.info("Emergency fallback page screenshot taken", {
-			size: screenshot.byteLength,
-		});
-		return Buffer.from(screenshot);
+		return null;
 	}
 }

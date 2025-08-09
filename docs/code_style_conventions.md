@@ -1,15 +1,23 @@
 # Code Style Conventions
 
-## TypeScript Conventions
+## Code Quality Checks
 
-- **Strict Mode**: Always enabled, no exceptions
-- **Type Safety**:
-  - No `any` types
-  - No type assertions unless absolutely necessary
-  - No `@ts-ignore` without explicit explanation
-  - Use `unknown` instead of `any` when type is truly unknown
-- **Imports**: Organized with specific order (see prettier config)
-- **File Extensions**: `.tsx` for React components, `.ts` for utilities
+**ALWAYS run the following commands before completing any task:**
+
+1. Automatically use the IDE's built-in diagnostics tool to check for linting and type errors:
+   - Run `mcp__ide__getDiagnostics` to check all files for diagnostics
+   - Fix any linting or type errors before considering the task complete
+   - Do this for any file you create or modify
+
+This is a CRITICAL step that must NEVER be skipped when working on any code-related task
+
+## File Size Limits
+
+- **Maximum 250 lines per file** - If a file exceeds this limit:
+  - Extract large sections into separate component files
+  - Move related functionality into dedicated modules
+  - Split complex components into smaller, focused components
+- This ensures maintainability and better code organization
 
 ## Naming Conventions
 
@@ -96,7 +104,7 @@
 - **Hooks**: Call hooks at top level, specify all dependencies
 - **Error Boundaries**: Handle errors gracefully with error boundaries
 
-For comprehensive frontend and accessibility rules, see [`frontend_rules.md`](./frontend_rules.md).
+See [`docs/frontend_rules.md`](./frontend_rules.md) for full frontend details.
 
 ## Git Conventions
 

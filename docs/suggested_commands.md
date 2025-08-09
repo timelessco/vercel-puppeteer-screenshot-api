@@ -43,17 +43,17 @@ pnpm lint
 pnpm fix
 
 # Individual linting commands
-pnpm lint:types        # TypeScript type checking
-pnpm lint:eslint       # ESLint checking
-pnpm lint:prettier     # Prettier formatting check
-pnpm lint:css          # Stylelint CSS/PostCSS check
-pnpm lint:md           # Markdown linting
-pnpm lint:spelling     # Spell checking with cspell
-pnpm lint:knip         # Find unused code and dependencies
-pnpm lint:package-json # Validate package.json
+pnpm lint:eslint   # ESLint checking
+pnpm lint:prettier # Prettier formatting check
+pnpm lint:css      # Stylelint CSS/PostCSS check
+pnpm lint:md       # Markdown linting
+pnpm lint:spelling # Spell checking with cspell
+pnpm lint:types    # TypeScript type checking
+pnpm lint:knip     # Find unused code and dependencies
 
 # Fix individual tools
 pnpm fix:eslint   # Auto-fix ESLint issues
+pnpm fix:spelling # Auto-fix spelling issues
 pnpm fix:prettier # Format with Prettier
 pnpm fix:css      # Auto-fix CSS issues
 pnpm fix:md       # Auto-fix Markdown issues

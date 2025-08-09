@@ -32,25 +32,24 @@ export function shouldRetry(error: unknown): boolean {
 	return retryableErrors.some((message) => error.message.includes(message));
 }
 
+// Options for configuring retry behavior
+export interface RetryOptions {
+	baseDelay?: number;
+	logger?: Logger;
+	maxRetries?: number;
+	shouldRetry?: (error: Error) => boolean;
+}
+
 /**
  * Executes a function with exponential backoff retry logic.
  * @param {() => Promise<T>} fn - The async function to execute
- * @param {object} [options] - Configuration options for retry behavior
- * @param {number} [options.baseDelay] - Base delay in milliseconds for exponential backoff
- * @param {Logger} [options.logger] - Logger instance for debugging
- * @param {number} [options.maxRetries] - Maximum number of retry attempts
- * @param {(error: Error) => boolean} [options.shouldRetry] - Custom function to determine if error is retryable
+ * @param {RetryOptions} [options] - Configuration options for retry behavior
  * @returns {Promise<T>} The result of the function if successful
  * @throws The last error if all retries are exhausted
  */
 export async function retryWithBackoff<T>(
 	fn: () => Promise<T>,
-	options?: {
-		baseDelay?: number;
-		logger?: Logger;
-		maxRetries?: number;
-		shouldRetry?: (error: Error) => boolean;
-	},
+	options?: RetryOptions,
 ): Promise<T> {
 	const maxRetries = options?.maxRetries ?? 2;
 	const baseDelay = options?.baseDelay ?? 1000;

@@ -149,12 +149,11 @@ export async function getScreenshotMp4(
 			return null;
 		}
 
-		const screenshot = await captureScreenshot(
-			canvasHandle,
-			{ type: "png" },
+		const screenshot = await captureScreenshot({
 			logger,
-			"Video canvas screenshot",
-		);
+			target: canvasHandle,
+			timerLabel: "Video canvas screenshot",
+		});
 		logger.info("Video screenshot captured successfully", {
 			size: screenshot.length,
 		});

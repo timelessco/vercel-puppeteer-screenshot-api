@@ -1,11 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import getVideoId from "get-video-id";
 import type { Browser } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";
 import { launchBrowser } from "@/utils/puppeteer/browser-launcher";
 import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
 import { cloudflareChecker } from "@/utils/puppeteer/cloudflareChecker";
+import {
+	INSTAGRAM,
+	RESPONSE_HEADERS,
+	TWITTER,
+	X,
+	YOUTUBE_THUMBNAIL_URL,
+} from "@/utils/puppeteer/constants";
+import { handleDialogs } from "@/utils/puppeteer/dialog-handler";
 import { navigateWithFallback } from "@/utils/puppeteer/navigation";
 import {
 	closePageWithBrowser,
@@ -21,16 +28,8 @@ import { captureScreenshot } from "@/utils/puppeteer/screenshot-helper";
 import { getScreenshotInstagram } from "@/utils/puppeteer/site-handlers/instagram";
 import { getMetadata } from "@/utils/puppeteer/site-handlers/metadata";
 import { getScreenshotX } from "@/utils/puppeteer/site-handlers/twitter";
-import { getScreenshotMp4 } from "@/utils/puppeteer/site-handlers/video";
-import {
-	INSTAGRAM,
-	RESPONSE_HEADERS,
-	TWITTER,
-	videoUrlRegex,
-	X,
-	YOUTUBE,
-	YOUTUBE_THUMBNAIL_URL,
-} from "@/utils/puppeteer/utils";
+import { processUrl } from "@/utils/puppeteer/url-processor";
+import { handleVideoUrl } from "@/utils/puppeteer/video-handler";
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
@@ -77,7 +76,7 @@ const getScreenshot = async (config: RequestConfig) => {
 	let browser: Browser | null = null;
 
 	try {
-		let urlStr = url;
+		const processedUrl = processUrl(url, logger);
 
 		logger.info("Starting screenshot capture", { fullPage, url });
 		const { browser: browserInstance } = await launchBrowser({
@@ -89,96 +88,40 @@ const getScreenshot = async (config: RequestConfig) => {
 		const page = await getOrCreatePage(browserInstance, logger);
 		await setupBrowserPage(page, logger);
 
-		// Check if URL is a video before page processing
-		const urlResponse = await fetch(urlStr);
-		const contentType = urlResponse.headers.get("content-type");
-		const urlHasVideoContentType = contentType?.startsWith("video/") ?? false;
-		const isVideoUrl = urlHasVideoContentType || videoUrlRegex.test(urlStr);
-		if (isVideoUrl) {
-			logger.info("Video URL detected", { contentType, isVideoUrl });
-			const screenshot = await getScreenshotMp4(page, urlStr, logger);
-
-			if (screenshot) {
-				// No need to send metadata for video screenshot because we create that page
-				return { metaData: null, screenshot };
-			}
-
-			logger.warn(
-				"Video screenshot failed, falling back to regular screenshot",
-			);
-
-			// Fallback to page screenshot
+		// Check if URL is a video and handle it
+		const videoResult = await handleVideoUrl(page, processedUrl, logger);
+		if (videoResult) {
+			return videoResult;
 		}
 
-		// Check if the url is youtube and handle videoId
-		// Change url to thumbnail url before navigating if videoId is found
-		if (urlStr.includes(YOUTUBE)) {
-			logger.info(
-				"YouTube URL detected, fetching metadata and checking for videoId",
-			);
-
-			const { id: videoId } = getVideoId(urlStr);
-			if (videoId) {
-				logger.info(
-					"Video ID found, changing YOUTUBE URL to YOUTUBE_THUMBNAIL_URL",
-				);
-				urlStr = `${YOUTUBE_THUMBNAIL_URL}/${videoId}/maxresdefault.jpg`;
-			}
-		}
-
-		const response = await navigateWithFallback(page, { url: urlStr }, logger);
-
-		if (shouldGetPageMetrics) await getPageMetrics(page, logger);
-
+		const response = await navigateWithFallback(
+			page,
+			{ url: processedUrl },
+			logger,
+		);
 		if (!response?.ok()) {
 			logger.warn("Navigation response not ok", {
 				status: response?.status(),
 				statusText: response?.statusText(),
 			});
 		}
-
+		if (shouldGetPageMetrics) await getPageMetrics(page, logger);
 		await cloudflareChecker(page, logger);
-
-		// Handle dialogs if present
-		try {
-			const dialogElement = await page.$('div[role="dialog"]');
-			if (dialogElement) {
-				logger.info("Dialog detected, attempting to close");
-				await page.keyboard.press("Escape");
-
-				try {
-					await page.waitForSelector('div[role="dialog"]', {
-						hidden: true,
-						timeout: 2000,
-					});
-					logger.info("Dialog closed");
-				} catch {
-					logger.warn(
-						"[role='dialog'] did not close after Escape — continuing anyway",
-					);
-				}
-			} else {
-				logger.debug("No dialog detected, skipping dialog handling");
-			}
-		} catch (error) {
-			logger.debug("Skipping dialog check due to page state", {
-				error,
-			});
-		}
+		await handleDialogs(page, logger);
 
 		// Instagram special handling
-		if (urlStr.includes(INSTAGRAM)) {
+		if (processedUrl.includes(INSTAGRAM)) {
 			try {
 				logger.info("Instagram URL detected");
 				const screenshot = await getScreenshotInstagram(
 					page,
-					urlStr,
+					processedUrl,
 					imageIndex ?? undefined,
 					logger,
 				);
 
 				if (screenshot) {
-					const metaData = await getMetadata(page, urlStr, logger);
+					const metaData = await getMetadata(page, processedUrl, logger);
 
 					logger.info("Instagram screenshot captured successfully");
 					return { metaData, screenshot };
@@ -199,19 +142,22 @@ const getScreenshot = async (config: RequestConfig) => {
 		}
 
 		// X/Twitter special handling
-		if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
+		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
 			try {
 				logger.info("X/Twitter URL detected");
-				const screenshotTarget = await getScreenshotX(page, urlStr, logger);
+				const screenshotTarget = await getScreenshotX(
+					page,
+					processedUrl,
+					logger,
+				);
 
 				if (screenshotTarget && "screenshot" in screenshotTarget) {
-					const screenshot = await captureScreenshot(
-						screenshotTarget,
-						{ optimizeForSpeed: true, type: "jpeg" },
+					const screenshot = await captureScreenshot({
 						logger,
-						"X/Twitter element screenshot capture",
-					);
-					const metaData = await getMetadata(page, urlStr, logger);
+						target: screenshotTarget,
+						timerLabel: "X/Twitter element screenshot capture",
+					});
+					const metaData = await getMetadata(page, processedUrl, logger);
 
 					logger.info("X/Twitter screenshot captured successfully");
 					return { metaData, screenshot };
@@ -222,9 +168,7 @@ const getScreenshot = async (config: RequestConfig) => {
 			} catch (error) {
 				logger.warn(
 					"X/Twitter screenshot failed, falling back to page screenshot",
-					{
-						error: getErrorMessage(error),
-					},
+					{ error: getErrorMessage(error) },
 				);
 
 				// Fallback to page screenshot
@@ -232,21 +176,20 @@ const getScreenshot = async (config: RequestConfig) => {
 		}
 
 		// YouTube thumbnail special handling
-		if (urlStr.includes(YOUTUBE_THUMBNAIL_URL)) {
+		if (processedUrl.includes(YOUTUBE_THUMBNAIL_URL)) {
 			try {
 				logger.info("YouTube: Looking for thumbnail image for video");
 				const img = await page.$("img");
 
 				if (img) {
 					logger.info("YouTube: Thumbnail image found for video");
-					const screenshot = await captureScreenshot(
-						img,
-						{ optimizeForSpeed: true, type: "jpeg" },
+					const screenshot = await captureScreenshot({
 						logger,
-						"YouTube thumbnail screenshot capture",
-					);
+						target: img,
+						timerLabel: "YouTube thumbnail screenshot capture",
+					});
 
-					const metaData = await getMetadata(page, urlStr, logger);
+					const metaData = await getMetadata(page, processedUrl, logger);
 					logger.info("YouTube thumbnail captured successfully");
 					return { metaData, screenshot };
 				}
@@ -268,14 +211,13 @@ const getScreenshot = async (config: RequestConfig) => {
 
 		// Default: regular page screenshot for all sites
 		logger.info("Taking page screenshot");
-		const screenshot = await captureScreenshot(
-			page,
-			{ fullPage, optimizeForSpeed: true, type: "jpeg" },
+		const screenshot = await captureScreenshot({
 			logger,
-			"Page screenshot capture",
-		);
+			target: page,
+			timerLabel: "Page screenshot capture",
+		});
 
-		const metaData = await getMetadata(page, urlStr, logger);
+		const metaData = await getMetadata(page, processedUrl, logger);
 		logger.info("Page screenshot captured successfully");
 		return { metaData, screenshot };
 	} catch (error) {

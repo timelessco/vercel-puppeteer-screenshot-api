@@ -2,8 +2,8 @@ import { type NextRequest } from "next/server";
 
 import { getErrorMessage } from "@/utils/errorUtils";
 
+import { isDev } from "./constants";
 import { createLogger, type Logger } from "./logger";
-import { isDev } from "./utils";
 
 export interface RequestConfig {
 	fullPage: boolean;

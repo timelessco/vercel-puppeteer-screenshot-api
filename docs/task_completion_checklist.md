@@ -5,11 +5,11 @@ Before considering any task complete, ensure all items in this checklist are add
 ## 1. Code Quality ✓
 
 - [ ] All TypeScript strict mode checks pass (`pnpm lint:types`)
-- [ ] ESLint shows no errors or warnings (`pnpm lint:eslint`)
-- [ ] Code is properly formatted (`pnpm lint:prettier`)
-- [ ] CSS follows style guidelines (`pnpm lint:css`)
-- [ ] No spelling mistakes in code/comments (`pnpm lint:spelling`)
-- [ ] No unused code or dependencies (`pnpm lint:knip`)
+- [ ] ESLint shows no errors or warnings (`pnpm fix:eslint`)
+- [ ] Code is properly formatted (`pnpm fix:prettier`)
+- [ ] CSS follows style guidelines (`pnpm fix:css`)
+- [ ] No spelling mistakes in code/comments (`pnpm fix:spelling`)
+- [ ] No unused code or dependencies (`pnpm fix:knip`)
 
 ## 2. Functionality Testing ✓
 
@@ -117,23 +117,6 @@ pnpm fix
 
 # Ensure a clean build
 pnpm clean && pnpm install && pnpm build
-```
-
-## Quick Command Reference
-
-```bash
-# Full validation
-pnpm lint
-
-# Auto-fix issues
-pnpm fix
-
-# Test locally
-pnpm dev
-# Then: curl "http://localhost:3000/try?url=https://example.com"
-
-# Build check
-pnpm build
 ```
 
 ## Post-Deployment Monitoring

@@ -4,10 +4,9 @@ import { getErrorMessage } from "@/utils/errorUtils";
 
 import type { Logger } from "./logger";
 
-export interface BrowserLaunchOptions {
-	headless: LaunchOptions["headless"];
+export interface BrowserLaunchOptions extends Pick<LaunchOptions, "headless"> {
 	logger: Logger;
-	timeout?: number;
+	timeout?: LaunchOptions["timeout"];
 }
 
 export interface BrowserLaunchResult {
