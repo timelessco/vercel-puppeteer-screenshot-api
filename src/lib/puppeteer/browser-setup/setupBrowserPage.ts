@@ -1,10 +1,12 @@
+import type { Viewport } from "rebrowser-puppeteer-core";
+
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
 import type { CreateLoggerReturnType } from "../core/createLogger";
 import { applyAntiDetectionEvasions } from "./applyAntiDetectionEvasions";
 import { applyCDPWebdriverRemoval } from "./applyCDPWebdriverRemoval";
 import { setupAdBlocker } from "./setupAdBlocker";
 
-const DEFAULT_VIEWPORT = {
+const DEFAULT_VIEWPORT: Viewport = {
 	deviceScaleFactor: 2,
 	height: 1080,
 	width: 1920,
@@ -13,6 +15,7 @@ const DEFAULT_VIEWPORT = {
 export interface SetupBrowserPageOptions {
 	logger: CreateLoggerReturnType;
 	page: GetOrCreatePageReturnType;
+	viewport?: Viewport;
 }
 
 /**
@@ -25,14 +28,14 @@ export interface SetupBrowserPageOptions {
 export async function setupBrowserPage(
 	options: SetupBrowserPageOptions,
 ): Promise<void> {
-	const { page } = options;
-	// * Disabled to reduce noise in logging
+	const { page, viewport = DEFAULT_VIEWPORT } = options;
 	// Set up logging before any navigation for debugging
 	setupLogging(options);
 
-	await page.setViewport(DEFAULT_VIEWPORT);
+	await page.setViewport(viewport);
 	await page.emulateMediaFeatures([
 		{ name: "prefers-color-scheme", value: "dark" },
+		{ name: "prefers-reduced-motion", value: "reduce" },
 	]);
 
 	// JavaScript-level anti-detection evasions

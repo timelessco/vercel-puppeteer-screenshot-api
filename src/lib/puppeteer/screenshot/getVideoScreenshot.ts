@@ -1,12 +1,21 @@
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
-import { videoUrlRegex } from "../core/constants";
+import { setupBrowserPage } from "../browser-setup/setupBrowserPage";
+import type { LaunchBrowserReturnType } from "../browser/launchBrowser";
+import {
+	closePageSafely,
+	getOrCreatePage,
+	type GetOrCreatePageReturnType,
+} from "../browser/pageUtils";
 import type { ProcessUrlReturnType } from "../request/processUrl";
 import { captureScreenshot } from "./captureScreenshot";
 
-type GetVideoScreenshotHelperOptions = GetVideoScreenshotOptions;
+interface GetVideoScreenshotHelperOptions {
+	logger: GetVideoScreenshotOptions["logger"];
+	page: Awaited<ReturnType<typeof getOrCreatePage>>;
+	url: ProcessUrlReturnType;
+}
 
 /**
  * Capture a screenshot of a video by creating an HTML page with video element and canvas
@@ -175,8 +184,8 @@ async function getVideoScreenshotHelper(
 }
 
 interface GetVideoScreenshotOptions {
+	browser: LaunchBrowserReturnType;
 	logger: GetScreenshotOptions["logger"];
-	page: GetOrCreatePageReturnType;
 	url: ProcessUrlReturnType;
 }
 
@@ -188,24 +197,25 @@ interface GetVideoScreenshotOptions {
 export async function getVideoScreenshot(
 	options: GetVideoScreenshotOptions,
 ): Promise<null | { metaData: null; screenshot: Buffer }> {
-	const { logger, page, url } = options;
+	const { browser, logger, url } = options;
 
-	// Check if URL is a video before page processing
-	const urlResponse = await fetch(url);
-	const contentType = urlResponse.headers.get("content-type");
-	const urlHasVideoContentType = contentType?.startsWith("video/") ?? false;
-	const isVideoUrl = urlHasVideoContentType || videoUrlRegex.test(url);
+	logger.info("Processing video screenshot", { url });
+	let page: GetOrCreatePageReturnType | null = null;
 
-	if (isVideoUrl) {
-		logger.info("Video URL detected", { contentType, isVideoUrl });
+	try {
+		// Page navigation and setup
+		page = await getOrCreatePage({ browser, logger });
+		await setupBrowserPage({ logger, page });
+
 		const screenshot = await getVideoScreenshotHelper({ logger, page, url });
 
 		if (screenshot) {
 			return { metaData: null, screenshot };
 		}
 
-		logger.warn("Video screenshot failed, falling back to regular screenshot");
+		logger.warn("Video screenshot failed, returning null for fallback");
+		return null;
+	} finally {
+		if (page) await closePageSafely({ logger, page });
 	}
-
-	return null;
 }

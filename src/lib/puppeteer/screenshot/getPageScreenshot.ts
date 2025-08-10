@@ -18,30 +18,31 @@ import type { GetScreenshotOptions } from "@/app/try/route";
 import { extractPageMetadata } from "../core/extractPageMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 
-interface GetYouTubeScreenshotOptions {
+interface GetPageScreenshotOptions {
 	browser: LaunchBrowserReturnType;
+	fullPage: GetScreenshotOptions["fullPage"];
 	logger: GetScreenshotOptions["logger"];
 	shouldGetPageMetrics: GetScreenshotOptions["shouldGetPageMetrics"];
 	url: ProcessUrlReturnType;
 }
 
 /**
- * Captures screenshot from YouTube thumbnail URLs
- * @param {GetYouTubeScreenshotOptions} options - Options containing page, url, and logger
- * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof extractPageMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a YouTube thumbnail URL
+ * Screenshot handler that attempts regular navigation and errors on failure
+ * @param {GetPageScreenshotOptions} options - Options containing browser, url, logger, and optional metrics flag
+ * @returns {Promise<{ metaData: Awaited<ReturnType<typeof extractPageMetadata>> | null; screenshot: Buffer }>} Screenshot buffer with metadata or error page
  */
-export async function getYouTubeScreenshot(
-	options: GetYouTubeScreenshotOptions,
-): Promise<null | {
-	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
+export async function getPageScreenshot(
+	options: GetPageScreenshotOptions,
+): Promise<{
+	metaData: Awaited<ReturnType<typeof extractPageMetadata>> | null;
 	screenshot: Buffer;
 }> {
-	const { browser, logger, shouldGetPageMetrics, url } = options;
-
-	logger.info("YouTube thumbnail URL detected");
+	const { browser, fullPage, logger, shouldGetPageMetrics, url } = options;
 	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
+		logger.info("Using screenshot handler");
+
 		// Complete page navigation sequence
 		page = await getOrCreatePage({ browser, logger });
 		await setupBrowserPage({ logger, page });
@@ -50,36 +51,24 @@ export async function getYouTubeScreenshot(
 		await cloudflareChecker({ logger, page });
 		await handleDialogs({ logger, page });
 
-		logger.info("YouTube: Looking for thumbnail image for video");
-		const img = await page.$("img");
+		// Take screenshot
+		const screenshot = await captureScreenshot({
+			logger,
+			screenshotOptions: { fullPage },
+			target: page,
+			timerLabel: "Page screenshot",
+		});
 
-		if (img) {
-			logger.info("YouTube: Thumbnail image found for video");
-			const screenshot = await captureScreenshot({
-				logger,
-				target: img,
-				timerLabel: "YouTube thumbnail screenshot capture",
-			});
-
-			const metaData = await extractPageMetadata({
-				logger,
-				page,
-				url,
-			});
-			logger.info("YouTube thumbnail captured successfully");
-			return { metaData, screenshot };
-		}
-
-		logger.info("No YouTube thumbnail found, falling back to page screenshot");
-		return null;
+		const metaData = await extractPageMetadata({ logger, page, url });
+		logger.info("Screenshot captured successfully");
+		return { metaData, screenshot };
 	} catch (error) {
-		logger.warn(
-			"YouTube thumbnail screenshot failed, returning null for fallback",
-			{
-				error: getErrorMessage(error),
-			},
-		);
-		return null;
+		// If navigation fails, create an error page
+		logger.error("Navigation failed, creating error page", {
+			error: getErrorMessage(error),
+		});
+
+		throw error;
 	} finally {
 		if (page) await closePageSafely({ logger, page });
 	}

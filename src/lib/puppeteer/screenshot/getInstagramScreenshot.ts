@@ -1,15 +1,26 @@
-import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
+import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
+import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
+import {
+	closePageSafely,
+	getOrCreatePage,
+	getPageMetrics,
+	type GetOrCreatePageReturnType,
+} from "@/lib/puppeteer/browser/pageUtils";
+import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker";
+import {
+	gotoPage,
+	handleDialogs,
+} from "@/lib/puppeteer/navigation/navigationUtils";
 import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { INSTAGRAM } from "../core/constants";
 import { extractPageMetadata } from "../core/extractPageMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 
 interface FetchOgImageOptions {
 	logger: GetInstagramScreenshotOptions["logger"];
-	page: GetInstagramScreenshotOptions["page"];
+	page: Awaited<ReturnType<typeof getOrCreatePage>>;
 }
 
 /**
@@ -62,8 +73,9 @@ async function fetchOgImage(
 }
 
 interface GetInstagramScreenshotOptions {
+	browser: LaunchBrowserReturnType;
 	logger: GetScreenshotOptions["logger"];
-	page: GetOrCreatePageReturnType;
+	shouldGetPageMetrics: GetScreenshotOptions["shouldGetPageMetrics"];
 	url: ProcessUrlReturnType;
 }
 
@@ -94,23 +106,27 @@ export async function getInstagramScreenshot(
 	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
-	const { logger, page, url } = options;
-
-	// Check if this is an Instagram URL
-	if (!url.includes(INSTAGRAM)) {
-		return null;
-	}
-
-	// Extract image index from URL parameters
-	const imageIndex = extractInstagramImageIndex(url);
+	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("Instagram URL detected");
-	logger.info("Processing Instagram screenshot", {
-		imageIndex: imageIndex ?? "default",
-		url,
-	});
+	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
+		// Complete page navigation sequence
+		page = await getOrCreatePage({ browser, logger });
+		await setupBrowserPage({ logger, page });
+		await gotoPage({ logger, page, url });
+		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
+		await cloudflareChecker({ logger, page });
+		await handleDialogs({ logger, page });
+
+		// Extract image index from URL parameters
+		const imageIndex = extractInstagramImageIndex(url);
+
+		logger.info("Processing Instagram screenshot", {
+			imageIndex: imageIndex ?? "default",
+			url,
+		});
 		logger.info("Instagram Post detected");
 		const ariaLabel = "Next";
 		const index = imageIndex ?? null;
@@ -213,13 +229,12 @@ export async function getInstagramScreenshot(
 		logger.info("Instagram screenshot captured successfully");
 		return { metaData, screenshot: screenshotBuffer };
 	} catch (error) {
-		logger.warn(
-			"Instagram screenshot failed, falling back to page screenshot",
-			{
-				error: getErrorMessage(error),
-			},
-		);
+		logger.warn("Instagram screenshot failed, returning null for fallback", {
+			error: getErrorMessage(error),
+		});
 
 		return null;
+	} finally {
+		if (page) await closePageSafely({ logger, page });
 	}
 }

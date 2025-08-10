@@ -1,15 +1,30 @@
 import { ElementHandle, type JSHandle } from "rebrowser-puppeteer-core";
 
-import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
+import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
+import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
+import {
+	closePageSafely,
+	getOrCreatePage,
+	getPageMetrics,
+	type GetOrCreatePageReturnType,
+} from "@/lib/puppeteer/browser/pageUtils";
+import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker";
+import {
+	gotoPage,
+	handleDialogs,
+} from "@/lib/puppeteer/navigation/navigationUtils";
 import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { TWITTER, X } from "../core/constants";
 import { extractPageMetadata } from "../core/extractPageMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 
-type GetTwitterElementOptions = GetTwitterScreenshotOptions;
+interface GetTwitterElementOptions {
+	logger: GetTwitterScreenshotOptions["logger"];
+	page: Awaited<ReturnType<typeof getOrCreatePage>>;
+	url: ProcessUrlReturnType;
+}
 
 /**
  * Finds the appropriate element to screenshot on X/Twitter pages
@@ -87,8 +102,9 @@ async function getTwitterElement(
 }
 
 interface GetTwitterScreenshotOptions {
+	browser: LaunchBrowserReturnType;
 	logger: GetScreenshotOptions["logger"];
-	page: GetOrCreatePageReturnType;
+	shouldGetPageMetrics: GetScreenshotOptions["shouldGetPageMetrics"];
 	url: ProcessUrlReturnType;
 }
 
@@ -103,15 +119,20 @@ export async function getTwitterScreenshot(
 	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
-	const { logger, page, url } = options;
+	const { browser, logger, shouldGetPageMetrics, url } = options;
 
-	// Check if this is an X/Twitter URL
-	if (!url.includes(X) && !url.includes(TWITTER)) {
-		return null;
-	}
+	logger.info("X/Twitter URL detected");
+	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
-		logger.info("X/Twitter URL detected");
+		// Complete page navigation sequence
+		page = await getOrCreatePage({ browser, logger });
+		await setupBrowserPage({ logger, page });
+		await gotoPage({ logger, page, url });
+		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
+		await cloudflareChecker({ logger, page });
+		await handleDialogs({ logger, page });
+
 		const screenshotTarget = await getTwitterElement({ logger, page, url });
 
 		if (screenshotTarget && "screenshot" in screenshotTarget) {
@@ -128,12 +149,13 @@ export async function getTwitterScreenshot(
 		logger.info(
 			"No X/Twitter target element found, falling back to page screenshot",
 		);
+		return null;
 	} catch (error) {
-		logger.warn(
-			"X/Twitter screenshot failed, falling back to page screenshot",
-			{ error: getErrorMessage(error) },
-		);
+		logger.warn("X/Twitter screenshot failed, returning null for fallback", {
+			error: getErrorMessage(error),
+		});
+		return null;
+	} finally {
+		if (page) await closePageSafely({ logger, page });
 	}
-
-	return null;
 }
