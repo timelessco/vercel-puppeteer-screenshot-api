@@ -110,6 +110,11 @@ export async function getScreenshotInstagram(
 		const src = await page.$eval("img", (el) => el.src);
 		logger.info("first image src found", { src });
 
+		const elements = await page.$$eval("*", (els) =>
+			els.map((el) => el.tagName + (el.className ? "." + el.className : "")),
+		);
+		console.log("all elements", elements);
+
 		if (divs.length > 0) {
 			try {
 				const imgs = await divs[1].$$("img");
