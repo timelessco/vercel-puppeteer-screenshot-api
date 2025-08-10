@@ -16,12 +16,19 @@ export async function isVideoUrl(
 		return true;
 	}
 
-	// Expensive check: fetch content-type
+	// Expensive check: fetch content-type with timeout
 	if (checkContentType) {
 		try {
-			const response = await fetch(url, { method: "HEAD" });
+			const response = await fetch(url, {
+				method: "HEAD",
+				signal: AbortSignal.timeout(5000), // 5 second timeout
+			});
 			const contentType = response.headers.get("content-type");
-			return contentType?.startsWith("video/") ?? false;
+			return (
+				contentType?.startsWith("video/") ??
+				(contentType === "application/vnd.apple.mpegurl" || // HLS
+					contentType === "application/dash+xml") // DASH
+			);
 		} catch {
 			return false;
 		}
