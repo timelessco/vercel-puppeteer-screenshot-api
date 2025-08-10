@@ -1,7 +1,7 @@
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { LaunchBrowserReturnType } from "./browser-launcher";
+import type { LaunchBrowserReturnType } from "./launchBrowser";
 
 export interface GetOrCreatePageOptions {
 	browser: LaunchBrowserReturnType;

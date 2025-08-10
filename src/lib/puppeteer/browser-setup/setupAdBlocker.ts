@@ -3,7 +3,7 @@ import fetch from "cross-fetch";
 
 import { getErrorMessage } from "@/utils/errorUtils";
 
-import type { SetupBrowserPageOptions } from "./index";
+import type { SetupBrowserPageOptions } from "./setupBrowserPage";
 
 type SetupAdBlockerOptions = SetupBrowserPageOptions;
 

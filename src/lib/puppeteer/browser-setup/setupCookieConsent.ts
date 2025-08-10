@@ -1,6 +1,6 @@
 import { getErrorMessage } from "@/utils/errorUtils";
 
-import type { SetupBrowserPageOptions } from "./index";
+import type { SetupBrowserPageOptions } from "./setupBrowserPage";
 
 const AUTOCONSENT_CDN_URL =
 	"https://cdn.jsdelivr.net/npm/@duckduckgo/autoconsent@14.10.1/dist/autoconsent.playwright.js";

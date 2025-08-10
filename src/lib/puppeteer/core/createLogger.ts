@@ -1,4 +1,4 @@
-import type { RequestConfig } from "./request-parser";
+import type { RequestConfig } from "../request/parseRequestConfig";
 
 type LogLevel = "debug" | "error" | "info" | "warn";
 

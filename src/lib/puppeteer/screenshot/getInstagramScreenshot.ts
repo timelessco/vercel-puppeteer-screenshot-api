@@ -1,11 +1,11 @@
+import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
+import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
-import type { ProcessUrlReturnType } from "@/utils/puppeteer/url-processor";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { INSTAGRAM } from "../constants";
-import { captureScreenshot } from "../screenshot-helper";
-import { getMetadata } from "./metadata";
+import { INSTAGRAM } from "../core/constants";
+import { extractPageMetadata } from "../core/extractPageMetadata";
+import { captureScreenshot } from "./captureScreenshot";
 
 interface FetchOgImageOptions {
 	logger: GetInstagramScreenshotOptions["logger"];
@@ -86,12 +86,12 @@ function extractInstagramImageIndex(url: string): number | undefined {
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images
  * @param {GetInstagramScreenshotOptions} options - Options containing page, url, logger, and optional imageIndex
- * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof getMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
+ * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof extractPageMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
  */
 export async function getInstagramScreenshot(
 	options: GetInstagramScreenshotOptions,
 ): Promise<null | {
-	metaData: Awaited<ReturnType<typeof getMetadata>>;
+	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
 	const { logger, page, url } = options;
@@ -209,7 +209,7 @@ export async function getInstagramScreenshot(
 			screenshotBuffer = Buffer.from(screenshot);
 		}
 
-		const metaData = await getMetadata({ logger, page, url });
+		const metaData = await extractPageMetadata({ logger, page, url });
 		logger.info("Instagram screenshot captured successfully");
 		return { metaData, screenshot: screenshotBuffer };
 	} catch (error) {

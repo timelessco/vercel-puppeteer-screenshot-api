@@ -1,12 +1,12 @@
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { videoUrlRegex } from "../constants";
-import type { GetOrCreatePageReturnType } from "../page-utils";
-import { captureScreenshot } from "../screenshot-helper";
-import type { ProcessUrlReturnType } from "../url-processor";
+import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
+import { videoUrlRegex } from "../core/constants";
+import type { ProcessUrlReturnType } from "../request/processUrl";
+import { captureScreenshot } from "./captureScreenshot";
 
-type GetVideoScreenshotHelperOptions = HandleVideoUrlOptions;
+type GetVideoScreenshotHelperOptions = GetVideoScreenshotOptions;
 
 /**
  * Capture a screenshot of a video by creating an HTML page with video element and canvas
@@ -174,7 +174,7 @@ async function getVideoScreenshotHelper(
 	}
 }
 
-interface HandleVideoUrlOptions {
+interface GetVideoScreenshotOptions {
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: ProcessUrlReturnType;
@@ -182,11 +182,11 @@ interface HandleVideoUrlOptions {
 
 /**
  * Handle video URL detection and screenshot capture
- * @param {HandleVideoUrlOptions} options - Options containing page, url, and logger
+ * @param {GetVideoScreenshotOptions} options - Options containing page, url, and logger
  * @returns {Promise<{ metaData: null; screenshot: Buffer } | null>} Screenshot result or null if not a video/failed
  */
 export async function getVideoScreenshot(
-	options: HandleVideoUrlOptions,
+	options: GetVideoScreenshotOptions,
 ): Promise<null | { metaData: null; screenshot: Buffer }> {
 	const { logger, page, url } = options;
 

@@ -15,8 +15,8 @@
  * https://github.com/berstend/puppeteer-extra/issues/908
  */
 
+import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
 type InjectCloudflareAutoSolverOptions = CloudflareCheckerOptions;

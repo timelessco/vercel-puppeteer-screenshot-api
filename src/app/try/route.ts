@@ -1,35 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getErrorMessage } from "@/utils/errorUtils";
+import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import {
 	launchBrowser,
 	type LaunchBrowserReturnType,
-} from "@/utils/puppeteer/browser-launcher";
-import { setupBrowserPage } from "@/utils/puppeteer/browser-setup";
-import { cloudflareChecker } from "@/utils/puppeteer/cloudflareChecker";
-import { RESPONSE_HEADERS } from "@/utils/puppeteer/constants";
-import { handleDialogs } from "@/utils/puppeteer/dialog-handler";
-import { gotoPage } from "@/utils/puppeteer/navigation";
+} from "@/lib/puppeteer/browser/launchBrowser";
 import {
 	closePageWithBrowser,
 	getOrCreatePage,
 	getPageMetrics,
-} from "@/utils/puppeteer/page-utils";
+} from "@/lib/puppeteer/browser/pageUtils";
+import { RESPONSE_HEADERS } from "@/lib/puppeteer/core/constants";
+import {
+	extractPageMetadata,
+	type GetMetadataReturnType,
+} from "@/lib/puppeteer/core/extractPageMetadata";
+import { retryWithBackoff } from "@/lib/puppeteer/core/retryWithBackoff";
+import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker";
+import {
+	gotoPage,
+	handleDialogs,
+} from "@/lib/puppeteer/navigation/navigationUtils";
 import {
 	parseRequestConfig,
 	type RequestConfig,
-} from "@/utils/puppeteer/request-parser";
-import { retryWithBackoff } from "@/utils/puppeteer/retry-helpers";
-import { captureScreenshot } from "@/utils/puppeteer/screenshot-helper";
-import { getInstagramScreenshot } from "@/utils/puppeteer/site-handlers/instagram";
-import {
-	getMetadata,
-	type GetMetadataReturnType,
-} from "@/utils/puppeteer/site-handlers/metadata";
-import { getTwitterScreenshot } from "@/utils/puppeteer/site-handlers/twitter";
-import { getVideoScreenshot } from "@/utils/puppeteer/site-handlers/video";
-import { getYouTubeScreenshot } from "@/utils/puppeteer/site-handlers/youtube";
-import { processUrl } from "@/utils/puppeteer/url-processor";
+} from "@/lib/puppeteer/request/parseRequestConfig";
+import { processUrl } from "@/lib/puppeteer/request/processUrl";
+import { captureScreenshot } from "@/lib/puppeteer/screenshot/captureScreenshot";
+import { getInstagramScreenshot } from "@/lib/puppeteer/screenshot/getInstagramScreenshot";
+import { getTwitterScreenshot } from "@/lib/puppeteer/screenshot/getTwitterScreenshot";
+import { getVideoScreenshot } from "@/lib/puppeteer/screenshot/getVideoScreenshot";
+import { getYouTubeScreenshot } from "@/lib/puppeteer/screenshot/getYouTubeScreenshot";
+import { getErrorMessage } from "@/utils/errorUtils";
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
@@ -146,7 +148,11 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			timerLabel: "Page screenshot capture",
 		});
 
-		const metaData = await getMetadata({ logger, page, url: processedUrl });
+		const metaData = await extractPageMetadata({
+			logger,
+			page,
+			url: processedUrl,
+		});
 		logger.info("Page screenshot captured successfully with metadata");
 		return { metaData, screenshot };
 	} catch (error) {

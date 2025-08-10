@@ -1,15 +1,15 @@
 import { ElementHandle, type JSHandle } from "rebrowser-puppeteer-core";
 
+import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
+import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
-import type { ProcessUrlReturnType } from "@/utils/puppeteer/url-processor";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { TWITTER, X } from "../constants";
-import { captureScreenshot } from "../screenshot-helper";
-import { getMetadata } from "./metadata";
+import { TWITTER, X } from "../core/constants";
+import { extractPageMetadata } from "../core/extractPageMetadata";
+import { captureScreenshot } from "./captureScreenshot";
 
-type GetTwitterElementOptions = GetScreenshotTwitterOptions;
+type GetTwitterElementOptions = GetTwitterScreenshotOptions;
 
 /**
  * Finds the appropriate element to screenshot on X/Twitter pages
@@ -86,7 +86,7 @@ async function getTwitterElement(
 	}
 }
 
-interface GetScreenshotTwitterOptions {
+interface GetTwitterScreenshotOptions {
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: ProcessUrlReturnType;
@@ -94,13 +94,13 @@ interface GetScreenshotTwitterOptions {
 
 /**
  * Captures screenshot from X/Twitter with special handling for tweets and profiles
- * @param {GetScreenshotTwitterOptions} options - Options containing page, url, and logger
- * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof getMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a Twitter URL
+ * @param {GetTwitterScreenshotOptions} options - Options containing page, url, and logger
+ * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof extractPageMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a Twitter URL
  */
 export async function getTwitterScreenshot(
-	options: GetScreenshotTwitterOptions,
+	options: GetTwitterScreenshotOptions,
 ): Promise<null | {
-	metaData: Awaited<ReturnType<typeof getMetadata>>;
+	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
 	const { logger, page, url } = options;
@@ -120,7 +120,7 @@ export async function getTwitterScreenshot(
 				target: screenshotTarget,
 				timerLabel: "X/Twitter element screenshot capture",
 			});
-			const metaData = await getMetadata({ logger, page, url });
+			const metaData = await extractPageMetadata({ logger, page, url });
 
 			logger.info("X/Twitter screenshot captured successfully");
 			return { metaData, screenshot };

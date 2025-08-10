@@ -1,4 +1,4 @@
-import type { RequestConfig } from "./request-parser";
+import type { RequestConfig } from "../request/parseRequestConfig";
 
 /**
  * Determines if an error is retryable based on common network and Puppeteer-specific error patterns

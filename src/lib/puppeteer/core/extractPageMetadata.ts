@@ -1,27 +1,20 @@
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { GetOrCreatePageReturnType } from "../page-utils";
+import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
 
-interface GetMetadataOptions {
+interface ExtractPageMetadataOptions {
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: GetScreenshotOptions["url"];
 }
 
-export async function getMetadata(options: GetMetadataOptions) {
+export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 	const { logger, page, url: urlStr } = options;
-	logger.info("Fetching metadata for URL", { url: urlStr });
+	logger.info("Extracting metadata from current page", { url: urlStr });
 
 	try {
-		const navTimer = logger.time("Metadata page navigation");
-		await page.goto(urlStr, {
-			timeout: 300_000,
-			waitUntil: "networkidle2",
-		});
-		navTimer();
-		logger.debug("Page loaded for metadata extraction");
-
+		const metadataTimer = logger.time("Metadata extraction");
 		const metadata = await page.evaluate(() => {
 			// eslint-disable-next-line unicorn/consistent-function-scoping
 			const getMetaContent = (selector: string): null | string => {
@@ -56,6 +49,7 @@ export async function getMetadata(options: GetMetadataOptions) {
 				title,
 			};
 		});
+		metadataTimer();
 
 		logger.info("Metadata extraction completed", {
 			descriptionLength: metadata.description?.length ?? 0,
@@ -80,4 +74,6 @@ export async function getMetadata(options: GetMetadataOptions) {
 	}
 }
 
-export type GetMetadataReturnType = Awaited<ReturnType<typeof getMetadata>>;
+export type GetMetadataReturnType = Awaited<
+	ReturnType<typeof extractPageMetadata>
+>;

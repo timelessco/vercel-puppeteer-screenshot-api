@@ -1,10 +1,8 @@
-import type { CreateLoggerReturnType } from "../logger";
-import type { GetOrCreatePageReturnType } from "../page-utils";
-import { setupAdBlocker } from "./ad-blocker";
-import {
-	applyAntiDetectionEvasions,
-	applyCDPWebdriverRemoval,
-} from "./anti-detection";
+import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
+import type { CreateLoggerReturnType } from "../core/createLogger";
+import { applyAntiDetectionEvasions } from "./applyAntiDetectionEvasions";
+import { applyCDPWebdriverRemoval } from "./applyCDPWebdriverRemoval";
+import { setupAdBlocker } from "./setupAdBlocker";
 
 const DEFAULT_VIEWPORT = {
 	deviceScaleFactor: 2,

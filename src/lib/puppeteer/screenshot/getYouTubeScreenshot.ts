@@ -1,13 +1,13 @@
+import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
+import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
-import type { ProcessUrlReturnType } from "@/utils/puppeteer/url-processor";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { YOUTUBE_THUMBNAIL_URL } from "../constants";
-import { captureScreenshot } from "../screenshot-helper";
-import { getMetadata } from "./metadata";
+import { YOUTUBE_THUMBNAIL_URL } from "../core/constants";
+import { extractPageMetadata } from "../core/extractPageMetadata";
+import { captureScreenshot } from "./captureScreenshot";
 
-interface GetScreenshotYouTubeOptions {
+interface GetYouTubeScreenshotOptions {
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: ProcessUrlReturnType;
@@ -15,13 +15,13 @@ interface GetScreenshotYouTubeOptions {
 
 /**
  * Captures screenshot from YouTube thumbnail URLs
- * @param {GetScreenshotYouTubeOptions} options - Options containing page, url, and logger
- * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof getMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a YouTube thumbnail URL
+ * @param {GetYouTubeScreenshotOptions} options - Options containing page, url, and logger
+ * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof extractPageMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a YouTube thumbnail URL
  */
 export async function getYouTubeScreenshot(
-	options: GetScreenshotYouTubeOptions,
+	options: GetYouTubeScreenshotOptions,
 ): Promise<null | {
-	metaData: Awaited<ReturnType<typeof getMetadata>>;
+	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
 	const { logger, page, url } = options;
@@ -43,7 +43,7 @@ export async function getYouTubeScreenshot(
 				timerLabel: "YouTube thumbnail screenshot capture",
 			});
 
-			const metaData = await getMetadata({
+			const metaData = await extractPageMetadata({
 				logger,
 				page,
 				url,

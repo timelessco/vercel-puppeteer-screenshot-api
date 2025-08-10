@@ -90,7 +90,7 @@ const LOCAL_DEV_ARGS = [
 	// Use hardware acceleration when available
 ] as const;
 
-export interface BrowserLaunchOptions {
+export interface LaunchBrowserOptions {
 	headless: GetScreenshotOptions["headless"];
 	logger: GetScreenshotOptions["logger"];
 	timeout?: LaunchOptions["timeout"];
@@ -99,11 +99,11 @@ export interface BrowserLaunchOptions {
 /**
  * Launches a browser instance with environment-specific configuration
  * Automatically detects Vercel deployment and configures Chromium accordingly
- * @param {BrowserLaunchOptions} options - Configuration options for browser launch
+ * @param {LaunchBrowserOptions} options - Configuration options for browser launch
  * @returns {Promise<LaunchBrowserReturnType>} Browser instance ready for use
  * @throws {Error} If browser fails to launch within the timeout period
  */
-export async function launchBrowser(options: BrowserLaunchOptions) {
+export async function launchBrowser(options: LaunchBrowserOptions) {
 	const { headless = true, logger, timeout = 30_000 } = options;
 
 	// Detect deployment environment

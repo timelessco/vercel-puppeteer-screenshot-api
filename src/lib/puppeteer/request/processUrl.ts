@@ -2,7 +2,7 @@ import getVideoId from "get-video-id";
 
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { YOUTUBE, YOUTUBE_THUMBNAIL_URL } from "./constants";
+import { YOUTUBE, YOUTUBE_THUMBNAIL_URL } from "../core/constants";
 
 interface ProcessUrlOptions {
 	logger: GetScreenshotOptions["logger"];
