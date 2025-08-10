@@ -1,10 +1,11 @@
 import { fullLists, PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
 import fetch from "cross-fetch";
-import type { Page } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";
 
-import type { Logger } from "../logger";
+import type { SetupBrowserPageOptions } from "./index";
+
+type SetupAdBlockerOptions = SetupBrowserPageOptions;
 
 /**
  * Ad and Tracker Blocking via @ghostery/adblocker-puppeteer
@@ -25,13 +26,14 @@ import type { Logger } from "../logger";
  * - Analytics: mixpanel, segment.com, hotjar
  * - Ad networks: adnxs.com, and thousands more
  * - Cookie banners: OneTrust (otBannerSdk.js), and others
- * @param {Page} page - The Puppeteer page instance
- * @param {Logger} logger - Logger instance for debugging
+ * @param {SetupAdBlockerOptions} options - Configuration options for ad blocker setup
+ * @returns {Promise<void>}
  */
 export async function setupAdBlocker(
-	page: Page,
-	logger: Logger,
+	options: SetupAdBlockerOptions,
 ): Promise<void> {
+	const { logger, page } = options;
+
 	try {
 		const blocker = await PuppeteerBlocker.fromLists(
 			fetch,

@@ -1,20 +1,22 @@
-import type { Browser, Page } from "rebrowser-puppeteer-core";
-
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { Logger } from "./logger";
+import type { LaunchBrowserReturnType } from "./browser-launcher";
+
+export interface GetOrCreatePageOptions {
+	browser: LaunchBrowserReturnType;
+	logger: GetScreenshotOptions["logger"];
+}
 
 /**
- * Gets an existing page or creates a new one from the browser.
- * Optimizes by reusing the first empty page if available.
- * @param {Browser} browser - The browser instance
- * @param {Logger} logger - Logger for debugging
- * @returns {Promise<Page>} A page instance ready for use
+ * Gets an existing page or creates a new one from the browser
+ * Optimizes by reusing the first empty page if available
+ * @param {GetOrCreatePageOptions} options - Options containing browser and logger
+ * @returns {GetOrCreatePageReturnType} A page instance ready for use
  */
-export async function getOrCreatePage(
-	browser: Browser,
-	logger: Logger,
-): Promise<Page> {
+export async function getOrCreatePage(options: GetOrCreatePageOptions) {
+	const { browser, logger } = options;
+
 	// Optimize: reuse existing empty page if available
 	const pages = await browser.pages();
 	const page = pages[0] || (await browser.newPage());
@@ -28,15 +30,24 @@ export async function getOrCreatePage(
 	return page;
 }
 
+export type GetOrCreatePageReturnType = Awaited<
+	ReturnType<typeof getOrCreatePage>
+>;
+
+export interface ClosePageSafelyOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+}
+
 /**
- * Safely closes a page with error handling.
- * @param {Page} page - The page to close
- * @param {Logger} logger - Logger for debugging
+ * Safely closes a page with error handling
+ * @param {ClosePageSafelyOptions} options - Options containing page and logger
  */
 export async function closePageSafely(
-	page: Page,
-	logger: Logger,
+	options: ClosePageSafelyOptions,
 ): Promise<void> {
+	const { logger, page } = options;
+
 	try {
 		await page.close();
 		logger.debug("Page closed successfully");
@@ -59,17 +70,21 @@ function createTimeoutPromise(ms: number): Promise<never> {
 	});
 }
 
+export interface ClosePageWithBrowserOptions {
+	browser: LaunchBrowserReturnType;
+	logger: GetScreenshotOptions["logger"];
+}
+
 /**
- * Gracefully closes browser with timeout protection for Vercel.
+ * Gracefully closes browser with timeout protection for Vercel
  * Issue: browser.close() hangs with @sparticuz/chromium v138 causing 300s timeout
  * Solution: Race condition with 5s timeout + disconnect fallback
- * @param {Browser} browser - The browser instance to close
- * @param {Logger} logger - Logger for debugging
+ * @param {ClosePageWithBrowserOptions} options - Options containing browser and logger
  */
 export async function closePageWithBrowser(
-	browser: Browser,
-	logger: Logger,
+	options: ClosePageWithBrowserOptions,
 ): Promise<void> {
+	const { browser, logger } = options;
 	logger.info("Closing browser");
 
 	// Eventhough we close the browser as we open them,
@@ -77,7 +92,9 @@ export async function closePageWithBrowser(
 	const pages = await browser.pages();
 	logger.info(`Closing ${pages.length} pages`);
 
-	const pageClosePromises = pages.map((page) => closePageSafely(page, logger));
+	const pageClosePromises = pages.map((page) =>
+		closePageSafely({ logger, page }),
+	);
 	await Promise.all(pageClosePromises);
 
 	// Try to close browser with timeout protection
@@ -99,23 +116,19 @@ export async function closePageWithBrowser(
 	}
 }
 
+export interface GetPageMetricsOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+}
+
 /**
  * Monitors and reports page memory usage
- * @param {Page} page - The page to monitor
- * @param {Logger} logger - Logger for debugging
+ * @param {GetPageMetricsOptions} options - Options containing page and logger
  * @returns {Promise<object>} Memory metrics
  */
-export async function getPageMetrics(
-	page: Page,
-	logger: Logger,
-): Promise<{
-	Frames: number;
-	JSEventListeners: number;
-	JSHeapTotalSize: number;
-	JSHeapUsedSize: number;
-	Nodes: number;
-	TaskDuration: number;
-}> {
+export async function getPageMetrics(options: GetPageMetricsOptions) {
+	const { logger, page } = options;
+
 	try {
 		const metrics = await page.metrics();
 		const heapUsed = metrics.JSHeapUsedSize ?? 0;

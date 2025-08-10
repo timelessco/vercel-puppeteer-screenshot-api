@@ -1,14 +1,20 @@
-import type { Page } from "rebrowser-puppeteer-core";
+import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { Logger } from "./logger";
+interface HandleDialogsOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+}
 
 /**
  * Handle dialogs on the page by attempting to close them with Escape key
- * @param {Page} page - The Puppeteer page instance
- * @param {Logger} logger - Logger instance for debugging
+ * @param {HandleDialogsOptions} options - Options containing page and logger
  * @returns {Promise<void>}
  */
-export async function handleDialogs(page: Page, logger: Logger): Promise<void> {
+export async function handleDialogs(
+	options: HandleDialogsOptions,
+): Promise<void> {
+	const { logger, page } = options;
 	try {
 		const dialogElement = await page.$('div[role="dialog"]');
 		if (dialogElement) {

@@ -15,31 +15,22 @@
  * https://github.com/berstend/puppeteer-extra/issues/908
  */
 
-import type { Page } from "rebrowser-puppeteer-core";
-
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { Logger } from "./logger";
-
-interface CloudflareChallenge {
-	chlApiWidgetId?: string;
-}
-
-interface CloudflareWindow extends Window {
-	_cf_chl_opt?: CloudflareChallenge;
-}
+type InjectCloudflareAutoSolverOptions = CloudflareCheckerOptions;
 
 /**
  * Injects Cloudflare auto-solver script into the page using page.evaluate()
  * This replaces the previous preload script approach
- * @param {Page} page - The Puppeteer page instance
- * @param {Logger} logger - Logger instance for debugging
+ * @param {InjectCloudflareAutoSolverOptions} options - Options containing page and logger
  */
 // TODO: This is not working, need to find a better way to solve the challenge
 async function injectCloudflareAutoSolver(
-	page: Page,
-	logger: Logger,
+	options: InjectCloudflareAutoSolverOptions,
 ): Promise<void> {
+	const { logger, page } = options;
 	try {
 		const cloudflareClicker = () => {
 			// Check both main domain and iframes
@@ -116,10 +107,23 @@ async function injectCloudflareAutoSolver(
 	}
 }
 
+interface CloudflareChallenge {
+	chlApiWidgetId?: string;
+}
+
+interface CloudflareWindow extends Window {
+	_cf_chl_opt?: CloudflareChallenge;
+}
+
+interface CloudflareCheckerOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+}
+
 export async function cloudflareChecker(
-	page: Page,
-	logger: Logger,
+	options: CloudflareCheckerOptions,
 ): Promise<boolean> {
+	const { logger, page } = options;
 	logger.info("[CF-Checker] Running Cloudflare check");
 	const frames = page.frames();
 
@@ -132,7 +136,7 @@ export async function cloudflareChecker(
 				logger.info("[CF-Checker] Cloudflare challenge detected");
 
 				// Inject the auto-solver script into the challenge frame
-				await injectCloudflareAutoSolver(page, logger);
+				await injectCloudflareAutoSolver({ logger, page });
 
 				const id = await frame.evaluate(() => {
 					return (globalThis as unknown as CloudflareWindow)._cf_chl_opt

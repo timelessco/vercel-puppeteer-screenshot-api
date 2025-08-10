@@ -1,17 +1,7 @@
-import type { Browser, LaunchOptions } from "rebrowser-puppeteer-core";
+import type { LaunchOptions } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";
-
-import type { Logger } from "./logger";
-
-export interface BrowserLaunchOptions extends Pick<LaunchOptions, "headless"> {
-	logger: Logger;
-	timeout?: LaunchOptions["timeout"];
-}
-
-export interface BrowserLaunchResult {
-	browser: Browser;
-}
+import type { GetScreenshotOptions } from "@/app/try/route";
 
 /**
  * Shared arguments for consistent behavior between environments
@@ -100,24 +90,20 @@ const LOCAL_DEV_ARGS = [
 	// Use hardware acceleration when available
 ] as const;
 
+export interface BrowserLaunchOptions {
+	headless: GetScreenshotOptions["headless"];
+	logger: GetScreenshotOptions["logger"];
+	timeout?: LaunchOptions["timeout"];
+}
+
 /**
- * Launches a browser instance with environment-specific configuration.
- * Automatically detects Vercel deployment and configures Chromium accordingly.
+ * Launches a browser instance with environment-specific configuration
+ * Automatically detects Vercel deployment and configures Chromium accordingly
  * @param {BrowserLaunchOptions} options - Configuration options for browser launch
- * @returns {Promise<BrowserLaunchResult>} Browser instance ready for use
+ * @returns {Promise<LaunchBrowserReturnType>} Browser instance ready for use
  * @throws {Error} If browser fails to launch within the timeout period
- * @example
- * ```typescript
- * const { browser } = await launchBrowser({
- *   headless: true,
- *   logger: myLogger,
- *   timeout: 60000
- * });
- * ```
  */
-export async function launchBrowser(
-	options: BrowserLaunchOptions,
-): Promise<BrowserLaunchResult> {
+export async function launchBrowser(options: BrowserLaunchOptions) {
 	const { headless = true, logger, timeout = 30_000 } = options;
 
 	// Detect deployment environment
@@ -181,7 +167,7 @@ export async function launchBrowser(
 			browserVersion: await browser.version(),
 		});
 
-		return { browser };
+		return browser;
 	} catch (error) {
 		const errorMessage = getErrorMessage(error);
 		logger.error("Failed to launch browser", {
@@ -193,3 +179,5 @@ export async function launchBrowser(
 		throw new Error(`Browser launch failed: ${errorMessage}`);
 	}
 }
+
+export type LaunchBrowserReturnType = Awaited<ReturnType<typeof launchBrowser>>;

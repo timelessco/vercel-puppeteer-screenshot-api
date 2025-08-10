@@ -1,15 +1,22 @@
-import type { Page } from "rebrowser-puppeteer-core";
-
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { Logger } from "../logger";
+import { videoUrlRegex } from "../constants";
+import type { GetOrCreatePageReturnType } from "../page-utils";
 import { captureScreenshot } from "../screenshot-helper";
+import type { ProcessUrlReturnType } from "../url-processor";
 
-export async function getScreenshotMp4(
-	page: Page,
-	url: string,
-	logger: Logger,
+type GetVideoScreenshotHelperOptions = HandleVideoUrlOptions;
+
+/**
+ * Capture a screenshot of a video by creating an HTML page with video element and canvas
+ * @param {GetVideoScreenshotHelperOptions} options - Options containing page, url, and logger
+ * @returns {Promise<Buffer | null>} Screenshot buffer or null if capture fails
+ */
+async function getVideoScreenshotHelper(
+	options: GetVideoScreenshotHelperOptions,
 ): Promise<Buffer | null> {
+	const { logger, page, url } = options;
 	logger.info("Processing video screenshot", { url });
 
 	try {
@@ -165,4 +172,40 @@ export async function getScreenshotMp4(
 		});
 		return null;
 	}
+}
+
+interface HandleVideoUrlOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+	url: ProcessUrlReturnType;
+}
+
+/**
+ * Handle video URL detection and screenshot capture
+ * @param {HandleVideoUrlOptions} options - Options containing page, url, and logger
+ * @returns {Promise<{ metaData: null; screenshot: Buffer } | null>} Screenshot result or null if not a video/failed
+ */
+export async function getVideoScreenshot(
+	options: HandleVideoUrlOptions,
+): Promise<null | { metaData: null; screenshot: Buffer }> {
+	const { logger, page, url } = options;
+
+	// Check if URL is a video before page processing
+	const urlResponse = await fetch(url);
+	const contentType = urlResponse.headers.get("content-type");
+	const urlHasVideoContentType = contentType?.startsWith("video/") ?? false;
+	const isVideoUrl = urlHasVideoContentType || videoUrlRegex.test(url);
+
+	if (isVideoUrl) {
+		logger.info("Video URL detected", { contentType, isVideoUrl });
+		const screenshot = await getVideoScreenshotHelper({ logger, page, url });
+
+		if (screenshot) {
+			return { metaData: null, screenshot };
+		}
+
+		logger.warn("Video screenshot failed, falling back to regular screenshot");
+	}
+
+	return null;
 }

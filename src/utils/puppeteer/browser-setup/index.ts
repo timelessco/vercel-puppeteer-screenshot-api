@@ -1,6 +1,5 @@
-import type { Page } from "rebrowser-puppeteer-core";
-
-import type { Logger } from "../logger";
+import type { CreateLoggerReturnType } from "../logger";
+import type { GetOrCreatePageReturnType } from "../page-utils";
 import { setupAdBlocker } from "./ad-blocker";
 import {
 	applyAntiDetectionEvasions,
@@ -13,20 +12,25 @@ const DEFAULT_VIEWPORT = {
 	width: 1920,
 };
 
+export interface SetupBrowserPageOptions {
+	logger: CreateLoggerReturnType;
+	page: GetOrCreatePageReturnType;
+}
+
 /**
  * Sets up a Puppeteer page with standard configuration including viewport,
  * media features, ad blocking, and cookie consent handling.
  * Should be called immediately after page creation and before navigation.
- * @param {Page} page - The Puppeteer page instance to configure
- * @param {Logger} logger - Logger instance for debugging and monitoring
+ * @param {SetupBrowserPageOptions} options - Configuration options for browser page setup
+ * @returns {Promise<void>}
  */
 export async function setupBrowserPage(
-	page: Page,
-	logger: Logger,
+	options: SetupBrowserPageOptions,
 ): Promise<void> {
+	const { page } = options;
 	// * Disabled to reduce noise in logging
 	// Set up logging before any navigation for debugging
-	setupLogging(page, logger);
+	setupLogging(options);
 
 	await page.setViewport(DEFAULT_VIEWPORT);
 	await page.emulateMediaFeatures([
@@ -34,13 +38,13 @@ export async function setupBrowserPage(
 	]);
 
 	// JavaScript-level anti-detection evasions
-	await applyAntiDetectionEvasions(page, logger);
+	await applyAntiDetectionEvasions(options);
 
 	// CDP-level webdriver removal
-	await applyCDPWebdriverRemoval(page, logger);
+	await applyCDPWebdriverRemoval(options);
 
 	// Set up ad blocking with Ghostery
-	await setupAdBlocker(page, logger);
+	await setupAdBlocker(options);
 
 	// Most of the ad blocking and cookie consent handling is handled by the Ghostery ad blocker
 	// Enable this if when you encounter a site that is not blocked by Ghostery
@@ -48,12 +52,16 @@ export async function setupBrowserPage(
 	// await setupCookieConsent(page, logger);
 }
 
+type SetupLoggingOptions = SetupBrowserPageOptions;
+
 /**
  * Sets up logging to capture browser messages/errors
- * @param {Page} page - The Puppeteer page instance
- * @param {Logger} logger - Logger instance for debugging
+ * @param {SetupLoggingOptions} options - Configuration options for logging setup
+ * @returns {void}
  */
-function setupLogging(page: Page, logger: Logger): void {
+function setupLogging(options: SetupLoggingOptions): void {
+	const { logger, page } = options;
+
 	page.on("console", (msg) => {
 		const type = msg.type();
 		const text = msg.text();

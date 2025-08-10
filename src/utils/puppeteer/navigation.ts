@@ -1,20 +1,28 @@
-import type { HTTPResponse, Page } from "rebrowser-puppeteer-core";
+import type { HTTPResponse } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { Logger } from "@/utils/puppeteer/logger";
+import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
+import type { ProcessUrlReturnType } from "@/utils/puppeteer/url-processor";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-export interface NavigationOptions {
+interface GotoPageOptions {
 	fontTimeout?: number;
+	logger: GetScreenshotOptions["logger"];
 	navigationTimeout?: number;
-	url: string;
+	page: GetOrCreatePageReturnType;
+	url: ProcessUrlReturnType;
 }
 
-export async function navigateWithFallback(
-	page: Page,
-	options: NavigationOptions,
-	logger: Logger,
+export async function gotoPage(
+	options: GotoPageOptions,
 ): Promise<HTTPResponse | null> {
-	const { fontTimeout = 1000, navigationTimeout = 15_000, url } = options;
+	const {
+		fontTimeout = 1000,
+		logger,
+		navigationTimeout = 15_000,
+		page,
+		url,
+	} = options;
 
 	logger.info("Starting page navigation", { url });
 	const navTimer = logger.time("Page navigation");
@@ -43,6 +51,14 @@ export async function navigateWithFallback(
 		logger.debug("Fonts loaded");
 	} catch {
 		logger.debug("Font loading timeout, proceeding anyway");
+	}
+
+	// Check response status and log warning if not ok
+	if (!response?.ok()) {
+		logger.warn("Navigation response not ok", {
+			status: response?.status(),
+			statusText: response?.statusText(),
+		});
 	}
 
 	return response;

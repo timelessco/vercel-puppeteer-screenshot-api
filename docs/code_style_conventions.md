@@ -5,7 +5,6 @@
 **ALWAYS run the following commands before completing any task:**
 
 1. Automatically use the IDE's built-in diagnostics tool to check for linting and type errors:
-   - Run `mcp__ide__getDiagnostics` to check all files for diagnostics
    - Fix any linting or type errors before considering the task complete
    - Do this for any file you create or modify
 
@@ -29,10 +28,10 @@ This is a CRITICAL step that must NEVER be skipped when working on any code-rela
 
 ## React/Next.js Patterns
 
-- **Exports**: Named exports only (no default exports)
+- **Exports**: Named exports only (no default exports) (no array function for the exports)
 
   ```typescript
-  export const ComponentName = () => { ... }
+  export function ComponentName () { ... }
   ```
 
 - **Component Structure**:
@@ -67,6 +66,47 @@ This is a CRITICAL step that must NEVER be skipped when working on any code-rela
 - **Utilities**: Helper functions in `/src/utils/`
 - **Hooks**: Custom React hooks in `/src/hooks/`
 - **Images**: Static images in `/src/images/[page-name]/`
+
+## Function Parameter Pattern
+
+**For functions with 2 or more parameters, use the options object pattern:**
+
+### Required Elements
+
+1. **Options Type**: Name it `FunctionNameOptions`
+2. **Function Signature**: Use regular functions with single `options` parameter
+3. **Destructuring**: First line must destructure options alphabetically
+4. **Return Type**: Export complex return types as `FunctionNameReturnType`
+
+### Simple Example
+
+```typescript
+// Define options interface
+export interface ProcessDataOptions {
+	connection: DatabaseConnection;
+	logger: Logger;
+	timeout?: number;
+}
+
+// Regular function with options parameter
+export async function processData(
+	options: ProcessDataOptions,
+): Promise<ProcessResult> {
+	const { connection, logger, timeout = 5000 } = options; // Alphabetical destructuring
+	// ... implementation
+}
+
+// Export return type if needed elsewhere
+export type ProcessDataReturnType = Awaited<ReturnType<typeof processData>>;
+```
+
+### Benefits
+
+- Clear parameter grouping
+- Easy to add/remove parameters without changing call sites
+- Consistent pattern across codebase
+
+**For detailed TypeScript type rules, see [`docs/type_deduction_guidelines.md`](./type_deduction_guidelines.md)**
 
 ## Best Practices
 

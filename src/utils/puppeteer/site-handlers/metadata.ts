@@ -1,27 +1,17 @@
-import type { Page } from "rebrowser-puppeteer-core";
-
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { Logger } from "../logger";
+import type { GetOrCreatePageReturnType } from "../page-utils";
 
-export async function getMetadata(
-	page: Page,
-	urlStr: string,
-	logger: Logger,
-): Promise<{
-	description: null | string;
-	favIcon: null | string;
-	ogImage: null | string;
-	title: null | string;
-}> {
+interface GetMetadataOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+	url: GetScreenshotOptions["url"];
+}
+
+export async function getMetadata(options: GetMetadataOptions) {
+	const { logger, page, url: urlStr } = options;
 	logger.info("Fetching metadata for URL", { url: urlStr });
-
-	const fallbackMetadata = {
-		description: null,
-		favIcon: null,
-		ogImage: null,
-		title: null,
-	};
 
 	try {
 		const navTimer = logger.time("Metadata page navigation");
@@ -86,6 +76,8 @@ export async function getMetadata(
 			error: getErrorMessage(error),
 			url: urlStr,
 		});
-		return fallbackMetadata;
+		return null;
 	}
 }
+
+export type GetMetadataReturnType = Awaited<ReturnType<typeof getMetadata>>;

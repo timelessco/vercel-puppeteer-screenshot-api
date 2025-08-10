@@ -1,11 +1,12 @@
-import type { Logger } from "./logger";
+import type { RequestConfig } from "./request-parser";
 
 /**
- * Determines if an error is retryable based on common network and Puppeteer-specific error patterns.
- * @param {unknown} error - The error to check
- * @returns {boolean} true if the error is retryable, false otherwise
+ * Determines if an error is retryable based on common network and Puppeteer-specific error patterns
+ * Checks for network errors, protocol errors, and browser connection issues
+ * @param {unknown} error - The error to check for retryability
+ * @returns {boolean} True if the error is retryable, false otherwise
  */
-export function shouldRetry(error: unknown): boolean {
+function shouldRetry(error: unknown): boolean {
 	if (!(error instanceof Error)) return false;
 
 	const retryableErrors = [
@@ -32,51 +33,56 @@ export function shouldRetry(error: unknown): boolean {
 	return retryableErrors.some((message) => error.message.includes(message));
 }
 
-// Options for configuring retry behavior
-export interface RetryOptions {
+interface RetryOptions {
 	baseDelay?: number;
-	logger?: Logger;
+	logger: RequestConfig["logger"];
 	maxRetries?: number;
 	shouldRetry?: (error: Error) => boolean;
 }
 
+export interface RetryWithBackoffOptions<T> {
+	callback: () => Promise<T>;
+	options: RetryOptions;
+}
+
 /**
- * Executes a function with exponential backoff retry logic.
- * @param {() => Promise<T>} fn - The async function to execute
- * @param {RetryOptions} [options] - Configuration options for retry behavior
- * @returns {Promise<T>} The result of the function if successful
- * @throws The last error if all retries are exhausted
+ * Executes a function with exponential backoff retry logic
+ * Retries failed operations with increasing delays between attempts
+ * @param {RetryWithBackoffOptions<T>} options - Options containing the callback and retry configuration
+ * @returns {Promise<T>} The result of the callback function if successful
  */
 export async function retryWithBackoff<T>(
-	fn: () => Promise<T>,
-	options?: RetryOptions,
+	options: RetryWithBackoffOptions<T>,
 ): Promise<T> {
-	const maxRetries = options?.maxRetries ?? 2;
-	const baseDelay = options?.baseDelay ?? 1000;
-	const logger = options?.logger;
-	const shouldRetryFn = options?.shouldRetry ?? shouldRetry;
+	const { callback, options: retryOptions } = options;
+	const {
+		baseDelay = 1000,
+		logger,
+		maxRetries = 2,
+		shouldRetry: shouldRetryFn = shouldRetry,
+	} = retryOptions;
 
 	let lastError: Error | undefined;
 
 	for (let attempt = 0; attempt < maxRetries; attempt++) {
 		try {
 			if (attempt > 0) {
-				logger?.info(`Retry attempt ${attempt}/${maxRetries - 1}`);
+				logger.info(`Retry attempt ${attempt}/${maxRetries - 1}`);
 			}
-			return await fn();
+			return await callback();
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
 
 			// Check if error is retryable
 			if (!shouldRetryFn(lastError)) {
-				logger?.debug("Error is not retryable", {
+				logger.debug("Error is not retryable", {
 					error: lastError.message,
 				});
 
 				throw lastError;
 			}
 
-			logger?.debug(`Attempt ${attempt + 1} failed`, {
+			logger.debug(`Attempt ${attempt + 1} failed`, {
 				error: lastError.message,
 				retryable: true,
 			});
@@ -84,13 +90,13 @@ export async function retryWithBackoff<T>(
 			// Don't delay after the last attempt
 			if (attempt < maxRetries - 1) {
 				const delay = baseDelay * Math.pow(2, attempt);
-				logger?.debug(`Waiting ${delay}ms before retry`);
+				logger.debug(`Waiting ${delay}ms before retry`);
 				await new Promise((resolve) => setTimeout(resolve, delay));
 			}
 		}
 	}
 
-	logger?.warn("Max retries exceeded", {
+	logger.warn("Max retries exceeded", {
 		error: lastError?.message,
 		maxRetries,
 	});

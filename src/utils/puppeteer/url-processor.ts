@@ -1,17 +1,23 @@
 import getVideoId from "get-video-id";
 
+import type { GetScreenshotOptions } from "@/app/try/route";
+
 import { YOUTUBE, YOUTUBE_THUMBNAIL_URL } from "./constants";
-import type { Logger } from "./logger";
+
+interface ProcessUrlOptions {
+	logger: GetScreenshotOptions["logger"];
+	url: GetScreenshotOptions["url"];
+}
 
 /**
  * Process URL for special cases like YouTube thumbnails
  * Returns the processed URL or original if no processing needed
- * @param {string} url - The URL to process
- * @param {Logger} logger - Logger instance for debugging
+ * @param {ProcessUrlOptions} options - Options containing url and logger
  * @returns {string} The processed URL or original if no processing needed
  */
-export function processUrl(url: string, logger: Logger): string {
-	// YouTube thumbnail processing
+export function processUrl(options: ProcessUrlOptions): string {
+	const { logger, url } = options;
+
 	if (url.includes(YOUTUBE)) {
 		logger.info("YouTube URL detected, checking for videoId");
 
@@ -26,3 +32,5 @@ export function processUrl(url: string, logger: Logger): string {
 
 	return url;
 }
+
+export type ProcessUrlReturnType = Awaited<ReturnType<typeof processUrl>>;

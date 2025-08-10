@@ -1,10 +1,11 @@
 import type { ElementHandle, Page } from "rebrowser-puppeteer-core";
 
+import type { GetScreenshotOptions } from "@/app/try/route";
+
 import { getErrorMessage } from "../errorUtils";
-import type { Logger } from "./logger";
 
 export interface CaptureScreenshotOptions {
-	logger: Logger;
+	logger: GetScreenshotOptions["logger"];
 	screenshotOptions?: Parameters<Page["screenshot"]>[0];
 	target: ElementHandle | Page;
 	timerLabel?: string;

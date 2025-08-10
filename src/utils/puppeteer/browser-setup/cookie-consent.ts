@@ -1,14 +1,14 @@
-import type { Page } from "rebrowser-puppeteer-core";
-
 import { getErrorMessage } from "@/utils/errorUtils";
 
-import type { Logger } from "../logger";
+import type { SetupBrowserPageOptions } from "./index";
 
 const AUTOCONSENT_CDN_URL =
 	"https://cdn.jsdelivr.net/npm/@duckduckgo/autoconsent@14.10.1/dist/autoconsent.playwright.js";
 
 // Cache the script in memory to avoid repeated CDN fetches
 let cachedAutoconsentScript: null | string = null;
+
+type SetupCookieConsentOptions = SetupBrowserPageOptions;
 
 /**
  * Interactive Cookie Consent Handling via @duckduckgo/autoconsent
@@ -49,13 +49,13 @@ let cachedAutoconsentScript: null | string = null;
  * - Attempts to click "reject all" or minimal consent options
  * - Falls back to hiding banners if interaction fails
  * - Runs on every page load to handle dynamic consent popups
- * @param {Page} page - The Puppeteer page instance
- * @param {Logger} logger - Logger instance for debugging
+ * @param {SetupCookieConsentOptions} options - Configuration options for cookie consent setup
+ * @returns {Promise<void>}
  */
 export async function setupCookieConsent(
-	page: Page,
-	logger: Logger,
+	options: SetupCookieConsentOptions,
 ): Promise<void> {
+	const { logger, page } = options;
 	try {
 		// Use cached script if available, otherwise fetch from CDN
 		if (!cachedAutoconsentScript) {

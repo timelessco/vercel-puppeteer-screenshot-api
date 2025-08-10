@@ -18,7 +18,6 @@ Core principles for maintaining clean, consistent, and accessible code in the pr
 
 Ensure all items are complete before finishing any task.
 
-- Run `mcp__ide__getDiagnostics` before completing any task
 - Run `pnpm fix` to auto-fix all issues
 - For subsequent targeted fixes, use individual `fix:` commands
 - Only Max 250 lines per file - split larger files into modules
@@ -35,6 +34,7 @@ See [`docs/task_completion_checklist.md`](./docs/task_completion_checklist.md) f
 - Server components by default, `"use client"` when needed
 - Tailwind CSS v4 with `cn()` for conditional classes
 - Type deduction over custom interfaces (see type guidelines)
+- Functions with 2+ params: Use interface with `options` parameter
 
 **File Organization:**
 
@@ -49,31 +49,33 @@ See [`docs/task_completion_checklist.md`](./docs/task_completion_checklist.md) f
 
 See [`docs/code_style_conventions.md`](./docs/code_style_conventions.md) for full details.
 
+### Function Parameter Pattern
+
+For functions with 2+ parameters, use the options object pattern:
+
+1. **Options Type**: `FunctionNameOptions`
+2. **Function**: Regular function with single `options` parameter
+3. **Destructure**: First line destructures alphabetically
+4. **Return Type**: Export as `FunctionNameReturnType` if used elsewhere
+
+See [`docs/code_style_conventions.md`](./docs/code_style_conventions.md) for details.
+
 ### Type Deduction Best Practices
 
-Deduce from existing library types rather than creating custom interfaces. Types flow top-to-bottom from parent to child functions.
+**Core Rules:**
 
-**Quick Reference:**
+- **Type Hierarchy**: Use types from immediate parent only, never skip to grandparents
+- **Type Alias**: When child options = parent options, use `type Child = Parent`
+- **Export Discipline**: Only export types used in other files (check with grep first)
+- **Utility Types**: Use `Parameters<>`, `ReturnType<>`, `Pick<>`, `Awaited<>`
 
-- `Parameters<Function>[index]` - extract parameter types
-- `ReturnType<typeof function>` - extract return types
-- `Pick<Type, Keys>` / `Omit<Type, Keys>` - reuse partial types
-- `Awaited<Type>` - promise resolutions
-- `&` - extend existing types
+**Quick Checks:**
 
-**Before creating any type, check if you can:**
+- ✅ Can I use type alias instead of interface?
+- ✅ Am I deducing from parent, not grandparent?
+- ✅ Is this type actually used elsewhere?
 
-1. Use TypeScript utility types (`Parameters<>`, `ReturnType<>`, `Pick<>`)
-2. Import directly from the library
-3. Extend or compose existing types
-
-**Common patterns:**
-
-- Library methods: `Parameters<Library["method"]>[index]`
-- Factory functions: `ReturnType<typeof createFactory>`
-- Configuration: Extract to named types when reused
-
-See [`docs/type_deduction_guidelines.md`](./docs/type_deduction_guidelines.md) for examples.
+See [`docs/type_deduction_guidelines.md`](./docs/type_deduction_guidelines.md) for full guide.
 
 ### Frontend & Accessibility Rules
 

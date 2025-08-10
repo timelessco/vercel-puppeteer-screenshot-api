@@ -1,14 +1,26 @@
-import type { Page } from "rebrowser-puppeteer-core";
-
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { GetOrCreatePageReturnType } from "@/utils/puppeteer/page-utils";
+import type { ProcessUrlReturnType } from "@/utils/puppeteer/url-processor";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import type { Logger } from "../logger";
+import { INSTAGRAM } from "../constants";
 import { captureScreenshot } from "../screenshot-helper";
+import { getMetadata } from "./metadata";
 
+interface FetchOgImageOptions {
+	logger: GetInstagramScreenshotOptions["logger"];
+	page: GetInstagramScreenshotOptions["page"];
+}
+
+/**
+ * Fetches the og:image meta tag content from Instagram page
+ * @param {FetchOgImageOptions} options - Options containing page and logger
+ * @returns {Promise<Buffer | null>} Buffer containing the image data or null if not found
+ */
 async function fetchOgImage(
-	page: Page,
-	logger: Logger,
+	options: FetchOgImageOptions,
 ): Promise<Buffer | null> {
+	const { logger, page } = options;
 	logger.debug("Attempting to extract og:image");
 
 	const ogImage = await page.evaluate(() => {
@@ -49,21 +61,59 @@ async function fetchOgImage(
 	}
 }
 
-export async function getScreenshotInstagram(
-	page: Page,
-	urlStr: string,
-	imageIndex: string | undefined,
-	logger: Logger,
-): Promise<Buffer | null> {
+interface GetInstagramScreenshotOptions {
+	logger: GetScreenshotOptions["logger"];
+	page: GetOrCreatePageReturnType;
+	url: ProcessUrlReturnType;
+}
+
+/**
+ * Extracts Instagram image index from URL parameters
+ * @param {string} url - The Instagram URL to parse
+ * @returns {number | undefined} The image index if present, undefined otherwise
+ */
+function extractInstagramImageIndex(url: string): number | undefined {
+	try {
+		const urlObj = new URL(url);
+		const imgIndexFromUrl = urlObj.searchParams.get("img_index");
+
+		return imgIndexFromUrl ? Number.parseInt(imgIndexFromUrl) : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Captures screenshot from Instagram posts with special handling for carousels and images
+ * @param {GetInstagramScreenshotOptions} options - Options containing page, url, logger, and optional imageIndex
+ * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof getMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
+ */
+export async function getInstagramScreenshot(
+	options: GetInstagramScreenshotOptions,
+): Promise<null | {
+	metaData: Awaited<ReturnType<typeof getMetadata>>;
+	screenshot: Buffer;
+}> {
+	const { logger, page, url } = options;
+
+	// Check if this is an Instagram URL
+	if (!url.includes(INSTAGRAM)) {
+		return null;
+	}
+
+	// Extract image index from URL parameters
+	const imageIndex = extractInstagramImageIndex(url);
+
+	logger.info("Instagram URL detected");
 	logger.info("Processing Instagram screenshot", {
 		imageIndex: imageIndex ?? "default",
-		url: urlStr,
+		url,
 	});
 
 	try {
 		logger.info("Instagram Post detected");
 		const ariaLabel = "Next";
-		const index = imageIndex ? Number.parseInt(imageIndex) : null;
+		const index = imageIndex ?? null;
 
 		if (index && index > 1) {
 			logger.info("Navigating carousel to image", { targetIndex: index });
@@ -88,6 +138,8 @@ export async function getScreenshotInstagram(
 				});
 			}
 		}
+
+		let screenshotBuffer: Buffer | null = null;
 
 		const divs = await page.$$("article > div");
 		logger.debug("Searching for article divs", { found: divs.length });
@@ -115,7 +167,7 @@ export async function getScreenshotInstagram(
 							size: arrayBuffer.byteLength,
 						});
 
-						return Buffer.from(arrayBuffer);
+						screenshotBuffer = Buffer.from(arrayBuffer);
 					} else {
 						logger.error("Failed to fetch Instagram image", {
 							status: imageRes.status,
@@ -133,28 +185,36 @@ export async function getScreenshotInstagram(
 		}
 
 		// Try og:image as second fallback
-		logger.info("Falling back to og:image for Instagram Post");
-		const ogImageBuffer = await fetchOgImage(page, logger);
-		if (ogImageBuffer) {
-			return ogImageBuffer;
+		if (!screenshotBuffer) {
+			logger.info("Falling back to og:image for Instagram Post");
+			const ogImageBuffer = await fetchOgImage({ logger, page });
+			if (ogImageBuffer) {
+				screenshotBuffer = ogImageBuffer;
+			}
 		}
 
 		// Final fallback: take a page screenshot
-		logger.warn(
-			"No Instagram image found via DOM or og:image, falling back to page screenshot",
-		);
-		const screenshot = await captureScreenshot({
-			logger,
-			target: page,
-			timerLabel: "Instagram fallback screenshot",
-		});
-		logger.info("Fallback page screenshot taken successfully", {
-			size: screenshot.byteLength,
-		});
-		return Buffer.from(screenshot);
+		if (!screenshotBuffer) {
+			logger.warn(
+				"No Instagram image found via DOM or og:image, falling back to page screenshot",
+			);
+			const screenshot = await captureScreenshot({
+				logger,
+				target: page,
+				timerLabel: "Instagram fallback screenshot",
+			});
+			logger.info("Fallback page screenshot taken successfully", {
+				size: screenshot.byteLength,
+			});
+			screenshotBuffer = Buffer.from(screenshot);
+		}
+
+		const metaData = await getMetadata({ logger, page, url });
+		logger.info("Instagram screenshot captured successfully");
+		return { metaData, screenshot: screenshotBuffer };
 	} catch (error) {
-		logger.error(
-			"Critical error in Instagram screenshot handler, using page screenshot fallback",
+		logger.warn(
+			"Instagram screenshot failed, falling back to page screenshot",
 			{
 				error: getErrorMessage(error),
 			},

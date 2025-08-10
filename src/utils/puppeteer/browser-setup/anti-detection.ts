@@ -17,41 +17,9 @@
 /* eslint-disable @typescript-eslint/prefer-optional-chain */
 /* eslint-disable logical-assignment-operators */
 
-import type { Page } from "rebrowser-puppeteer-core";
+import type { SetupBrowserPageOptions } from "./index";
 
-import type { Logger } from "../logger";
-
-/**
- * Applies early CDP-level webdriver removal before any page scripts load.
- * This is the most critical anti-detection measure as it removes webdriver
- * at the protocol level before JavaScript execution begins.
- * @param {Page} page - The page to apply CDP injection to
- * @param {Logger} logger - Logger for debugging
- */
-export async function applyCDPWebdriverRemoval(
-	page: Page,
-	logger: Logger,
-): Promise<void> {
-	try {
-		const client = await page.createCDPSession();
-		await client.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `
-				// Remove webdriver at the earliest possible stage
-				delete Object.getPrototypeOf(navigator).webdriver;
-
-				// Ensure chrome automation is hidden
-				if (window.chrome) {
-					window.chrome.runtime = window.chrome.runtime || {};
-					Object.defineProperty(window.chrome.runtime, 'id', {
-						get: () => undefined
-					});
-				}
-			`,
-		});
-	} catch (error) {
-		logger.warn("CDP script injection failed", { error });
-	}
-}
+type ApplyAntiDetectionEvasionsOptions = SetupBrowserPageOptions;
 
 /**
  * Applies comprehensive anti-detection evasions to make the browser appear more human-like.
@@ -59,13 +27,13 @@ export async function applyCDPWebdriverRemoval(
  * This should be called BEFORE any page navigation to ensure evasions are in place.
  *
  * Enhanced for 2025 with latest anti-detection techniques to bypass modern detection methods.
- * @param {Page} page - The page to apply evasions to
- * @param {Logger} logger - Logger for debugging
+ * @param {ApplyAntiDetectionEvasionsOptions} options - Configuration options for anti-detection evasions
+ * @returns {Promise<void>}
  */
 export async function applyAntiDetectionEvasions(
-	page: Page,
-	logger: Logger,
+	options: ApplyAntiDetectionEvasionsOptions,
 ): Promise<void> {
+	const { logger, page } = options;
 	logger.info("Applying comprehensive anti-detection evasions");
 
 	// Remove CDP runtime indicators
@@ -730,4 +698,39 @@ export async function applyAntiDetectionEvasions(
 	logger.info("Comprehensive anti-detection evasions applied successfully", {
 		userAgent: fixedUserAgent,
 	});
+}
+
+type ApplyCDPWebdriverRemovalOptions = SetupBrowserPageOptions;
+
+/**
+ * Applies early CDP-level webdriver removal before any page scripts load.
+ * This is the most critical anti-detection measure as it removes webdriver
+ * at the protocol level before JavaScript execution begins.
+ * @param {ApplyCDPWebdriverRemovalOptions} options - Configuration options for CDP webdriver removal
+ * @returns {Promise<void>}
+ */
+export async function applyCDPWebdriverRemoval(
+	options: ApplyCDPWebdriverRemovalOptions,
+): Promise<void> {
+	const { logger, page } = options;
+
+	try {
+		const client = await page.createCDPSession();
+		await client.send("Page.addScriptToEvaluateOnNewDocument", {
+			source: `
+				// Remove webdriver at the earliest possible stage
+				delete Object.getPrototypeOf(navigator).webdriver;
+
+				// Ensure chrome automation is hidden
+				if (window.chrome) {
+					window.chrome.runtime = window.chrome.runtime || {};
+					Object.defineProperty(window.chrome.runtime, 'id', {
+						get: () => undefined
+					});
+				}
+			`,
+		});
+	} catch (error) {
+		logger.warn("CDP script injection failed", { error });
+	}
 }

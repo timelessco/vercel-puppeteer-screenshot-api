@@ -11,9 +11,11 @@
 - **Imports**: Organized with specific order (see prettier config)
 - **File Extensions**: `.tsx` for React components, `.ts` for utilities
 
-## Core Principle
+## Core Principles
 
-Types should flow from top to bottom (parent to child functions), and we should deduce from existing library types whenever possible rather than creating custom interfaces.
+1. **Type Deduction**: Deduce from existing types rather than creating custom interfaces
+2. **Type Hierarchy**: Types flow from parent to child, never skip levels (no grandparent imports)
+3. **Export Discipline**: Only export types that are used in other files
 
 ## Best Practices
 
@@ -88,27 +90,7 @@ type DatabaseConnection = Awaited<ReturnType<typeof connectToDatabase>>;
 
 ### 3. Type Flow Pattern
 
-Types should cascade from parent to child:
-
-```typescript
-// Parent function defines/imports types
-async function processData<T>(
-	data: T,
-	transformer: (item: T) => Promise<ProcessedData>,
-) {
-	// Child function receives typed parameters
-	return await transformAndValidate(data, transformer);
-}
-
-// Child uses parent's types, no redefinition
-async function transformAndValidate<T>(
-	data: T,
-	transformer: (item: T) => Promise<ProcessedData>,
-) {
-	const result = await transformer(data);
-	return validate(result);
-}
-```
+Types should cascade from parent to child - see Type Hierarchy Rules section below for detailed examples.
 
 ### 4. Extend When Adding Properties
 
@@ -132,40 +114,17 @@ interface ExtendedConfig {
 
 ### 5. Extract Reusable Types
 
-Don't leave complex types inline:
+Extract complex inline types to named types when:
 
-```typescript
-// ✅ GOOD - Named, reusable type
-type PaginationOptions = {
-	page?: number;
-	limit?: number;
-	sortBy?: string;
-	order?: "asc" | "desc";
-};
-
-function fetchData(url: string, options?: PaginationOptions) {}
-
-// ❌ BAD - Inline, not reusable
-function fetchData(
-	url: string,
-	options?: {
-		page?: number;
-		limit?: number;
-		sortBy?: string;
-		order?: "asc" | "desc";
-	},
-) {}
-```
+- Used in multiple places
+- Complex enough to benefit from documentation
+- Likely to be extended or modified
 
 ## Common Patterns
 
 ### Library Types
 
-Always use the library's built-in types directly:
-
-- Import types directly from the library when available
-- Use the library's type definitions for configuration objects
-- Leverage library-provided interfaces and types for callbacks and handlers
+Always use the library's built-in types directly
 
 ### Factory Function Pattern
 
@@ -189,13 +148,70 @@ function createService(config: Config) {
 export type Service = ReturnType<typeof createService>;
 ```
 
-### Options Objects
+## Type Hierarchy Rules
 
-Extract complex inline types to named types when:
+### Parent-Child Type Deduction
 
-- Used in multiple places
-- Complex enough to benefit from documentation
-- Likely to be extended or modified
+Always use types from the immediate parent, never from grandparents.
+
+#### Type Alias for Identical Options
+
+When a child function uses the exact same options as its parent, use a type alias:
+
+```typescript
+// Parent defines the options
+export interface SetupBrowserPageOptions {
+	logger: CreateLoggerReturnType;
+	page: GetOrCreatePageReturnType;
+}
+
+// Child uses exact same options - use type alias
+type SetupAdBlockerOptions = SetupBrowserPageOptions;
+
+export async function setupAdBlocker(
+	options: SetupAdBlockerOptions,
+): Promise<void> {
+	const { logger, page } = options;
+	// ...
+}
+```
+
+#### Interface for Extended Options
+
+Only create a new interface when adding or modifying properties:
+
+```typescript
+// Child needs additional properties
+export interface ExtendedOptions {
+	logger: SetupBrowserPageOptions["logger"]; // Deduce from parent
+	page: SetupBrowserPageOptions["page"]; // Deduce from parent
+	extraOption: string; // New property
+}
+```
+
+### Export Rules
+
+Only export types that are used in other files - check with grep before exporting.
+
+## Quick Reference
+
+### DO's and DON'Ts
+
+**DO:**
+
+- ✅ Use type alias when child options = parent options exactly
+- ✅ Deduce types from immediate parent (`ParentOptions["property"]`)
+- ✅ Check with grep before exporting any type
+- ✅ Export return types that are used elsewhere
+- ✅ Use TypeScript utility types (Parameters, ReturnType, Pick, etc.)
+
+**DON'T:**
+
+- ❌ Import types from grandparent modules
+- ❌ Create unnecessary interfaces when type alias suffices
+- ❌ Export internal-only types
+- ❌ Skip hierarchy levels (e.g., using `CreateLoggerReturnType` directly in grandchild)
+- ❌ Create custom types when you can deduce from existing ones
 
 ## Checklist Before Creating a Type
 
@@ -204,6 +220,8 @@ Extract complex inline types to named types when:
 3. ✓ Can I extend or Pick from an existing type?
 4. ✓ Is this type used in multiple places (extract it)?
 5. ✓ Are types flowing from parent to child properly?
+6. ✓ Am I using types from immediate parent only?
+7. ✓ Do I need to export this type (check with grep)?
 
 ## References
 

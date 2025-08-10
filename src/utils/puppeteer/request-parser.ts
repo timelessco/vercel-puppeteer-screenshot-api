@@ -3,17 +3,24 @@ import { type NextRequest } from "next/server";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import { isDev } from "./constants";
-import { createLogger, type Logger } from "./logger";
+import { createLogger, type CreateLoggerReturnType } from "./logger";
 
 export interface RequestConfig {
 	fullPage: boolean;
 	headless: boolean;
 	imageIndex: null | string;
-	logger: Logger;
+	logger: CreateLoggerReturnType;
 	shouldGetPageMetrics: boolean;
 	url: string;
+	verbose: boolean;
 }
 
+/**
+ * Parses request parameters and creates a configuration object for screenshot capture
+ * Validates URL format and extracts query parameters for screenshot options
+ * @param {NextRequest} request - The incoming Next.js request object
+ * @returns {RequestConfig | { error: string }} Configuration object or error message
+ */
 export function parseRequestConfig(
 	request: NextRequest,
 ): RequestConfig | { error: string } {
@@ -55,7 +62,7 @@ export function parseRequestConfig(
 
 		// Setup logger
 		const verbose = searchParams.get("verbose") === "true";
-		const logger = createLogger(verbose, headless);
+		const logger = createLogger({ headless, verbose });
 
 		// Monitor page metrics when verbose mode is enabled or in development
 		const shouldGetPageMetrics =
@@ -67,7 +74,8 @@ export function parseRequestConfig(
 			imageIndex,
 			logger,
 			shouldGetPageMetrics,
-			url: inputUrl,
+			url: parsedUrl.href,
+			verbose,
 		};
 	} catch (error) {
 		// Handle any unexpected errors during request parsing

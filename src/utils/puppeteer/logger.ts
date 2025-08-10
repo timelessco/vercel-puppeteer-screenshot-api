@@ -1,14 +1,28 @@
+import type { RequestConfig } from "./request-parser";
+
 type LogLevel = "debug" | "error" | "info" | "warn";
 
 type LogContext = Record<string, unknown>;
 
 interface RuntimeMode {
 	environment: string;
-	headless: boolean;
-	verbose: boolean;
+	headless: CreateLoggerOptions["headless"];
+	verbose: CreateLoggerOptions["verbose"];
 }
 
-export const createLogger = (verbose = false, headless = true) => {
+export interface CreateLoggerOptions {
+	headless: RequestConfig["headless"];
+	verbose: RequestConfig["verbose"];
+}
+
+/**
+ * Creates a logger instance with runtime mode tracking and formatted output
+ * Logs include timestamps, elapsed time, and runtime mode information
+ * @param {CreateLoggerOptions} options - Configuration options for the logger
+ * @returns {CreateLoggerReturnType} Logger instance with debug, error, info, warn, logSummary, and time methods
+ */
+export function createLogger(options: CreateLoggerOptions) {
+	const { headless, verbose } = options;
 	const startTime = Date.now();
 
 	const runtimeMode: RuntimeMode = {
@@ -100,6 +114,6 @@ export const createLogger = (verbose = false, headless = true) => {
 		time,
 		warn,
 	};
-};
+}
 
-export type Logger = ReturnType<typeof createLogger>;
+export type CreateLoggerReturnType = ReturnType<typeof createLogger>;
