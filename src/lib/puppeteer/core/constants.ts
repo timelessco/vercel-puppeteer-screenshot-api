@@ -3,6 +3,9 @@ export const isDev = process.env.NODE_ENV === "development";
 export const videoUrlRegex =
 	/\.(mp4|avi|mov|wmv|flv|webm|mkv|m4v|3gp|ogv|mpg|mpeg|m2v|divx|xvid|rm|rmvb|asf|ts|mts|vob|m3u8|mpd)(\?.*)?$/i;
 
+export const imageUrlRegex =
+	/\.(png|jpe?g|gif|webp|avif|svg|bmp|ico|apng|tiff?)(\?.*)?$/i;
+
 export const X = "x.com";
 export const INSTAGRAM = "instagram.com";
 export const YOUTUBE = "youtube.com";

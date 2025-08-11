@@ -10,9 +10,12 @@ import {
 	RESPONSE_HEADERS,
 	TWITTER,
 	X,
-	YOUTUBE_THUMBNAIL_URL,
 } from "@/lib/puppeteer/core/constants";
 import type { GetMetadataReturnType } from "@/lib/puppeteer/core/extractPageMetadata";
+import {
+	isImageUrl,
+	isImageUrlByExtension,
+} from "@/lib/puppeteer/core/isImageUrl";
 import {
 	isVideoUrl,
 	isVideoUrlByExtension,
@@ -23,11 +26,11 @@ import {
 	type RequestConfig,
 } from "@/lib/puppeteer/request/parseRequestConfig";
 import { processUrl } from "@/lib/puppeteer/request/processUrl";
+import { getImageScreenshot } from "@/lib/puppeteer/screenshot/getImageScreenshot";
 import { getInstagramScreenshot } from "@/lib/puppeteer/screenshot/getInstagramScreenshot";
 import { getPageScreenshot } from "@/lib/puppeteer/screenshot/getPageScreenshot";
 import { getTwitterScreenshot } from "@/lib/puppeteer/screenshot/getTwitterScreenshot";
 import { getVideoScreenshot } from "@/lib/puppeteer/screenshot/getVideoScreenshot";
-import { getYouTubeScreenshot } from "@/lib/puppeteer/screenshot/getYouTubeScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
@@ -110,15 +113,16 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			if (twitterResult) return twitterResult;
 		}
 
-		// YouTube thumbnail check
-		if (processedUrl.includes(YOUTUBE_THUMBNAIL_URL)) {
-			const youtubeResult = await getYouTubeScreenshot({
+		// Image check - Two phase approach
+		// Phase 1: Quick extension check
+		if (isImageUrlByExtension(processedUrl)) {
+			logger.info("Image detected by extension, processing image screenshot");
+			const imageResult = await getImageScreenshot({
 				browser: browserInstance,
 				logger,
-				shouldGetPageMetrics,
 				url: processedUrl,
 			});
-			if (youtubeResult) return youtubeResult;
+			if (imageResult) return imageResult;
 		}
 
 		// Video check - Two phase approach
@@ -133,7 +137,21 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			if (videoResult) return videoResult;
 		}
 
-		// Phase 2: For ambiguous URLs, check content-type
+		// Phase 2: For ambiguous URLs, check content-type for images
+		const mightBeImage = await isImageUrl(processedUrl, true);
+		if (mightBeImage) {
+			logger.info(
+				"Image detected by content-type, processing image screenshot",
+			);
+			const imageResult = await getImageScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (imageResult) return imageResult;
+		}
+
+		// Phase 2: For ambiguous URLs, check content-type for videos
 		const mightBeVideo = await isVideoUrl(processedUrl, true);
 		if (mightBeVideo) {
 			logger.info(
