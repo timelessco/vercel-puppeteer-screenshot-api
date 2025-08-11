@@ -157,7 +157,7 @@ export async function getInstagramScreenshot(
 
 		let screenshotBuffer: Buffer | null = null;
 
-		const divs = await page.$$("article > div");
+		const divs = await page.$$("div");
 		logger.debug("Searching for article divs", { found: divs.length });
 
 		if (divs.length > 0) {
