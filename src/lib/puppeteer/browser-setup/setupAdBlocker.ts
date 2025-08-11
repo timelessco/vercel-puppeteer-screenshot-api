@@ -39,8 +39,8 @@ export async function setupAdBlocker(
 			fetch,
 			[
 				...fullLists,
-				// Additional aggressive blocking for annoyances
-				"https://secure.fanboy.co.nz/fanboy-annoyance.txt",
+				// Additional aggressive blocking for annoyances if needed
+				// "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
 			],
 			{ enableCompression: true },
 		);

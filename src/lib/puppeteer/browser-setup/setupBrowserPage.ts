@@ -13,6 +13,8 @@ const DEFAULT_VIEWPORT: Viewport = {
 };
 
 export interface SetupBrowserPageOptions {
+	enableAdBlocker?: boolean;
+	enableAntiDetection?: boolean;
 	logger: CreateLoggerReturnType;
 	page: GetOrCreatePageReturnType;
 	viewport?: Viewport;
@@ -28,7 +30,12 @@ export interface SetupBrowserPageOptions {
 export async function setupBrowserPage(
 	options: SetupBrowserPageOptions,
 ): Promise<void> {
-	const { page, viewport = DEFAULT_VIEWPORT } = options;
+	const {
+		enableAdBlocker = false,
+		enableAntiDetection = true,
+		page,
+		viewport = DEFAULT_VIEWPORT,
+	} = options;
 	// Set up logging before any navigation for debugging
 	setupLogging(options);
 
@@ -38,14 +45,17 @@ export async function setupBrowserPage(
 		{ name: "prefers-reduced-motion", value: "reduce" },
 	]);
 
-	// JavaScript-level anti-detection evasions
-	await applyAntiDetectionEvasions(options);
+	if (enableAntiDetection) {
+		// JavaScript-level anti-detection evasions
+		await applyAntiDetectionEvasions(options);
 
-	// CDP-level webdriver removal
-	await applyCDPWebdriverRemoval(options);
+		// CDP-level webdriver removal
+		await applyCDPWebdriverRemoval(options);
+	}
 
-	// Set up ad blocking with Ghostery
-	await setupAdBlocker(options);
+	if (enableAdBlocker) {
+		await setupAdBlocker(options);
+	}
 
 	// Most of the ad blocking and cookie consent handling is handled by the Ghostery ad blocker
 	// Enable this if when you encounter a site that is not blocked by Ghostery
