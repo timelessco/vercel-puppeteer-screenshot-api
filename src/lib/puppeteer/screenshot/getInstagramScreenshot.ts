@@ -117,7 +117,9 @@ export async function getInstagramScreenshot(
 		const data = await instagramGetUrl(url);
 		const idx = index ? index - 1 : 0;
 		const media = data.media_details[idx];
-
+		logger.info("Instagram post image found", {
+			media,
+		});
 		const thumbnail =
 			// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 			media.type === "image" ? media.url : media.thumbnail || null;
