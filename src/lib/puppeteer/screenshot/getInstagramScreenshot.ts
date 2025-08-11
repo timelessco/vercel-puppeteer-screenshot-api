@@ -194,7 +194,7 @@ export async function getInstagramScreenshot(
 			if (divs.length > 0) {
 				try {
 					const imgs = await divs[2].$$("img");
-					const innerHTML = await divs[0].evaluate((el) => el.innerHTML);
+					const innerHTML = await divs[2].evaluate((el) => el.innerHTML);
 					if (innerHTML.includes("video")) {
 						const ogImageBuffer = await fetchOgImage({ logger, page });
 						if (ogImageBuffer) {
