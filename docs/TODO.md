@@ -1,0 +1,2 @@
+- Investigate <https://puppeteer.guide/posts/handling-navigation-errors/>
+- Investigate <https://github.com/Kikobeats/top-crawler-agents> for Twitter Rich HTML Metadata

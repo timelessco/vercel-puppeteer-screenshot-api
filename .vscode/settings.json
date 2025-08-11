@@ -2,7 +2,7 @@
 	// Quality of life improvements
 	// Git
 	"git.branchProtection": ["main"],
-	"githubPullRequests.ignoredPullRequestBranches": ["main"],
+	"githubPullRequests.ignoredPullRequestBranches": ["main", "dev"],
 	"typescript.tsdk": "node_modules/typescript/lib",
 
 	// Editor Formatters & Linters.

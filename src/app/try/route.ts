@@ -1,36 +1,37 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { NextResponse, type NextRequest } from "next/server";
-import chromium from "@sparticuz/chromium-min";
-import {
-	launch,
-	type Browser,
-	type ElementHandle,
-	type JSHandle,
-} from "rebrowser-puppeteer-core";
 
-import cfCheck from "@/utils/puppeteer/cfCheck";
 import {
-	blockCookieBanners,
-	getMetadata,
-	getScreenshotInstagram,
-	getScreenshotMp4,
-	getScreenshotX,
-	manualCookieBannerRemoval,
-} from "@/utils/puppeteer/helpers";
-import { parseRequestConfig } from "@/utils/puppeteer/request-parser";
+	launchBrowser,
+	type LaunchBrowserReturnType,
+} from "@/lib/puppeteer/browser/launchBrowser";
+import { closePageWithBrowser } from "@/lib/puppeteer/browser/pageUtils";
 import {
 	INSTAGRAM,
-	isDev,
-	localExecutablePath,
-	remoteExecutablePath,
+	RESPONSE_HEADERS,
 	TWITTER,
-	userAgent,
-	videoUrlRegex,
 	X,
-	YOUTUBE,
-} from "@/utils/puppeteer/utils";
+} from "@/lib/puppeteer/core/constants";
+import type { GetMetadataReturnType } from "@/lib/puppeteer/core/extractPageMetadata";
+import {
+	isImageUrl,
+	isImageUrlByExtension,
+} from "@/lib/puppeteer/core/isImageUrl";
+import {
+	isVideoUrl,
+	isVideoUrlByExtension,
+} from "@/lib/puppeteer/core/isVideoUrl";
+import { retryWithBackoff } from "@/lib/puppeteer/core/retryWithBackoff";
+import {
+	parseRequestConfig,
+	type RequestConfig,
+} from "@/lib/puppeteer/request/parseRequestConfig";
+import { processUrl } from "@/lib/puppeteer/request/processUrl";
+import { getImageScreenshot } from "@/lib/puppeteer/screenshot/getImageScreenshot";
+import { getInstagramScreenshot } from "@/lib/puppeteer/screenshot/getInstagramScreenshot";
+import { getPageScreenshot } from "@/lib/puppeteer/screenshot/getPageScreenshot";
+import { getTwitterScreenshot } from "@/lib/puppeteer/screenshot/getTwitterScreenshot";
+import { getVideoScreenshot } from "@/lib/puppeteer/screenshot/getVideoScreenshot";
+import { getErrorMessage } from "@/utils/errorUtils";
 
 // https://nextjs.org/docs/app/api-reference/file-conventions/route#segment-config-options
 export const maxDuration = 300;
@@ -41,323 +42,145 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	const config = parseRequestConfig(request);
 
 	if ("error" in config) {
-		return NextResponse.json({ error: config.error }, { status: 400 });
+		return NextResponse.json(
+			{ error: config.error },
+			{ headers: new Headers(RESPONSE_HEADERS), status: 400 },
+		);
 	}
 
-	const { fullPage, headless, imageIndex, url } = config;
-	let urlStr = url;
-
-	let browser: Browser | null = null;
+	const { logger } = config;
 
 	try {
-		browser = await launch({
-			args: isDev
-				? [
-						"--disable-blink-features=AutomationControlled",
-						"--disable-features=site-per-process",
-						"--disable-site-isolation-trials",
-						"--disable-blink-features=AutomationControlled",
-						"--disable-web-security",
-						"--disable-features=VizDisplayCompositor",
-						"--enable-features=NetworkService,NetworkServiceLogging",
-						"--disable-background-timer-throttling",
-						"--disable-backgrounding-occluded-windows",
-						"--disable-renderer-backgrounding",
-						"--disable-field-trial-config",
-						"--disable-back-forward-cache",
-						"--enable-unsafe-swiftshader", // For video rendering
-						"--use-gl=swiftshader", // Software rendering for videos
-						"--ignore-gpu-blacklist",
-						"--disable-gpu-sandbox",
-					]
-				: [...chromium.args, "--disable-blink-features=AutomationControlled"],
-			debuggingPort: isDev ? 9222 : undefined,
-			executablePath: isDev
-				? localExecutablePath
-				: await chromium.executablePath(remoteExecutablePath),
-			headless,
-			ignoreDefaultArgs: ["--enable-automation"],
+		const { metaData, screenshot } = await retryWithBackoff({
+			callback: () => getScreenshot(config),
+			options: { logger },
 		});
+		logger.logSummary(true, screenshot.length);
 
-		const pages = await browser.pages();
-		const page = pages[0];
-
-		// here we check if the url is mp4 or not, by it's content type
-		const contentType = await fetch(urlStr).then((res) =>
-			res.headers.get("content-type"),
-		);
-		const isMp4 = contentType?.startsWith("video/") ?? false;
-		// here we check if the url is mp4 or not, by using regex
-		const isVideoUrl = videoUrlRegex.test(urlStr);
-
-		//  since we render the urls in the video tag and take the screenshot, we dont need to worry about the bot detection
-		// Replace this part in your main code:
-		if (isMp4 || isVideoUrl) {
-			try {
-				const screenshot = await getScreenshotMp4(page, urlStr);
-
-				if (screenshot) {
-					const headers = new Headers();
-					headers.set("Content-Type", "application/json");
-
-					return new NextResponse(
-						JSON.stringify({ metaData: null, screenshot }),
-						{ headers, status: 200 },
-					);
-				} else {
-					// Video screenshot failed, fall back to regular page handling
-					console.warn(
-						"Video screenshot failed, falling back to regular page screenshot",
-					);
-				}
-			} catch (error) {
-				console.error("Video screenshot error:", error);
-			}
-		}
-
-		await page.setUserAgent(userAgent);
-
-		await page.setViewport({ deviceScaleFactor: 2, height: 1200, width: 1440 });
-		await page.emulateMediaFeatures([
-			{ name: "prefers-color-scheme", value: "dark" },
-		]);
-
-		const preloadFile = fs.readFileSync(
-			path.join(process.cwd(), "/src/utils/puppeteer/preload.js"),
-			"utf8",
-		);
-		await page.evaluateOnNewDocument(preloadFile);
-
-		// Suppress expected JS errors
-		page.on("pageerror", (err) => {
-			if (!err.message.includes("stopPropagation")) {
-				console.warn("Page JS error:", err.message);
-			}
-		});
-
-		// Block noisy 3rd-party scripts and tracking
-		await page.setRequestInterception(true);
-		const blocked = [
-			"googletagmanager",
-			"otBannerSdk.js",
-			"doubleclick",
-			"adnxs.com",
-			"google-analytics",
-			"googleadservices",
-			"facebook.com/tr",
-			"connect.facebook.net",
-			"hotjar",
-			"mixpanel",
-			"segment.com",
-		];
-
-		page.on("request", (req) => {
-			const requestUrl = req.url();
-			if (blocked.some((str) => requestUrl.includes(str))) {
-				void req.abort();
-			} else {
-				void req.continue();
-			}
-		});
-
-		// Initialize cookie banner blocking
-		await blockCookieBanners(page);
-
-		let screenshot: Buffer | null | Uint8Array = null;
-		let lastError: Error | null = null;
-		let metaData: null | {
-			description: null | string;
-			favIcon: null | string;
-			ogImage: null | string;
-			title: null | string;
-		} = null;
-
-		for (let attempt = 1; attempt <= 2; attempt++) {
-			try {
-				console.log(`Navigation attempt ${attempt} to: ${urlStr}`);
-
-				if (urlStr.includes(YOUTUBE)) {
-					// here we use the getMetadata function to get the metadata of the video
-					metaData = await getMetadata(page, urlStr);
-					// Extract video ID from URL
-					const videoIdMatch = /(?:v=|\/)([\w-]{11})/.exec(urlStr);
-					const videoId = videoIdMatch?.[1];
-					if (videoId) {
-						// Create  URL
-						urlStr = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-					}
-				}
-
-				const response = await page.goto(urlStr, {
-					timeout: 300_000,
-					waitUntil: "networkidle2",
-				});
-
-				if (!response?.ok()) {
-					console.warn(
-						`Navigation attempt ${attempt} failed: ${response?.status()} ${response?.statusText()}`,
-					);
-				}
-
-				// Wait for fonts to load
-				await page.evaluate(() => document.fonts.ready);
-
-				// Run Cloudflare check
-				await cfCheck(page);
-
-				// Manual cookie banner removal as fallback
-				await manualCookieBannerRemoval(page);
-
-				for (let shotTry = 1; shotTry <= 2; shotTry++) {
-					try {
-						await page.keyboard.press("Escape");
-						try {
-							await page.waitForSelector('div[role="dialog"]', {
-								hidden: true,
-								timeout: 2000,
-							});
-						} catch {
-							console.warn(
-								"[role='dialog'] did not close after Escape — continuing anyway",
-							);
-						}
-						console.log(`Taking screenshot attempt ${shotTry}`);
-						let screenshotTarget:
-							| ElementHandle<HTMLElement>
-							| JSHandle<HTMLDivElement | null>
-							| null = null;
-
-						//instagram.com
-						// in instagram we directly take screenshot in the function itself, because for reel we get the og:image
-						// to maintain the  same we are returning the buffer
-						//for other we select the html elemnt and take screenshot of it
-						if (urlStr.includes(INSTAGRAM)) {
-							// here we use the getMetadata function to get the metadata for the post and reel
-							metaData = await getMetadata(page, urlStr);
-							const buffer = await getScreenshotInstagram(
-								page,
-								urlStr,
-								imageIndex ?? undefined,
-							);
-							const headers = new Headers();
-							headers.set("Content-Type", "application/json");
-
-							return new NextResponse(
-								JSON.stringify({ metaData, screenshot: buffer }),
-								{ headers, status: 200 },
-							);
-						}
-
-						// X/Twitter: Get specific tweet element
-						if (urlStr.includes(X) || urlStr.includes(TWITTER)) {
-							screenshotTarget = await getScreenshotX(page, urlStr);
-						}
-
-						// YouTube: Get thumbnail image
-						if (urlStr.includes(YOUTUBE)) {
-							const img = await page.$("img");
-							if (img) screenshotTarget = img;
-						}
-
-						await page
-							.waitForFunction(
-								() => {
-									const challengeFrame = document.querySelector(
-										'iframe[src*="challenge"]',
-									);
-									const title = document.title;
-									return !challengeFrame && !title.includes("Just a moment");
-								},
-								{ timeout: 15_000 },
-							)
-							.catch(() => {
-								console.warn("Cloudflare challenge may not have cleared");
-							});
-
-						// Detect if page has ONLY one video tag as the main content
-						const videoElements = await page.$$eval(
-							"video",
-							(videos) => videos.length,
-						);
-						if (videoElements === 1 && (isMp4 || isVideoUrl)) {
-							const videoHandle = await page.$("video");
-							if (videoHandle) {
-								console.log(
-									"Only one <video> tag found. Capturing that element.",
-								);
-								screenshot = await videoHandle.screenshot({ type: "jpeg" });
-							}
-						} else if (screenshotTarget) {
-							await new Promise<void>((res) =>
-								setTimeout(
-									res,
-									urlStr.includes("stackoverflow") ? 10_000 : 1000,
-								),
-							);
-							if ("screenshot" in screenshotTarget) {
-								screenshot = await screenshotTarget.screenshot({
-									// @ts-expect-error - deviceScaleFactor is not in the type
-									deviceScaleFactor: 2,
-									type: "jpeg",
-								});
-							}
-						} else {
-							await new Promise<void>((res) =>
-								setTimeout(
-									res,
-									urlStr.includes("stackoverflow") ? 10_000 : 1000,
-								),
-							);
-							screenshot = await page.screenshot({ fullPage, type: "jpeg" });
-						}
-
-						console.log("Screenshot captured successfully.");
-						break; // Exit loop on success
-					} catch (error) {
-						if (
-							error instanceof Error &&
-							error.message.includes("frame was detached")
-						) {
-							break;
-						}
-						lastError = error as Error;
-					}
-				}
-
-				if (screenshot) break;
-			} catch (error) {
-				if (
-					error instanceof Error &&
-					error.message.includes("frame was detached")
-				) {
-					lastError = error;
-				} else {
-					throw error;
-				}
-			}
-		}
-
-		if (!screenshot) {
-			return NextResponse.json(
-				{ details: lastError?.message, error: "Failed to capture screenshot" },
-				{ status: 500 },
-			);
-		}
-
-		const headers = new Headers();
-		headers.set("Content-Type", "application/json");
-
-		return new NextResponse(JSON.stringify({ metaData, screenshot }), {
-			headers,
-			status: 200,
-		});
-	} catch (error) {
-		console.error("Fatal error:", error);
 		return NextResponse.json(
-			{ error: "Internal Server Error" },
-			{ status: 500 },
+			{ metaData, screenshot },
+			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
 		);
+	} catch (error) {
+		const errorMessage = getErrorMessage(error);
+		logger.logSummary(false);
+
+		return NextResponse.json(
+			{ error: errorMessage },
+			{ headers: new Headers(RESPONSE_HEADERS), status: 500 },
+		);
+	}
+}
+
+export type GetScreenshotOptions = RequestConfig;
+
+async function getScreenshot(config: GetScreenshotOptions): Promise<{
+	metaData: GetMetadataReturnType;
+	screenshot: Buffer;
+}> {
+	const { fullPage, headless, logger, shouldGetPageMetrics, url } = config;
+	let browser: LaunchBrowserReturnType | null = null;
+
+	try {
+		logger.info("Starting screenshot capture", { fullPage, url });
+
+		// Process URLs like Youtube Video to get the image directly from img.youtube.com
+		const processedUrl = processUrl({ logger, url });
+		logger.info("Processed url for screenshot capture", { processedUrl });
+
+		const browserInstance = await launchBrowser({ headless, logger });
+		browser = browserInstance;
+
+		// Instagram check
+		if (processedUrl.includes(INSTAGRAM)) {
+			const instagramResult = await getInstagramScreenshot({
+				browser: browserInstance,
+				logger,
+				shouldGetPageMetrics,
+				url: processedUrl,
+			});
+			if (instagramResult) return instagramResult;
+		}
+
+		// Twitter/X check
+		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
+			const twitterResult = await getTwitterScreenshot({
+				browser: browserInstance,
+				logger,
+				shouldGetPageMetrics,
+				url: processedUrl,
+			});
+			if (twitterResult) return twitterResult;
+		}
+
+		// Image check - Two phase approach
+		// Phase 1: Quick extension check
+		if (isImageUrlByExtension(processedUrl)) {
+			logger.info("Image detected by extension, processing image screenshot");
+			const imageResult = await getImageScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (imageResult) return imageResult;
+		}
+
+		// Video check - Two phase approach
+		// Phase 1: Quick extension check
+		if (isVideoUrlByExtension(processedUrl)) {
+			logger.info("Video detected by extension, processing video screenshot");
+			const videoResult = await getVideoScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (videoResult) return videoResult;
+		}
+
+		// Phase 2: For ambiguous URLs, check content-type for images
+		const mightBeImage = await isImageUrl(processedUrl, true);
+		if (mightBeImage) {
+			logger.info(
+				"Image detected by content-type, processing image screenshot",
+			);
+			const imageResult = await getImageScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (imageResult) return imageResult;
+		}
+
+		// Phase 2: For ambiguous URLs, check content-type for videos
+		const mightBeVideo = await isVideoUrl(processedUrl, true);
+		if (mightBeVideo) {
+			logger.info(
+				"Video detected by content-type, processing video screenshot",
+			);
+			const videoResult = await getVideoScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (videoResult) return videoResult;
+		}
+
+		// Page screenshot for all other URLs
+		const pageScreenshot = await getPageScreenshot({
+			browser: browserInstance,
+			fullPage,
+			logger,
+			shouldGetPageMetrics,
+			url: processedUrl,
+		});
+		return pageScreenshot;
+	} catch (error) {
+		logger.error("Fatal error in browser/page creation", {
+			error: getErrorMessage(error),
+		});
+
+		throw error;
 	} finally {
-		if (browser) await browser.close();
+		if (browser) await closePageWithBrowser({ browser, logger });
 	}
 }
