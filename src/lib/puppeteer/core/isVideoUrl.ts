@@ -1,6 +1,15 @@
 import { videoUrlRegex } from "./constants";
 
 /**
+ * Synchronously checks if a URL has a video file extension
+ * @param {string} url - The URL to check
+ * @returns {boolean} True if URL has a video file extension
+ */
+export function isVideoUrlByExtension(url: string): boolean {
+	return videoUrlRegex.test(url);
+}
+
+/**
  * Checks if a URL points to a video file by examining the file extension
  * and optionally fetching to check content-type
  * @param {string} url - The URL to check
@@ -12,7 +21,7 @@ export async function isVideoUrl(
 	checkContentType = false,
 ): Promise<boolean> {
 	// Quick check: file extension
-	if (videoUrlRegex.test(url)) {
+	if (isVideoUrlByExtension(url)) {
 		return true;
 	}
 

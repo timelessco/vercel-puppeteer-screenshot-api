@@ -13,7 +13,10 @@ import {
 	YOUTUBE_THUMBNAIL_URL,
 } from "@/lib/puppeteer/core/constants";
 import type { GetMetadataReturnType } from "@/lib/puppeteer/core/extractPageMetadata";
-import { isVideoUrl } from "@/lib/puppeteer/core/isVideoUrl";
+import {
+	isVideoUrl,
+	isVideoUrlByExtension,
+} from "@/lib/puppeteer/core/isVideoUrl";
 import { retryWithBackoff } from "@/lib/puppeteer/core/retryWithBackoff";
 import {
 	parseRequestConfig,
@@ -85,17 +88,6 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 		const browserInstance = await launchBrowser({ headless, logger });
 		browser = browserInstance;
 
-		// Video check
-		const isVideo = await isVideoUrl(processedUrl, true);
-		if (isVideo) {
-			const videoResult = await getVideoScreenshot({
-				browser: browserInstance,
-				logger,
-				url: processedUrl,
-			});
-			if (videoResult) return videoResult;
-		}
-
 		// Instagram check
 		if (processedUrl.includes(INSTAGRAM)) {
 			const instagramResult = await getInstagramScreenshot({
@@ -127,6 +119,32 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 				url: processedUrl,
 			});
 			if (youtubeResult) return youtubeResult;
+		}
+
+		// Video check - Two phase approach
+		// Phase 1: Quick extension check
+		if (isVideoUrlByExtension(processedUrl)) {
+			logger.info("Video detected by extension, processing video screenshot");
+			const videoResult = await getVideoScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (videoResult) return videoResult;
+		}
+
+		// Phase 2: For ambiguous URLs, check content-type
+		const mightBeVideo = await isVideoUrl(processedUrl, true);
+		if (mightBeVideo) {
+			logger.info(
+				"Video detected by content-type, processing video screenshot",
+			);
+			const videoResult = await getVideoScreenshot({
+				browser: browserInstance,
+				logger,
+				url: processedUrl,
+			});
+			if (videoResult) return videoResult;
 		}
 
 		// Page screenshot for all other URLs
