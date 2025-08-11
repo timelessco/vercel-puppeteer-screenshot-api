@@ -1,11 +1,18 @@
-import { instagramGetUrl } from "instagram-url-direct";
+import type { Viewport } from "next";
 
+import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
 import {
 	closePageSafely,
 	getOrCreatePage,
+	getPageMetrics,
 	type GetOrCreatePageReturnType,
 } from "@/lib/puppeteer/browser/pageUtils";
+import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker";
+import {
+	gotoPage,
+	handleDialogs,
+} from "@/lib/puppeteer/navigation/navigationUtils";
 import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
@@ -22,49 +29,49 @@ interface FetchOgImageOptions {
  * @param {FetchOgImageOptions} options - Options containing page and logger
  * @returns {Promise<Buffer | null>} Buffer containing the image data or null if not found
  */
-// async function fetchOgImage(
-// 	options: FetchOgImageOptions,
-// ): Promise<Buffer | null> {
-// 	const { logger, page } = options;
-// 	logger.debug("Attempting to extract og:image");
+async function fetchOgImage(
+	options: FetchOgImageOptions,
+): Promise<Buffer | null> {
+	const { logger, page } = options;
+	logger.debug("Attempting to extract og:image");
 
-// 	const ogImage = await page.evaluate(() => {
-// 		const meta = document.querySelector('meta[property="og:image"]');
+	const ogImage = await page.evaluate(() => {
+		const meta = document.querySelector('meta[property="og:image"]');
 
-// 		return meta ? meta.getAttribute("content") : null;
-// 	});
+		return meta ? meta.getAttribute("content") : null;
+	});
 
-// 	if (!ogImage) {
-// 		logger.debug("No og:image meta tag found");
-// 		return null;
-// 	}
+	if (!ogImage) {
+		logger.debug("No og:image meta tag found");
+		return null;
+	}
 
-// 	logger.info("Found Instagram og:image", { url: ogImage });
+	logger.info("Found Instagram og:image", { url: ogImage });
 
-// 	try {
-// 		const imageRes = await fetch(ogImage);
-// 		if (!imageRes.ok) {
-// 			logger.error("Failed to fetch og:image", {
-// 				status: imageRes.status,
-// 				url: ogImage,
-// 			});
-// 			return null;
-// 		}
+	try {
+		const imageRes = await fetch(ogImage);
+		if (!imageRes.ok) {
+			logger.error("Failed to fetch og:image", {
+				status: imageRes.status,
+				url: ogImage,
+			});
+			return null;
+		}
 
-// 		const arrayBuffer = await imageRes.arrayBuffer();
-// 		logger.info("Instagram og:image fetched successfully", {
-// 			size: arrayBuffer.byteLength,
-// 		});
+		const arrayBuffer = await imageRes.arrayBuffer();
+		logger.info("Instagram og:image fetched successfully", {
+			size: arrayBuffer.byteLength,
+		});
 
-// 		return Buffer.from(arrayBuffer);
-// 	} catch (error) {
-// 		logger.error("Error fetching og:image", {
-// 			error: getErrorMessage(error),
-// 			url: ogImage,
-// 		});
-// 		return null;
-// 	}
-// }
+		return Buffer.from(arrayBuffer);
+	} catch (error) {
+		logger.error("Error fetching og:image", {
+			error: getErrorMessage(error),
+			url: ogImage,
+		});
+		return null;
+	}
+}
 
 interface GetInstagramScreenshotOptions {
 	browser: LaunchBrowserReturnType;
@@ -100,48 +107,148 @@ export async function getInstagramScreenshot(
 	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
-	const { browser, logger, url } = options;
+	const { browser, logger, shouldGetPageMetrics, url } = options;
 
+	if (!(url.includes("/reel/") || url.includes("/p/"))) {
+		return null;
+	}
+
+	const INSTAGRAM_VIEWPORT = {
+		deviceScaleFactor: 3,
+		hasTouch: true,
+		height: 844,
+		isMobile: true,
+		width: 390,
+	};
 	logger.info("Instagram URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
 		// Complete page navigation sequence
 		page = await getOrCreatePage({ browser, logger });
+		await setupBrowserPage({ logger, page, viewport: INSTAGRAM_VIEWPORT });
+		await gotoPage({ logger, page, url });
+		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
+		await cloudflareChecker({ logger, page });
+		await handleDialogs({ logger, page });
 
 		// Extract image index from URL parameters
 		const imageIndex = extractInstagramImageIndex(url);
 
+		logger.info("Processing Instagram screenshot", {
+			imageIndex: imageIndex ?? "default",
+			url,
+		});
+		logger.info("Instagram Post detected");
+		const ariaLabel = "Next";
 		const index = imageIndex ?? null;
 
-		const data = await instagramGetUrl(url);
-		const idx = index ? index - 1 : 0;
-		const media = data.media_details[idx];
-		logger.info("Instagram post image found", {
-			media,
-		});
-		const thumbnail =
-			// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-			media.type === "image" ? media.url : media.thumbnail || null;
+		if (index && index > 1) {
+			logger.info("Navigating carousel to image", { targetIndex: index });
 
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		const imageRes = await fetch(thumbnail || "");
+			try {
+				for (let i = 0; i < index; i++) {
+					logger.debug(
+						`Carousel navigation: clicking next (${i + 1}/${index})`,
+					);
+					await page.waitForSelector(`[aria-label="${ariaLabel}"]`, {
+						visible: true,
+					});
+					await page.click(`[aria-label="${ariaLabel}"]`);
+					await new Promise((res) => setTimeout(res, 500));
+				}
 
-		const arrayBuffer = await imageRes.arrayBuffer();
-		logger.info("Instagram post image fetched successfully", {
-			size: arrayBuffer.byteLength,
-		});
+				logger.debug("Carousel navigation completed");
+			} catch (error) {
+				logger.warn("Failed to navigate carousel", {
+					error: getErrorMessage(error),
+					targetIndex: index,
+				});
+			}
+		}
 
-		const screenshotBuffer: Buffer | null = Buffer.from(arrayBuffer);
+		let screenshotBuffer: Buffer | null = null;
+
+		if (url.includes("/reel/")) {
+			const ogImageBuffer = await fetchOgImage({ logger, page });
+			if (ogImageBuffer) {
+				screenshotBuffer = ogImageBuffer;
+			}
+		} else {
+			const divs = await page.$$('article  div[role="button"]');
+			console.log("divs", divs);
+
+			logger.debug("Searching for article divs", { found: divs.length });
+			for (const [i, div] of divs.entries()) {
+				const imgs = await div.$$("img"); // find all <img> inside this div
+				if (imgs.length > 0) {
+					const srcs = await Promise.all(
+						imgs.map((img) => img.evaluate((el) => el.src)),
+					);
+					logger.debug(`Div index ${i} has ${imgs.length} images`, { srcs });
+				} else {
+					logger.debug(`Div index ${i} has no images`);
+				}
+			}
+
+			if (divs.length > 0) {
+				try {
+					const imgs = await divs[2].$$("img");
+					const innerHTML = await divs[0].evaluate((el) => el.innerHTML);
+					if (innerHTML.includes("video")) {
+						const ogImageBuffer = await fetchOgImage({ logger, page });
+						if (ogImageBuffer) {
+							screenshotBuffer = ogImageBuffer;
+						}
+					} else {
+						logger.debug("Found Instagram images", { count: imgs.length });
+
+						if (imgs.length > 0) {
+							const targetIndex = index && index > 1 ? 1 : 0;
+							logger.debug("Selecting image", {
+								targetIndex,
+								totalImages: imgs.length,
+							});
+
+							const srcHandle = await imgs[targetIndex].getProperty("src");
+							const src = await srcHandle.jsonValue();
+							logger.debug("Fetching image from URL", { url: src });
+
+							const imageRes = await fetch(src);
+							if (imageRes.ok) {
+								const arrayBuffer = await imageRes.arrayBuffer();
+								logger.info("Instagram post image fetched successfully", {
+									size: arrayBuffer.byteLength,
+								});
+
+								screenshotBuffer = Buffer.from(arrayBuffer);
+							} else {
+								logger.error("Failed to fetch Instagram image", {
+									status: imageRes.status,
+									url: src,
+								});
+							}
+						} else {
+							logger.warn("No images found in Instagram post");
+						}
+					}
+				} catch (error) {
+					logger.error("Error processing Instagram post images", {
+						error: getErrorMessage(error),
+					});
+				}
+			}
+		}
 
 		const metaData = await extractPageMetadata({ logger, page, url });
-		logger.info("Instagram thumbnail extracted successfully ");
-
-		return { metaData, screenshot: screenshotBuffer };
+		logger.info("Instagram screenshot captured successfully");
+		if (screenshotBuffer) {
+			return { metaData, screenshot: screenshotBuffer };
+		} else {
+			logger.warn("No screenshot buffer available, returning null");
+			return null;
+		}
 	} catch (error) {
-		logger.error("Error extracting Instagram thumbnail", {
-			error,
-		});
 		logger.warn("Instagram screenshot failed, returning null for fallback", {
 			error: getErrorMessage(error),
 		});
