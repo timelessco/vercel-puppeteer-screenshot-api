@@ -139,6 +139,9 @@ export async function getInstagramScreenshot(
 
 		return { metaData, screenshot: screenshotBuffer };
 	} catch (error) {
+		logger.error("Error extracting Instagram thumbnail", {
+			error,
+		});
 		logger.warn("Instagram screenshot failed, returning null for fallback", {
 			error: getErrorMessage(error),
 		});
