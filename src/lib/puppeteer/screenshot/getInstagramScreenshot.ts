@@ -22,49 +22,49 @@ interface FetchOgImageOptions {
  * @param {FetchOgImageOptions} options - Options containing page and logger
  * @returns {Promise<Buffer | null>} Buffer containing the image data or null if not found
  */
-async function fetchOgImage(
-	options: FetchOgImageOptions,
-): Promise<Buffer | null> {
-	const { logger, page } = options;
-	logger.debug("Attempting to extract og:image");
+// async function fetchOgImage(
+// 	options: FetchOgImageOptions,
+// ): Promise<Buffer | null> {
+// 	const { logger, page } = options;
+// 	logger.debug("Attempting to extract og:image");
 
-	const ogImage = await page.evaluate(() => {
-		const meta = document.querySelector('meta[property="og:image"]');
+// 	const ogImage = await page.evaluate(() => {
+// 		const meta = document.querySelector('meta[property="og:image"]');
 
-		return meta ? meta.getAttribute("content") : null;
-	});
+// 		return meta ? meta.getAttribute("content") : null;
+// 	});
 
-	if (!ogImage) {
-		logger.debug("No og:image meta tag found");
-		return null;
-	}
+// 	if (!ogImage) {
+// 		logger.debug("No og:image meta tag found");
+// 		return null;
+// 	}
 
-	logger.info("Found Instagram og:image", { url: ogImage });
+// 	logger.info("Found Instagram og:image", { url: ogImage });
 
-	try {
-		const imageRes = await fetch(ogImage);
-		if (!imageRes.ok) {
-			logger.error("Failed to fetch og:image", {
-				status: imageRes.status,
-				url: ogImage,
-			});
-			return null;
-		}
+// 	try {
+// 		const imageRes = await fetch(ogImage);
+// 		if (!imageRes.ok) {
+// 			logger.error("Failed to fetch og:image", {
+// 				status: imageRes.status,
+// 				url: ogImage,
+// 			});
+// 			return null;
+// 		}
 
-		const arrayBuffer = await imageRes.arrayBuffer();
-		logger.info("Instagram og:image fetched successfully", {
-			size: arrayBuffer.byteLength,
-		});
+// 		const arrayBuffer = await imageRes.arrayBuffer();
+// 		logger.info("Instagram og:image fetched successfully", {
+// 			size: arrayBuffer.byteLength,
+// 		});
 
-		return Buffer.from(arrayBuffer);
-	} catch (error) {
-		logger.error("Error fetching og:image", {
-			error: getErrorMessage(error),
-			url: ogImage,
-		});
-		return null;
-	}
-}
+// 		return Buffer.from(arrayBuffer);
+// 	} catch (error) {
+// 		logger.error("Error fetching og:image", {
+// 			error: getErrorMessage(error),
+// 			url: ogImage,
+// 		});
+// 		return null;
+// 	}
+// }
 
 interface GetInstagramScreenshotOptions {
 	browser: LaunchBrowserReturnType;
