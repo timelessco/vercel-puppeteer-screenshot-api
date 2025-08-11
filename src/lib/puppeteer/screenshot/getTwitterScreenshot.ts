@@ -22,7 +22,7 @@ import { captureScreenshot } from "./captureScreenshot";
 
 interface GetTwitterElementOptions {
 	logger: GetTwitterScreenshotOptions["logger"];
-	page: Awaited<ReturnType<typeof getOrCreatePage>>;
+	page: GetOrCreatePageReturnType;
 	url: ProcessUrlReturnType;
 }
 

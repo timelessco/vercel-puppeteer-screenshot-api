@@ -20,7 +20,7 @@ import { captureScreenshot } from "./captureScreenshot";
 
 interface FetchOgImageOptions {
 	logger: GetInstagramScreenshotOptions["logger"];
-	page: Awaited<ReturnType<typeof getOrCreatePage>>;
+	page: GetOrCreatePageReturnType;
 }
 
 /**

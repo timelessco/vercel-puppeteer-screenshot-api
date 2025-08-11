@@ -13,7 +13,7 @@ import { captureScreenshot } from "./captureScreenshot";
 
 interface GetImageScreenshotHelperOptions {
 	logger: GetImageScreenshotOptions["logger"];
-	page: Awaited<ReturnType<typeof getOrCreatePage>>;
+	page: GetOrCreatePageReturnType;
 	url: ProcessUrlReturnType;
 }
 
