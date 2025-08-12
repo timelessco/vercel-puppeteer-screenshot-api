@@ -1,5 +1,3 @@
-import type { Viewport } from "next";
-
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
 import {
