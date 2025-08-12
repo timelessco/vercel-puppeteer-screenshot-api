@@ -175,27 +175,29 @@ export async function getInstagramScreenshot(
 				screenshotBuffer = ogImageBuffer;
 			}
 		} else {
-			const divs = await page.$$('article  div[role="button"]');
-			console.log("divs", divs);
+			await page.waitForSelector('article div[role="button"]', {
+				timeout: 5000,
+			});
+
+			const divs = await page.$$('article div[role="button"]');
 
 			logger.debug("Searching for article divs", { found: divs.length });
-			for (const [i, div] of divs.entries()) {
-				const imgs = await div.$$("img"); // find all <img> inside this div
-				if (imgs.length > 0) {
-					const srcs = await Promise.all(
-						imgs.map((img) => img.evaluate((el) => el.src)),
-					);
-					logger.debug(`Div index ${i} has ${imgs.length} images`, { srcs });
-				} else {
-					logger.debug(`Div index ${i} has no images`);
-				}
-			}
 
 			if (divs.length > 0) {
 				try {
+					const targetDiv = divs[2];
+
+					await targetDiv.waitForSelector("img, video", { timeout: 5000 });
 					const imgs = await divs[2].$$("img");
-					const innerHTML = await divs[2].evaluate((el) => el.innerHTML);
-					if (innerHTML.includes("video")) {
+
+					const hasVideo = await divs[2].evaluate(
+						(el) => el.querySelector("video") !== null,
+					);
+
+					if (hasVideo) {
+						logger.info(
+							"Found Instagram video in post so using og:image instead",
+						);
 						const ogImageBuffer = await fetchOgImage({ logger, page });
 						if (ogImageBuffer) {
 							screenshotBuffer = ogImageBuffer;
