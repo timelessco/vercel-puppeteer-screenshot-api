@@ -1,21 +1,17 @@
-import type { Viewport } from "rebrowser-puppeteer-core";
+import type { MediaFeature, Viewport } from "rebrowser-puppeteer-core";
 
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
+import { DEFAULT_MEDIA_FEATURES, DEFAULT_VIEWPORT } from "../core/constants";
 import type { CreateLoggerReturnType } from "../core/createLogger";
 import { applyAntiDetectionEvasions } from "./applyAntiDetectionEvasions";
 import { applyCDPWebdriverRemoval } from "./applyCDPWebdriverRemoval";
 import { setupAdBlocker } from "./setupAdBlocker";
 
-const DEFAULT_VIEWPORT: Viewport = {
-	deviceScaleFactor: 2,
-	height: 1080,
-	width: 1920,
-};
-
 export interface SetupBrowserPageOptions {
 	enableAdBlocker?: boolean;
 	enableAntiDetection?: boolean;
 	logger: CreateLoggerReturnType;
+	mediaFeatures?: MediaFeature[];
 	page: GetOrCreatePageReturnType;
 	viewport?: Viewport;
 }
@@ -33,6 +29,7 @@ export async function setupBrowserPage(
 	const {
 		enableAdBlocker = false,
 		enableAntiDetection = true,
+		mediaFeatures = DEFAULT_MEDIA_FEATURES,
 		page,
 		viewport = DEFAULT_VIEWPORT,
 	} = options;
@@ -40,10 +37,7 @@ export async function setupBrowserPage(
 	setupLogging(options);
 
 	await page.setViewport(viewport);
-	await page.emulateMediaFeatures([
-		{ name: "prefers-color-scheme", value: "dark" },
-		{ name: "prefers-reduced-motion", value: "reduce" },
-	]);
+	await page.emulateMediaFeatures(mediaFeatures);
 
 	if (enableAntiDetection) {
 		// JavaScript-level anti-detection evasions

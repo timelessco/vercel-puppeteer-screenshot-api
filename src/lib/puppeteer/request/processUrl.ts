@@ -32,5 +32,3 @@ export function processUrl(options: ProcessUrlOptions): string {
 
 	return url;
 }
-
-export type ProcessUrlReturnType = Awaited<ReturnType<typeof processUrl>>;
