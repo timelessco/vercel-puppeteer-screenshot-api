@@ -13,7 +13,6 @@ import {
 	gotoPage,
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
-import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
@@ -23,7 +22,7 @@ import { captureScreenshot } from "./captureScreenshot";
 interface GetTwitterScreenshotHelperOptions {
 	logger: GetTwitterScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
-	url: ProcessUrlReturnType;
+	url: GetTwitterScreenshotOptions["url"];
 }
 
 /**
@@ -146,11 +145,8 @@ async function getTwitterScreenshotHelper(
 	}
 }
 
-interface GetTwitterScreenshotOptions {
+interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 	browser: LaunchBrowserReturnType;
-	logger: GetScreenshotOptions["logger"];
-	shouldGetPageMetrics: GetScreenshotOptions["shouldGetPageMetrics"];
-	url: ProcessUrlReturnType;
 }
 
 /**
@@ -172,7 +168,14 @@ export async function getTwitterScreenshot(
 	try {
 		// Complete page navigation sequence
 		page = await getOrCreatePage({ browser, logger });
-		await setupBrowserPage({ logger, page });
+		await setupBrowserPage({
+			logger,
+			mediaFeatures: [
+				{ name: "prefers-color-scheme", value: "light" },
+				{ name: "prefers-reduced-motion", value: "reduce" },
+			],
+			page,
+		});
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });

@@ -1,20 +1,18 @@
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions } from "@/app/try/route";
 
 import { setupBrowserPage } from "../browser-setup/setupBrowserPage";
-import type { LaunchBrowserReturnType } from "../browser/launchBrowser";
 import {
 	closePageSafely,
 	getOrCreatePage,
 	type GetOrCreatePageReturnType,
 } from "../browser/pageUtils";
-import type { ProcessUrlReturnType } from "../request/processUrl";
+import type { WithBrowserOptions } from "../core/withBrowser";
 import { captureScreenshot } from "./captureScreenshot";
 
 interface GetVideoScreenshotHelperOptions {
 	logger: GetVideoScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
-	url: ProcessUrlReturnType;
+	url: GetVideoScreenshotOptions["url"];
 }
 
 /**
@@ -107,11 +105,7 @@ async function getVideoScreenshotHelper(
 	}
 }
 
-interface GetVideoScreenshotOptions {
-	browser: LaunchBrowserReturnType;
-	logger: GetScreenshotOptions["logger"];
-	url: ProcessUrlReturnType;
-}
+type GetVideoScreenshotOptions = WithBrowserOptions;
 
 /**
  * Handle video URL detection and screenshot capture

@@ -1,7 +1,6 @@
 import type { HTTPResponse } from "rebrowser-puppeteer-core";
 
 import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
-import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
@@ -10,7 +9,7 @@ interface GotoPageOptions {
 	logger: GetScreenshotOptions["logger"];
 	navigationTimeout?: number;
 	page: GetOrCreatePageReturnType;
-	url: ProcessUrlReturnType;
+	url: GetScreenshotOptions["url"];
 }
 
 /**

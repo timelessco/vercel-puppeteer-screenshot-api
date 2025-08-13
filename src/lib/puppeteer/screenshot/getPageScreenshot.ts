@@ -1,5 +1,4 @@
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
-import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
 import {
 	closePageSafely,
 	getOrCreatePage,
@@ -11,32 +10,20 @@ import {
 	gotoPage,
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
-import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions } from "@/app/try/route";
 
 import { extractPageMetadata } from "../core/extractPageMetadata";
+import type { WithBrowserOptions } from "../core/withBrowser";
 import { captureScreenshot } from "./captureScreenshot";
 
-interface GetPageScreenshotOptions {
-	browser: LaunchBrowserReturnType;
-	fullPage: GetScreenshotOptions["fullPage"];
-	logger: GetScreenshotOptions["logger"];
-	shouldGetPageMetrics: GetScreenshotOptions["shouldGetPageMetrics"];
-	url: ProcessUrlReturnType;
-}
+type GetPageScreenshotOptions = WithBrowserOptions;
 
 /**
  * Screenshot handler that attempts regular navigation and errors on failure
  * @param {GetPageScreenshotOptions} options - Options containing browser, url, logger, and optional metrics flag
  * @returns {Promise<{ metaData: Awaited<ReturnType<typeof extractPageMetadata>> | null; screenshot: Buffer }>} Screenshot buffer with metadata or error page
  */
-export async function getPageScreenshot(
-	options: GetPageScreenshotOptions,
-): Promise<{
-	metaData: Awaited<ReturnType<typeof extractPageMetadata>> | null;
-	screenshot: Buffer;
-}> {
+export async function getPageScreenshot(options: GetPageScreenshotOptions) {
 	const { browser, fullPage, logger, shouldGetPageMetrics, url } = options;
 	let page: GetOrCreatePageReturnType | null = null;
 
@@ -73,3 +60,7 @@ export async function getPageScreenshot(
 		if (page) await closePageSafely({ logger, page });
 	}
 }
+
+export type GetPageScreenshotReturnType = Awaited<
+	ReturnType<typeof getPageScreenshot>
+>;

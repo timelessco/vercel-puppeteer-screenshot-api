@@ -1,5 +1,4 @@
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
-import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
 import {
 	closePageSafely,
 	getOrCreatePage,
@@ -11,16 +10,16 @@ import {
 	gotoPage,
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
-import type { ProcessUrlReturnType } from "@/lib/puppeteer/request/processUrl";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions } from "@/app/try/route";
 
 import { extractPageMetadata } from "../core/extractPageMetadata";
+import type { WithBrowserOptions } from "../core/withBrowser";
+import { fetchImageDirectly } from "./getImageScreenshot";
 
-interface FetchOgImageOptions {
-	logger: GetInstagramScreenshotOptions["logger"];
+interface FetchOgImageOptions extends GetInstagramScreenshotOptions {
 	page: GetOrCreatePageReturnType;
 }
+
 const INSTAGRAM_VIEWPORT = {
 	deviceScaleFactor: 3,
 	hasTouch: true,
@@ -54,36 +53,18 @@ async function fetchOgImage(
 	logger.info("Found Instagram og:image", { url: ogImage });
 
 	try {
-		const imageRes = await fetch(ogImage);
-		if (!imageRes.ok) {
-			logger.error("Failed to fetch og:image", {
-				status: imageRes.status,
-				url: ogImage,
-			});
-			return null;
-		}
-
-		const arrayBuffer = await imageRes.arrayBuffer();
-		logger.info("Instagram og:image fetched successfully", {
-			size: arrayBuffer.byteLength,
-		});
-
-		return Buffer.from(arrayBuffer);
+		return await fetchImageDirectly({ ...options, url: ogImage });
 	} catch (error) {
 		logger.error("Error fetching og:image", {
 			error: getErrorMessage(error),
 			url: ogImage,
 		});
+
 		return null;
 	}
 }
 
-interface GetInstagramScreenshotOptions {
-	browser: LaunchBrowserReturnType;
-	logger: GetScreenshotOptions["logger"];
-	shouldGetPageMetrics: GetScreenshotOptions["shouldGetPageMetrics"];
-	url: ProcessUrlReturnType;
-}
+type GetInstagramScreenshotOptions = WithBrowserOptions;
 
 /**
  * Extracts Instagram image index from URL parameters
@@ -127,7 +108,7 @@ export async function getInstagramPostReelScreenshot(
 		await handleDialogs({ logger, page });
 
 		if (url.includes("/reel/")) {
-			const ogImageBuffer = await fetchOgImage({ logger, page });
+			const ogImageBuffer = await fetchOgImage({ ...options, page });
 			if (ogImageBuffer) {
 				const metaData = await extractPageMetadata({ logger, page, url });
 				return {
@@ -194,17 +175,10 @@ export async function getInstagramPostReelScreenshot(
 					logger.info(
 						"Found Instagram video in post so using og:image instead",
 					);
-					const ogImageBuffer = await fetchOgImage({ logger, page });
+					const ogImageBuffer = await fetchOgImage({ ...options, page });
 					if (ogImageBuffer) {
-						const metaData = await extractPageMetadata({
-							logger,
-							page,
-							url,
-						});
-						return {
-							metaData,
-							screenshot: ogImageBuffer,
-						};
+						const metaData = await extractPageMetadata({ logger, page, url });
+						return { metaData, screenshot: ogImageBuffer };
 					}
 				}
 

@@ -1,11 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
-	launchBrowser,
-	type LaunchBrowserReturnType,
-} from "@/lib/puppeteer/browser/launchBrowser";
-import { closePageWithBrowser } from "@/lib/puppeteer/browser/pageUtils";
-import {
 	INSTAGRAM,
 	RESPONSE_HEADERS,
 	TWITTER,
@@ -21,12 +16,16 @@ import {
 	isVideoUrlByExtension,
 } from "@/lib/puppeteer/core/isVideoUrl";
 import { retryWithBackoff } from "@/lib/puppeteer/core/retryWithBackoff";
+import { withBrowser } from "@/lib/puppeteer/core/withBrowser";
 import {
 	parseRequestConfig,
 	type RequestConfig,
 } from "@/lib/puppeteer/request/parseRequestConfig";
 import { processUrl } from "@/lib/puppeteer/request/processUrl";
-import { getImageScreenshot } from "@/lib/puppeteer/screenshot/getImageScreenshot";
+import {
+	fetchImageDirectly,
+	getImageScreenshot,
+} from "@/lib/puppeteer/screenshot/getImageScreenshot";
 import { getInstagramPostReelScreenshot } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getPageScreenshot } from "@/lib/puppeteer/screenshot/getPageScreenshot";
 import { getTwitterScreenshot } from "@/lib/puppeteer/screenshot/getTwitterScreenshot";
@@ -78,8 +77,7 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 	metaData: GetMetadataReturnType;
 	screenshot: Buffer;
 }> {
-	const { fullPage, headless, logger, shouldGetPageMetrics, url } = config;
-	let browser: LaunchBrowserReturnType | null = null;
+	const { fullPage, logger, url } = config;
 
 	try {
 		logger.info("Starting screenshot capture", { fullPage, url });
@@ -88,70 +86,57 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 		const processedUrl = processUrl({ logger, url });
 		logger.info("Processed url for screenshot capture", { processedUrl });
 
-		const browserInstance = await launchBrowser({ headless, logger });
-		browser = browserInstance;
+		const newConfig = { ...config, url: processedUrl };
 
-		// Instagram check
-		if (
-			processedUrl.includes(INSTAGRAM) &&
-			(processedUrl.includes("/p/") || processedUrl.includes("/reel/"))
-		) {
-			const instagramResult = await getInstagramPostReelScreenshot({
-				browser: browserInstance,
-				logger,
-				shouldGetPageMetrics,
-				url: processedUrl,
-			});
-			if (instagramResult) return instagramResult;
-		}
-
-		// Twitter/X check
-		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
-			const twitterResult = await getTwitterScreenshot({
-				browser: browserInstance,
-				logger,
-				shouldGetPageMetrics,
-				url: processedUrl,
-			});
-			if (twitterResult) return twitterResult;
-		}
-
-		// Image check - Two phase approach
+		// Try direct image fetch BEFORE launching browser
 		// Phase 1: Quick extension check
 		if (isImageUrlByExtension(processedUrl)) {
-			logger.info("Image detected by extension, processing image screenshot");
-			const imageResult = await getImageScreenshot({
-				browser: browserInstance,
-				logger,
-				url: processedUrl,
-			});
-			if (imageResult) return imageResult;
+			logger.info("Image detected by extension, trying direct fetch first");
+			try {
+				const buffer = await fetchImageDirectly(newConfig);
+				logger.info("Successfully fetched image directly without browser");
+				return { metaData: null, screenshot: buffer };
+			} catch (error) {
+				logger.info("Retrying image with Puppeteer after direct fetch failed", {
+					error,
+				});
+				return await withBrowser(
+					newConfig,
+					getImageScreenshot,
+					getPageScreenshot,
+				);
+			}
+		}
+
+		// Phase 2: For ambiguous URLs, check content-type for images
+		const mightBeImage = await isImageUrl(processedUrl, true);
+		if (mightBeImage) {
+			logger.info("Image detected by content-type, trying direct fetch first");
+			try {
+				const buffer = await fetchImageDirectly(newConfig);
+				logger.info("Successfully fetched ambiguous image directly");
+				return { metaData: null, screenshot: buffer };
+			} catch (error) {
+				logger.info("Retrying image with Puppeteer after direct fetch failed", {
+					error,
+				});
+				return await withBrowser(
+					newConfig,
+					getImageScreenshot,
+					getPageScreenshot,
+				);
+			}
 		}
 
 		// Video check - Two phase approach
 		// Phase 1: Quick extension check
 		if (isVideoUrlByExtension(processedUrl)) {
 			logger.info("Video detected by extension, processing video screenshot");
-			const videoResult = await getVideoScreenshot({
-				browser: browserInstance,
-				logger,
-				url: processedUrl,
-			});
-			if (videoResult) return videoResult;
-		}
-
-		// Phase 2: For ambiguous URLs, check content-type for images
-		const mightBeImage = await isImageUrl(processedUrl, true);
-		if (mightBeImage) {
-			logger.info(
-				"Image detected by content-type, processing image screenshot",
+			return await withBrowser(
+				newConfig,
+				getVideoScreenshot,
+				getPageScreenshot,
 			);
-			const imageResult = await getImageScreenshot({
-				browser: browserInstance,
-				logger,
-				url: processedUrl,
-			});
-			if (imageResult) return imageResult;
 		}
 
 		// Phase 2: For ambiguous URLs, check content-type for videos
@@ -160,30 +145,38 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			logger.info(
 				"Video detected by content-type, processing video screenshot",
 			);
-			const videoResult = await getVideoScreenshot({
-				browser: browserInstance,
-				logger,
-				url: processedUrl,
-			});
-			if (videoResult) return videoResult;
+			return await withBrowser(
+				newConfig,
+				getVideoScreenshot,
+				getPageScreenshot,
+			);
 		}
 
-		// Page screenshot for all other URLs
-		const pageScreenshot = await getPageScreenshot({
-			browser: browserInstance,
-			fullPage,
-			logger,
-			shouldGetPageMetrics,
-			url: processedUrl,
-		});
-		return pageScreenshot;
-	} catch (error) {
-		logger.error("Fatal error in browser/page creation", {
-			error: getErrorMessage(error),
-		});
+		// Instagram check
+		if (
+			processedUrl.includes(INSTAGRAM) &&
+			(processedUrl.includes("/p/") || processedUrl.includes("/reel/"))
+		) {
+			return await withBrowser(
+				newConfig,
+				getInstagramPostReelScreenshot,
+				getPageScreenshot,
+			);
+		}
 
+		// Twitter/X check
+		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
+			return await withBrowser(
+				newConfig,
+				getTwitterScreenshot,
+				getPageScreenshot,
+			);
+		}
+
+		// Page screenshot for all other URLs - always returns something
+		return await withBrowser(newConfig, getPageScreenshot);
+	} catch (error) {
+		logger.error("Error in getScreenshot", { error: getErrorMessage(error) });
 		throw error;
-	} finally {
-		if (browser) await closePageWithBrowser({ browser, logger });
 	}
 }

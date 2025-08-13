@@ -2,23 +2,87 @@ import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
 import { setupBrowserPage } from "../browser-setup/setupBrowserPage";
-import type { LaunchBrowserReturnType } from "../browser/launchBrowser";
 import {
 	closePageSafely,
 	getOrCreatePage,
 	type GetOrCreatePageReturnType,
 } from "../browser/pageUtils";
-import type { ProcessUrlReturnType } from "../request/processUrl";
+import { CDN_INSTAGRAM, INSTAGRAM } from "../core/constants";
+import type { WithBrowserOptions } from "../core/withBrowser";
 import { captureScreenshot } from "./captureScreenshot";
+
+type FetchImageDirectlyOptions = GetScreenshotOptions;
+
+/**
+ * Fetch image directly using Node.js fetch to bypass CORS restrictions
+ * @param {FetchImageDirectlyOptions} options - Options containing url and logger
+ * @returns {Promise<Buffer>} Image buffer
+ */
+export async function fetchImageDirectly(
+	options: FetchImageDirectlyOptions,
+): Promise<Buffer> {
+	const { logger, url } = options;
+	logger.info("Fetching image directly via server-side fetch", { url });
+
+	const isInstagramCdn = url.includes(INSTAGRAM) || url.includes(CDN_INSTAGRAM);
+
+	// Determine appropriate headers based on CDN
+	const headers: HeadersInit = {
+		Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+		"Accept-Encoding": "gzip, deflate, br",
+		"Accept-Language": "en-US,en;q=0.9",
+		"Cache-Control": "no-cache",
+		Referer: isInstagramCdn
+			? "https://www.instagram.com/"
+			: new URL(url).origin,
+		"User-Agent":
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+	};
+
+	try {
+		const response = await fetch(url, {
+			headers,
+			signal: AbortSignal.timeout(10_000), // 10 second timeout
+		});
+
+		if (!response.ok) {
+			throw new Error(
+				`HTTP error! status: ${response.status} ${response.statusText}`,
+			);
+		}
+
+		// Check if response is actually an image
+		const contentType = response.headers.get("content-type");
+		if (!contentType?.startsWith("image/")) {
+			throw new Error(`Not an image: ${contentType}`);
+		}
+
+		const arrayBuffer = await response.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+
+		logger.info("Image fetched successfully", {
+			contentType,
+			size: buffer.length,
+		});
+
+		return buffer;
+	} catch (error) {
+		logger.error("Failed to fetch image directly", {
+			error: getErrorMessage(error),
+			url,
+		});
+		throw error;
+	}
+}
 
 interface GetImageScreenshotHelperOptions {
 	logger: GetImageScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
-	url: ProcessUrlReturnType;
+	url: GetImageScreenshotOptions["url"];
 }
 
 /**
- * Capture a screenshot of an image by creating an HTML page with img element
+ * Capture a screenshot of an image by creating an HTML page with img element (fallback method)
  * @param {GetImageScreenshotHelperOptions} options - Options containing page, url, and logger
  * @returns {Promise<Buffer | null>} Screenshot buffer or null if capture fails
  */
@@ -26,7 +90,7 @@ async function getImageScreenshotHelper(
 	options: GetImageScreenshotHelperOptions,
 ): Promise<Buffer | null> {
 	const { logger, page, url } = options;
-	logger.info("Processing image screenshot", { url });
+	logger.info("Processing image screenshot with Puppeteer", { url });
 
 	try {
 		const htmlContent = `
@@ -106,11 +170,7 @@ async function getImageScreenshotHelper(
 	}
 }
 
-interface GetImageScreenshotOptions {
-	browser: LaunchBrowserReturnType;
-	logger: GetScreenshotOptions["logger"];
-	url: ProcessUrlReturnType;
-}
+type GetImageScreenshotOptions = WithBrowserOptions;
 
 /**
  * Handle image URL detection and screenshot capture
@@ -123,6 +183,7 @@ export async function getImageScreenshot(
 	const { browser, logger, url } = options;
 
 	logger.info("Processing image screenshot", { url });
+
 	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
@@ -130,16 +191,18 @@ export async function getImageScreenshot(
 		page = await getOrCreatePage({ browser, logger });
 		await setupBrowserPage({ enableAdBlocker: false, logger, page });
 
-		const screenshot = await getImageScreenshotHelper({ logger, page, url });
+		const screenshot = await getImageScreenshotHelper({
+			logger,
+			page,
+			url,
+		});
 
-		if (screenshot) {
-			return { metaData: null, screenshot };
-		}
+		if (screenshot) return { metaData: null, screenshot };
 
 		logger.warn("Image screenshot failed, returning null for fallback");
 		return null;
 	} catch (error) {
-		logger.error("Error in getImageScreenshot", {
+		logger.error("Error in getImageScreenshot Puppeteer fallback", {
 			error: getErrorMessage(error),
 		});
 		return null;
