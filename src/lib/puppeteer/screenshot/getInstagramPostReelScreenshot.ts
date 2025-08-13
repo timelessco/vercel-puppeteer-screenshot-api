@@ -178,7 +178,6 @@ export async function getInstagramPostReelScreenshot(
 
 		const divs = await page.$$("article  div[role='button']");
 		logger.debug("Searching for article divs", { found: divs.length });
-		let screenshotBuffer: Buffer | null = null;
 
 		if (divs.length > 0) {
 			try {
@@ -230,31 +229,33 @@ export async function getInstagramPostReelScreenshot(
 							size: arrayBuffer.byteLength,
 						});
 
-						screenshotBuffer = Buffer.from(arrayBuffer);
+						const screenshotBuffer = Buffer.from(arrayBuffer);
+						const metaData = await extractPageMetadata({
+							logger,
+							page,
+							url,
+						});
+						return { metaData, screenshot: screenshotBuffer };
 					} else {
 						logger.error("Failed to fetch Instagram image", {
 							status: imageRes.status,
 							url: src,
 						});
+						return null;
 					}
 				} else {
 					logger.warn("No images found in Instagram post");
+					return null;
 				}
 			} catch (error) {
 				logger.error("Error processing Instagram post images", {
 					error: getErrorMessage(error),
 				});
+				return null;
 			}
 		}
 
-		const metaData = await extractPageMetadata({ logger, page, url });
-		logger.info("Instagram screenshot captured successfully");
-		if (screenshotBuffer) {
-			return { metaData, screenshot: screenshotBuffer };
-		} else {
-			logger.warn("No screenshot buffer available, returning null");
-			return null;
-		}
+		return null;
 	} catch (error) {
 		logger.warn("Instagram screenshot failed, returning null for fallback", {
 			error: getErrorMessage(error),
