@@ -139,7 +139,7 @@ export async function launchBrowser(options: LaunchBrowserOptions) {
 				...launchOptions,
 				args: [
 					// chromium.args includes: --no-zygote, --no-sandbox, etc.
-					// Filter out --single-process to improve stability on resource heavy sites like https://github.com/puppeteer/puppeteer/issues/11515#issuecomment-2364155101
+					// Filter out --single-process to improve stability on resource heavy sites like https://v7labs.com/
 					// See https://github.com/puppeteer/puppeteer/issues/11515#issuecomment-2364155101
 					...chromium.args.filter((arg) => arg !== "--single-process"),
 					...VERCEL_ONLY_ARGS,
