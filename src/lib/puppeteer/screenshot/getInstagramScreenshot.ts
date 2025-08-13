@@ -21,6 +21,13 @@ interface FetchOgImageOptions {
 	logger: GetInstagramScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 }
+const INSTAGRAM_VIEWPORT = {
+	deviceScaleFactor: 3,
+	hasTouch: true,
+	height: 844,
+	isMobile: true,
+	width: 390,
+};
 
 /**
  * Fetches the og:image meta tag content from Instagram page
@@ -111,13 +118,6 @@ export async function getInstagramScreenshot(
 		return null;
 	}
 
-	const INSTAGRAM_VIEWPORT = {
-		deviceScaleFactor: 3,
-		hasTouch: true,
-		height: 844,
-		isMobile: true,
-		width: 390,
-	};
 	logger.info("Instagram URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
 
