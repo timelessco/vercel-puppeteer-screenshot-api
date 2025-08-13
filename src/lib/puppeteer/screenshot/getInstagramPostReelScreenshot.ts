@@ -106,17 +106,13 @@ function extractInstagramImageIndex(url: string): number | undefined {
  * @param {GetInstagramScreenshotOptions} options - Options containing page, url, logger, and optional imageIndex
  * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof extractPageMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
  */
-export async function getInstagramScreenshot(
+export async function getInstagramPostReelScreenshot(
 	options: GetInstagramScreenshotOptions,
 ): Promise<null | {
 	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
 	screenshot: Buffer;
 }> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
-
-	if (!(url.includes("/reel/") || url.includes("/p/"))) {
-		return null;
-	}
 
 	logger.info("Instagram URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
@@ -129,6 +125,17 @@ export async function getInstagramScreenshot(
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
 		await handleDialogs({ logger, page });
+
+		if (url.includes("/reel/")) {
+			const ogImageBuffer = await fetchOgImage({ logger, page });
+			if (ogImageBuffer) {
+				const metaData = await extractPageMetadata({ logger, page, url });
+				return {
+					metaData,
+					screenshot: ogImageBuffer,
+				};
+			}
+		}
 
 		// Extract image index from URL parameters
 		const imageIndex = extractInstagramImageIndex(url);
@@ -145,7 +152,7 @@ export async function getInstagramScreenshot(
 			logger.info("Navigating carousel to image", { targetIndex: index });
 
 			try {
-				for (let i = 0; i < index; i++) {
+				for (let i = 0; i < index - 1; i++) {
 					logger.debug(
 						`Carousel navigation: clicking next (${i + 1}/${index})`,
 					);
@@ -165,78 +172,78 @@ export async function getInstagramScreenshot(
 			}
 		}
 
+		await page.waitForSelector('article div[role="button"]', {
+			timeout: 5000,
+		});
+
+		const divs = await page.$$("article  div[role='button']");
+		logger.debug("Searching for article divs", { found: divs.length });
 		let screenshotBuffer: Buffer | null = null;
 
-		if (url.includes("/reel/")) {
-			const ogImageBuffer = await fetchOgImage({ logger, page });
-			if (ogImageBuffer) {
-				screenshotBuffer = ogImageBuffer;
-			}
-		} else {
-			await page.waitForSelector('article div[role="button"]', {
-				timeout: 5000,
-			});
+		if (divs.length > 0) {
+			try {
+				const targetDiv = divs[2];
+				const firstPost = await targetDiv.$$("img");
 
-			const divs = await page.$$('article div[role="button"]');
+				const hasVideo = await firstPost[0].evaluate(
+					(el) => el.querySelector("video") !== null,
+				);
+				await targetDiv.waitForSelector("img, video", { timeout: 5000 });
 
-			logger.debug("Searching for article divs", { found: divs.length });
-
-			if (divs.length > 0) {
-				try {
-					const targetDiv = divs[2];
-
-					await targetDiv.waitForSelector("img, video", { timeout: 5000 });
-					const imgs = await divs[2].$$("img");
-
-					const hasVideo = await divs[2].evaluate(
-						(el) => el.querySelector("video") !== null,
+				//if first post is a video then use og:image ex:https://www.instagram.com/omni.type/p/DMaK1yvtPoI/?img_index=1
+				if ((index == 1 || !index) && hasVideo) {
+					logger.info(
+						"Found Instagram video in post so using og:image instead",
 					);
-
-					if (hasVideo) {
-						logger.info(
-							"Found Instagram video in post so using og:image instead",
-						);
-						const ogImageBuffer = await fetchOgImage({ logger, page });
-						if (ogImageBuffer) {
-							screenshotBuffer = ogImageBuffer;
-						}
-					} else {
-						logger.debug("Found Instagram images", { count: imgs.length });
-
-						if (imgs.length > 0) {
-							const targetIndex = index && index > 1 ? 1 : 0;
-							logger.debug("Selecting image", {
-								targetIndex,
-								totalImages: imgs.length,
-							});
-
-							const srcHandle = await imgs[targetIndex].getProperty("src");
-							const src = await srcHandle.jsonValue();
-							logger.debug("Fetching image from URL", { url: src });
-
-							const imageRes = await fetch(src);
-							if (imageRes.ok) {
-								const arrayBuffer = await imageRes.arrayBuffer();
-								logger.info("Instagram post image fetched successfully", {
-									size: arrayBuffer.byteLength,
-								});
-
-								screenshotBuffer = Buffer.from(arrayBuffer);
-							} else {
-								logger.error("Failed to fetch Instagram image", {
-									status: imageRes.status,
-									url: src,
-								});
-							}
-						} else {
-							logger.warn("No images found in Instagram post");
-						}
+					const ogImageBuffer = await fetchOgImage({ logger, page });
+					if (ogImageBuffer) {
+						const metaData = await extractPageMetadata({
+							logger,
+							page,
+							url,
+						});
+						return {
+							metaData,
+							screenshot: ogImageBuffer,
+						};
 					}
-				} catch (error) {
-					logger.error("Error processing Instagram post images", {
-						error: getErrorMessage(error),
-					});
 				}
+
+				const imgs = await targetDiv.$$("img");
+				logger.debug("Found Instagram images", { count: imgs.length });
+
+				if (imgs.length > 0) {
+					const targetIndex = index && index > 1 ? imgs.length - 1 : 0;
+					logger.debug("Selecting image", {
+						targetIndex,
+						totalImages: imgs.length,
+					});
+
+					const srcHandle = await imgs[targetIndex].getProperty("src");
+					const src = await srcHandle.jsonValue();
+					logger.debug("Fetching image from URL", { url: src });
+
+					const imageRes = await fetch(src);
+					if (imageRes.ok) {
+						const arrayBuffer = await imageRes.arrayBuffer();
+						logger.info("Instagram post image fetched successfully", {
+							size: arrayBuffer.byteLength,
+						});
+
+						screenshotBuffer = Buffer.from(arrayBuffer);
+					} else {
+						logger.error("Failed to fetch Instagram image", {
+							status: imageRes.status,
+							url: src,
+						});
+					}
+				} else {
+					logger.warn("No images found in Instagram post");
+				}
+			} catch (error) {
+				logger.error("Error processing Instagram post images", {
+					error: getErrorMessage(error),
+				});
 			}
 		}
 

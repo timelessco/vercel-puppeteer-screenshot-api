@@ -27,7 +27,7 @@ import {
 } from "@/lib/puppeteer/request/parseRequestConfig";
 import { processUrl } from "@/lib/puppeteer/request/processUrl";
 import { getImageScreenshot } from "@/lib/puppeteer/screenshot/getImageScreenshot";
-import { getInstagramScreenshot } from "@/lib/puppeteer/screenshot/getInstagramScreenshot";
+import { getInstagramPostReelScreenshot } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getPageScreenshot } from "@/lib/puppeteer/screenshot/getPageScreenshot";
 import { getTwitterScreenshot } from "@/lib/puppeteer/screenshot/getTwitterScreenshot";
 import { getVideoScreenshot } from "@/lib/puppeteer/screenshot/getVideoScreenshot";
@@ -92,8 +92,11 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 		browser = browserInstance;
 
 		// Instagram check
-		if (processedUrl.includes(INSTAGRAM)) {
-			const instagramResult = await getInstagramScreenshot({
+		if (
+			processedUrl.includes(INSTAGRAM) &&
+			(processedUrl.includes("/p/") || processedUrl.includes("/reel/"))
+		) {
+			const instagramResult = await getInstagramPostReelScreenshot({
 				browser: browserInstance,
 				logger,
 				shouldGetPageMetrics,
