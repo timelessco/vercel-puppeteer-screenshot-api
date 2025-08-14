@@ -163,12 +163,18 @@ export async function getInstagramPostReelScreenshot(
 		if (divs.length > 0) {
 			try {
 				const targetDiv = divs[2];
-				const firstPost = await targetDiv.$$("img");
+				const listItemsHTML = await page.evaluate((div) => {
+					const ul = div.querySelector("ul");
+					if (!ul) return [];
+					return [...ul.querySelectorAll("li")].map((li) =>
+						li.outerHTML.trim(),
+					);
+				}, targetDiv);
 
-				const hasVideo = await firstPost[0].evaluate(
-					(el) => el.querySelector("video") !== null,
-				);
-				await targetDiv.waitForSelector("img, video", { timeout: 5000 });
+				const hasVideo = listItemsHTML[1]?.includes("<video");
+				logger.debug("Second list item contains video?", {
+					hasVideo,
+				});
 
 				//if first post is a video then use og:image ex:https://www.instagram.com/omni.type/p/DMaK1yvtPoI/?img_index=1
 				if ((index == 1 || !index) && hasVideo) {
@@ -181,6 +187,8 @@ export async function getInstagramPostReelScreenshot(
 						return { metaData, screenshot: ogImageBuffer };
 					}
 				}
+
+				await targetDiv.waitForSelector("img, video", { timeout: 5000 });
 
 				const imgs = await targetDiv.$$("img");
 				logger.debug("Found Instagram images", { count: imgs.length });
