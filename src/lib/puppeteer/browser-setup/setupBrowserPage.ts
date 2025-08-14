@@ -76,4 +76,13 @@ function setupLogging(options: SetupLoggingOptions): void {
 	page.on("pageerror", (err) => {
 		logger.debug("[setupLogging] Page JS error", { error: err.message });
 	});
+
+	page.on("response", (res) => {
+		if (res.status() >= 300 && res.status() < 400) {
+			logger.debug("[setupLogging] Response redirected", {
+				status: res.status(),
+				url: res.url(),
+			});
+		}
+	});
 }
