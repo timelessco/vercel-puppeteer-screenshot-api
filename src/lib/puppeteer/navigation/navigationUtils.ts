@@ -22,9 +22,9 @@ export async function gotoPage(
 	options: GotoPageOptions,
 ): Promise<HTTPResponse | null> {
 	const {
-		fontTimeout = 5000,
+		fontTimeout = 50_000,
 		logger,
-		navigationTimeout = 300_000,
+		navigationTimeout = 50_000,
 		page,
 		url,
 	} = options;
