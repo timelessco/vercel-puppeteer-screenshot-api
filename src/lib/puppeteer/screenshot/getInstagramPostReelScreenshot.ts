@@ -105,7 +105,6 @@ export async function getInstagramPostReelScreenshot(
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
-		await handleDialogs({ logger, page });
 
 		if (url.includes("/reel/")) {
 			const ogImageBuffer = await fetchOgImage({ ...options, page });
@@ -130,6 +129,9 @@ export async function getInstagramPostReelScreenshot(
 		const index = imageIndex ?? null;
 
 		if (index && index > 1) {
+			// we handle dialogues only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
+			await handleDialogs({ logger, page });
+
 			logger.info("Navigating carousel to image", { targetIndex: index });
 
 			try {
@@ -163,32 +165,8 @@ export async function getInstagramPostReelScreenshot(
 		if (divs.length > 0) {
 			try {
 				const targetDiv = divs[2];
-				const listItemsHTML = await page.evaluate((div) => {
-					const ul = div.querySelector("ul");
-					if (!ul) return [];
-					return [...ul.querySelectorAll("li")].map((li) =>
-						li.outerHTML.trim(),
-					);
-				}, targetDiv);
 
-				const hasVideo = listItemsHTML[1]?.includes("<video");
-				logger.debug("Second list item contains video?", {
-					hasVideo,
-				});
-
-				//if first post is a video then use og:image ex:https://www.instagram.com/omni.type/p/DMaK1yvtPoI/?img_index=1
-				if ((index == 1 || !index) && hasVideo) {
-					logger.info(
-						"Found Instagram video in post so using og:image instead",
-					);
-					const ogImageBuffer = await fetchOgImage({ ...options, page });
-					if (ogImageBuffer) {
-						const metaData = await extractPageMetadata({ logger, page, url });
-						return { metaData, screenshot: ogImageBuffer };
-					}
-				}
-
-				await targetDiv.waitForSelector("img, video", { timeout: 5000 });
+				await targetDiv.waitForSelector("img", { timeout: 5000 });
 
 				const imgs = await targetDiv.$$("img");
 				logger.debug("Found Instagram images", { count: imgs.length });
