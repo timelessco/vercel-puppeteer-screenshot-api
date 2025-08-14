@@ -22,9 +22,9 @@ export async function gotoPage(
 	options: GotoPageOptions,
 ): Promise<HTTPResponse | null> {
 	const {
-		fontTimeout = 50_000,
+		fontTimeout = 30_000,
 		logger,
-		navigationTimeout = 50_000,
+		navigationTimeout = 30_000,
 		page,
 		url,
 	} = options;
@@ -43,10 +43,15 @@ export async function gotoPage(
 
 		// For non-image pages, wait for fonts to load
 		if (!isDirectImage) {
-			logger.debug("Waiting for fonts to load");
-			await page.waitForFunction(() => document.fonts.ready, {
-				timeout: fontTimeout,
-			});
+			try {
+				logger.debug("Waiting for fonts to load");
+				await page.waitForFunction(() => document.fonts.ready, {
+					timeout: fontTimeout,
+				});
+			} catch {
+				logger.warn("Fonts did not load within timeout, continuing anyway");
+				// Continue with screenshot instead of failing
+			}
 		}
 
 		navTimer();
