@@ -118,7 +118,7 @@ export async function getInstagramPostReelScreenshot(
 			if (index && index > 1) {
 				const ariaLabel = "Next";
 
-				// we handle dialogues only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
+				// we handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
 				await handleDialogs({ logger, page });
 
 				logger.info("Navigating carousel to image", { targetIndex: index });
