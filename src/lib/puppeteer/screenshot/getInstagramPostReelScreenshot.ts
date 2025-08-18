@@ -144,9 +144,9 @@ export async function getInstagramPostReelScreenshot(
 				}
 			}
 
-			await page.waitForSelector('article div[role="button"]', {
-				timeout: 5000,
-			});
+			// await page.waitForSelector('article div[role="button"]', {
+			// 	timeout: 5000,
+			// });
 
 			const divs = await page.$$("article > div");
 			logger.debug("Searching for article divs", { found: divs.length });
