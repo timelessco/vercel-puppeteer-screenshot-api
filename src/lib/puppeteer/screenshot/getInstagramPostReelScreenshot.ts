@@ -148,11 +148,11 @@ export async function getInstagramPostReelScreenshot(
 				timeout: 5000,
 			});
 
-			const divs = await page.$$("article  div[role='button']");
+			const divs = await page.$$("article > div");
 			logger.debug("Searching for article divs", { found: divs.length });
 
-			if (divs.length > 2) {
-				const targetDiv = divs[2];
+			if (divs.length > 1) {
+				const targetDiv = divs[1];
 
 				await targetDiv.waitForSelector("img", { timeout: 5000 });
 
