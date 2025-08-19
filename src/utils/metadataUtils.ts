@@ -64,6 +64,7 @@ interface GeneratePageMetadataProps {
 	imageHeight: number;
 	imageUrl: string;
 	imageWidth: number;
+	is2xScreenshot?: boolean;
 	title: string;
 	url: string;
 }

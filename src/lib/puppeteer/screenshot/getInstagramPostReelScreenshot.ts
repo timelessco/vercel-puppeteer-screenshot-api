@@ -244,7 +244,14 @@ export async function getInstagramPostReelScreenshot(
 		if (screenshot) {
 			const metaData = await extractPageMetadata({ logger, page, url });
 			logger.info("Instagram screenshot captured successfully");
-			return { metaData, screenshot };
+
+			return {
+				metaData: {
+					...metaData,
+					is2xScreenshot: false,
+				},
+				screenshot,
+			};
 		}
 
 		logger.info("No Instagram content found, falling back to page screenshot");
