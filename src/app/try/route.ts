@@ -6,7 +6,7 @@ import {
 	TWITTER,
 	X,
 } from "@/lib/puppeteer/core/constants";
-import type { GetMetadataReturnType } from "@/lib/puppeteer/core/extractPageMetadata";
+import type { GetMetadataReturnType } from "@/lib/puppeteer/core/getMetadata";
 import {
 	isImageUrl,
 	isImageUrlByExtension,
@@ -54,8 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			callback: () => getScreenshot(config),
 			options: { logger },
 		});
-		logger.logSummary(true, screenshot.length);
-
+		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(
 			{ metaData, screenshot },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },

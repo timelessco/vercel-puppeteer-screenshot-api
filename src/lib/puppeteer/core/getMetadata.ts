@@ -1,15 +1,37 @@
+import { logger } from "@sentry/nextjs";
+
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
 
-interface ExtractPageMetadataOptions {
+interface GetMetadataOptions {
+	isPageScreenshot?: boolean;
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: GetScreenshotOptions["url"];
 }
 
-export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
+export async function getMetadata(options: GetMetadataOptions) {
+	try {
+		const { isPageScreenshot = false, ...rest } = options;
+		const pageMetadata = await extractPageMetadata(rest);
+		const metadata = { ...pageMetadata, isPageScreenshot };
+
+		return metadata;
+	} catch (error) {
+		logger.error("Failed to get metadata, returning empty metadata", {
+			error: getErrorMessage(error),
+			url: options.url,
+		});
+		return null;
+	}
+}
+export type GetMetadataReturnType = Awaited<ReturnType<typeof getMetadata>>;
+
+type ExtractPageMetadataOptions = Omit<GetMetadataOptions, "isPageScreenshot">;
+
+async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 	const { logger, page, url: urlStr } = options;
 	logger.info("Extracting metadata from current page", { url: urlStr });
 
@@ -73,7 +95,3 @@ export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 		return null;
 	}
 }
-
-export type GetMetadataReturnType = Awaited<
-	ReturnType<typeof extractPageMetadata>
->;
