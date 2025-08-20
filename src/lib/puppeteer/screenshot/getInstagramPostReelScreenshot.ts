@@ -12,7 +12,7 @@ import {
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
 
-import { extractPageMetadata } from "../core/extractPageMetadata";
+import { getMetadata } from "../core/extractPageMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
 import { fetchImageDirectly } from "./getImageScreenshot";
 
@@ -215,12 +215,12 @@ type GetInstagramPostReelScreenshotOptions = WithBrowserOptions;
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images
  * @param {GetInstagramPostReelScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof extractPageMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
+ * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof getMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
  */
 export async function getInstagramPostReelScreenshot(
 	options: GetInstagramPostReelScreenshotOptions,
 ): Promise<null | {
-	metaData: Awaited<ReturnType<typeof extractPageMetadata>>;
+	metaData: Awaited<ReturnType<typeof getMetadata>>;
 	screenshot: Buffer;
 }> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
@@ -242,7 +242,8 @@ export async function getInstagramPostReelScreenshot(
 		});
 
 		if (screenshot) {
-			const metaData = await extractPageMetadata({ logger, page, url });
+			//here we don't use the is2xScreenshot flag since we get the image directly
+			const metaData = await getMetadata({ logger, page, url });
 			logger.info("Instagram screenshot captured successfully");
 
 			return { metaData, screenshot };
