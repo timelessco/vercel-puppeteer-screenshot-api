@@ -17,10 +17,11 @@ if (process.env.SKIP_ENV_VALIDATION == null) {
 const nextConfig: NextConfig = {
 	// https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode
 	// reactStrictMode: false, // default: true
-
 	images: {
 		formats: ["image/avif", "image/webp"],
 	},
+
+	typedRoutes: true,
 
 	// Turn on fetch and it's data cache logging when debugging rsc fetches
 	logging: {

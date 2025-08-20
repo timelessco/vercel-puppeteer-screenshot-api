@@ -35,6 +35,7 @@ export default tseslint.config(
 			"public/**/*",
 			"CHANGELOG.md",
 			"scripts/release-it/**/*",
+			"next-env.d.ts",
 		],
 	},
 	{ linterOptions: { reportUnusedDisableDirectives: "error" } },
