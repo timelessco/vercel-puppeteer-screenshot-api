@@ -55,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			options: { logger },
 		});
 		logger.logSummary(true, screenshot.length);
-
+		logger.info("metaData", { metaData });
 		return NextResponse.json(
 			{ metaData, screenshot },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
