@@ -39,7 +39,7 @@ export async function setupBrowserPage(
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
 	await page.setUserAgent(
-		"Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1",
+		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36",
 	);
 
 	if (enableAntiDetection) {
