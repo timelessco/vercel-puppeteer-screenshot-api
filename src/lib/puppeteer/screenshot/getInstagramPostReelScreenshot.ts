@@ -50,36 +50,36 @@ interface GetInstagramPostReelScreenshotHelperOptions
  * @param {GetInstagramPostReelScreenshotHelperOptions} options - Options containing page, url, and logger
  * @returns {Promise<Buffer | null>} Buffer containing the image data or null if not found
  */
-async function fetchOgImage(
-	options: GetInstagramPostReelScreenshotHelperOptions,
-): Promise<Buffer | null> {
-	const { logger, page } = options;
-	logger.debug("Attempting to extract og:image");
+// async function fetchOgImage(
+// 	options: GetInstagramPostReelScreenshotHelperOptions,
+// ): Promise<Buffer | null> {
+// 	const { logger, page } = options;
+// 	logger.debug("Attempting to extract og:image");
 
-	const ogImage = await page.evaluate(() => {
-		const meta = document.querySelector('meta[property="og:image"]');
+// 	const ogImage = await page.evaluate(() => {
+// 		const meta = document.querySelector('meta[property="og:image"]');
 
-		return meta ? meta.getAttribute("content") : null;
-	});
+// 		return meta ? meta.getAttribute("content") : null;
+// 	});
 
-	if (!ogImage) {
-		logger.debug("No og:image meta tag found");
-		return null;
-	}
+// 	if (!ogImage) {
+// 		logger.debug("No og:image meta tag found");
+// 		return null;
+// 	}
 
-	logger.info("Found Instagram og:image", { url: ogImage });
+// 	logger.info("Found Instagram og:image", { url: ogImage });
 
-	try {
-		return await fetchImageDirectly({ ...options, url: ogImage });
-	} catch (error) {
-		logger.error("Error fetching og:image", {
-			error: getErrorMessage(error),
-			url: ogImage,
-		});
+// 	try {
+// 		return await fetchImageDirectly({ ...options, url: ogImage });
+// 	} catch (error) {
+// 		logger.error("Error fetching og:image", {
+// 			error: getErrorMessage(error),
+// 			url: ogImage,
+// 		});
 
-		return null;
-	}
-}
+// 		return null;
+// 	}
+// }
 
 interface NavigateCarouselOptions
 	extends GetInstagramPostReelScreenshotHelperOptions {
@@ -132,9 +132,9 @@ async function extractInstagramImage(
 ): Promise<Buffer | null> {
 	const { index, logger, page } = options;
 
-	await page.waitForSelector('article div[role="button"]', {
-		timeout: 30_000,
-	});
+	// await page.waitForSelector('article div[role="button"]', {
+	// 	timeout: 30_000,
+	// });
 
 	const divs = await page.$$("article > div");
 	logger.debug("Searching for article divs", { found: divs.length });
