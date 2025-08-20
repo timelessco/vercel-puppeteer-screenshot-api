@@ -89,10 +89,15 @@ export function createLogger(options: CreateLoggerOptions) {
 	// Log runtime info immediately upon creation
 	logRuntimeInfo();
 
-	const logSummary = (success: boolean, screenshotSize?: number): void => {
+	const logSummary = (
+		success: boolean,
+		screenshotSize?: number,
+		metadata?: Record<string, unknown>,
+	): void => {
 		const totalTime = Date.now() - startTime;
 		info("Summary", {
 			duration: `${totalTime}ms`,
+			metadata,
 			screenshotSize,
 			success,
 		});

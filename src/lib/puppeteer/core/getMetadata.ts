@@ -5,21 +5,20 @@ import type { GetScreenshotOptions } from "@/app/try/route";
 
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
 
-interface ExtractPageMetadataOptions {
-	is2xScreenshot?: boolean;
+interface GetMetadataOptions {
+	isPageScreenshot?: boolean;
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: GetScreenshotOptions["url"];
 }
-export async function getMetadata(options: ExtractPageMetadataOptions) {
-	try {
-		const metadata = await extractPageMetadata(options);
-		const { is2xScreenshot = false } = options;
 
-		return {
-			...metadata,
-			is2xScreenshot,
-		};
+export async function getMetadata(options: GetMetadataOptions) {
+	try {
+		const { isPageScreenshot = false, ...rest } = options;
+		const pageMetadata = await extractPageMetadata(rest);
+		const metadata = { ...pageMetadata, isPageScreenshot };
+
+		return metadata;
 	} catch (error) {
 		logger.error("Failed to get metadata, returning empty metadata", {
 			error: getErrorMessage(error),
@@ -28,11 +27,13 @@ export async function getMetadata(options: ExtractPageMetadataOptions) {
 		return null;
 	}
 }
+export type GetMetadataReturnType = Awaited<ReturnType<typeof getMetadata>>;
 
-export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
+type ExtractPageMetadataOptions = Omit<GetMetadataOptions, "isPageScreenshot">;
+
+async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 	const { logger, page, url: urlStr } = options;
 	logger.info("Extracting metadata from current page", { url: urlStr });
-	// const is2xScreenshot = !urlStr.includes(INSTAGRAM);
 
 	try {
 		const metadataTimer = logger.time("Metadata extraction");
@@ -94,5 +95,3 @@ export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 		return null;
 	}
 }
-
-export type GetMetadataReturnType = Awaited<ReturnType<typeof getMetadata>>;

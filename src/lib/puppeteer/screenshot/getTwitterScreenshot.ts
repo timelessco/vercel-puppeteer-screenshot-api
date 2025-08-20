@@ -16,7 +16,7 @@ import {
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { getMetadata } from "../core/extractPageMetadata";
+import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 
 interface GetTwitterScreenshotHelperOptions {
@@ -152,14 +152,11 @@ interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 /**
  * Captures screenshot from X/Twitter with special handling for tweets and profiles
  * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<null | { metaData: Awaited<ReturnType<typeof getMetadata>>; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a Twitter URL
+ * @returns {Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a Twitter URL
  */
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
-): Promise<null | {
-	metaData: Awaited<ReturnType<typeof getMetadata>>;
-	screenshot: Buffer;
-}> {
+): Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("X/Twitter URL detected");
@@ -182,11 +179,10 @@ export async function getTwitterScreenshot(
 		await handleDialogs({ logger, page });
 
 		const screenshot = await getTwitterScreenshotHelper({ logger, page, url });
-
 		if (screenshot) {
 			const metaData = await getMetadata({
-				//here we set the is2xScreenshot to true since the screenshot is 2x
-				is2xScreenshot: true,
+				//here we set the isPageScreenshot to true since the screenshot is 2x
+				isPageScreenshot: true,
 				logger,
 				page,
 				url,

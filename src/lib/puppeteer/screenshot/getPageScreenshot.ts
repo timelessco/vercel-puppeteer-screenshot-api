@@ -12,7 +12,7 @@ import {
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
 
-import { getMetadata } from "../core/extractPageMetadata";
+import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
 import { captureScreenshot } from "./captureScreenshot";
 
@@ -21,9 +21,11 @@ type GetPageScreenshotOptions = WithBrowserOptions;
 /**
  * Screenshot handler that attempts regular navigation and errors on failure
  * @param {GetPageScreenshotOptions} options - Options containing browser, url, logger, and optional metrics flag
- * @returns {Promise<{ metaData: Awaited<ReturnType<typeof getMetadata>> | null; screenshot: Buffer }>} Screenshot buffer with metadata or error page
+ * @returns {Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }>} Screenshot buffer with metadata or error page
  */
-export async function getPageScreenshot(options: GetPageScreenshotOptions) {
+export async function getPageScreenshot(
+	options: GetPageScreenshotOptions,
+): Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }> {
 	const { browser, fullPage, logger, shouldGetPageMetrics, url } = options;
 	let page: GetOrCreatePageReturnType | null = null;
 
@@ -47,8 +49,8 @@ export async function getPageScreenshot(options: GetPageScreenshotOptions) {
 		});
 
 		const metaData = await getMetadata({
-			//here we set the is2xScreenshot to true since the screenshot is 2x
-			is2xScreenshot: true,
+			// We set isPageScreenshot to true since the screenshot is 2x compared to the other screenshots
+			isPageScreenshot: true,
 			logger,
 			page,
 			url,
