@@ -198,7 +198,7 @@ async function getInstagramPostReelScreenshotHelper(
 		if (imageBuffer) return imageBuffer;
 
 		// Fallback to og:image
-		return await fetchOgImage(options);
+		return null;
 	} catch (error) {
 		logger.error(
 			"Error processing Instagram post images, falling back to ogImage",
@@ -206,7 +206,7 @@ async function getInstagramPostReelScreenshotHelper(
 		);
 
 		// Final fallback to og:image
-		return await fetchOgImage(options);
+		return null;
 	}
 }
 
