@@ -2,6 +2,7 @@ import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
+import { INSTAGRAM } from "./constants";
 
 interface ExtractPageMetadataOptions {
 	logger: GetScreenshotOptions["logger"];
@@ -12,6 +13,7 @@ interface ExtractPageMetadataOptions {
 export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 	const { logger, page, url: urlStr } = options;
 	logger.info("Extracting metadata from current page", { url: urlStr });
+	const is2xScreenshot = !urlStr.includes(INSTAGRAM);
 
 	try {
 		const metadataTimer = logger.time("Metadata extraction");
@@ -64,7 +66,7 @@ export async function extractPageMetadata(options: ExtractPageMetadataOptions) {
 			logger.warn("No meaningful metadata found", { url: urlStr });
 		}
 
-		return metadata;
+		return { ...metadata, is2xScreenshot };
 	} catch (error) {
 		logger.error("Failed to extract metadata, returning empty metadata", {
 			error: getErrorMessage(error),

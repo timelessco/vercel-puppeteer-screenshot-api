@@ -245,11 +245,11 @@ export async function getInstagramPostReelScreenshot(
 			const metaData = await extractPageMetadata({ logger, page, url });
 			logger.info("Instagram screenshot captured successfully");
 
+			logger.info("Instagram metaData", {
+				metaData,
+			});
 			return {
-				metaData: {
-					...metaData,
-					is2xScreenshot: false,
-				},
+				metaData,
 				screenshot,
 			};
 		}
