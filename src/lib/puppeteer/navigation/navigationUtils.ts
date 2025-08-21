@@ -79,6 +79,15 @@ export async function handleDialogs(
 ): Promise<void> {
 	const { logger, page } = options;
 	try {
+		try {
+			const closeButton = page.locator('[aria-label="Close"]');
+			await closeButton.click();
+			logger.info("Clicked [aria-label='Close'] button");
+		} catch (locatorError) {
+			logger.debug("No [aria-label='Close'] button found or clickable", {
+				error: locatorError,
+			});
+		}
 		const dialogElement = await page.$('div[role="dialog"]');
 		if (dialogElement) {
 			logger.info("Dialog detected, attempting to close");
