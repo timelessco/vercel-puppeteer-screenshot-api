@@ -4,8 +4,6 @@ import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtil
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { INSTAGRAM } from "../core/constants";
-
 interface GotoPageOptions {
 	fontTimeout?: number;
 	logger: GetScreenshotOptions["logger"];
@@ -40,9 +38,7 @@ export async function gotoPage(
 			timeout: navigationTimeout,
 			waitUntil: isDirectImage
 				? ["networkidle0"]
-				: url.includes(INSTAGRAM)
-					? ["domcontentloaded"]
-					: ["domcontentloaded", "networkidle2"],
+				: ["domcontentloaded", "networkidle2"],
 		});
 
 		// For non-image pages, wait for fonts to load

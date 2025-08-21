@@ -6,10 +6,7 @@ import {
 	type GetOrCreatePageReturnType,
 } from "@/lib/puppeteer/browser/pageUtils";
 import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker";
-import {
-	gotoPage,
-	handleDialogs,
-} from "@/lib/puppeteer/navigation/navigationUtils";
+import { gotoPage } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
@@ -97,7 +94,7 @@ async function navigateCarousel(
 	const { index, logger, page } = options;
 
 	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
-	await handleDialogs({ logger, page });
+	await page.locator('[aria-label="Close"]').click();
 
 	logger.info("Navigating carousel to image", { targetIndex: index });
 
