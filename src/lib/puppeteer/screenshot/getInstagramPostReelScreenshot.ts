@@ -98,9 +98,9 @@ async function navigateCarousel(
 	const { index, logger, page } = options;
 
 	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
-	//this is a separate function to handle dialogs only for instagram
-	await handleDialogsInstagram({ logger, page });
-	//this function act as a fallback if the handleDialogsInstagram fails
+	// This is a separate function to handle dialogs only for instagram
+	await handleInstagramDialogs({ logger, page });
+	// This function act as a fallback if the handleInstagramDialogs fails
 	await handleDialogs({ logger, page });
 
 	logger.info("Navigating carousel to image", { targetIndex: index });
