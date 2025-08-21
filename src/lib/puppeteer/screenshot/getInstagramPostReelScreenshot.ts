@@ -9,7 +9,6 @@ import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker"
 import {
 	gotoPage,
 	handleDialogs,
-	type HandleDialogsOptions,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
 
@@ -270,10 +269,9 @@ async function handleInstagramDialogs(
 	options: HandleInstagramDialogsOptions,
 ): Promise<void> {
 	const { logger, page } = options;
-	
+
 	try {
-		const closeButton = page.locator('[aria-label="Close"]');
-		await closeButton.click();
+		await page.locator('[aria-label="Close"]').click();
 		logger.info("Clicked [aria-label='Close'] button");
 	} catch (error) {
 		logger.debug("No [aria-label='Close'] button found or clickable", {

@@ -64,7 +64,7 @@ export async function gotoPage(
 	}
 }
 
-export interface HandleDialogsOptions {
+interface HandleDialogsOptions {
 	logger: GetScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 }
