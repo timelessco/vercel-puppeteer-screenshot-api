@@ -6,10 +6,7 @@ import {
 	type GetOrCreatePageReturnType,
 } from "@/lib/puppeteer/browser/pageUtils";
 import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker";
-import {
-	gotoPage,
-	handleDialogs,
-} from "@/lib/puppeteer/navigation/navigationUtils";
+import { gotoPage } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
@@ -50,36 +47,36 @@ interface GetInstagramPostReelScreenshotHelperOptions
  * @param {GetInstagramPostReelScreenshotHelperOptions} options - Options containing page, url, and logger
  * @returns {Promise<Buffer | null>} Buffer containing the image data or null if not found
  */
-async function fetchOgImage(
-	options: GetInstagramPostReelScreenshotHelperOptions,
-): Promise<Buffer | null> {
-	const { logger, page } = options;
-	logger.debug("Attempting to extract og:image");
+// async function fetchOgImage(
+// 	options: GetInstagramPostReelScreenshotHelperOptions,
+// ): Promise<Buffer | null> {
+// 	const { logger, page } = options;
+// 	logger.debug("Attempting to extract og:image");
 
-	const ogImage = await page.evaluate(() => {
-		const meta = document.querySelector('meta[property="og:image"]');
+// 	const ogImage = await page.evaluate(() => {
+// 		const meta = document.querySelector('meta[property="og:image"]');
 
-		return meta ? meta.getAttribute("content") : null;
-	});
+// 		return meta ? meta.getAttribute("content") : null;
+// 	});
 
-	if (!ogImage) {
-		logger.debug("No og:image meta tag found");
-		return null;
-	}
+// 	if (!ogImage) {
+// 		logger.debug("No og:image meta tag found");
+// 		return null;
+// 	}
 
-	logger.info("Found Instagram og:image", { url: ogImage });
+// 	logger.info("Found Instagram og:image", { url: ogImage });
 
-	try {
-		return await fetchImageDirectly({ ...options, url: ogImage });
-	} catch (error) {
-		logger.error("Error fetching og:image", {
-			error: getErrorMessage(error),
-			url: ogImage,
-		});
+// 	try {
+// 		return await fetchImageDirectly({ ...options, url: ogImage });
+// 	} catch (error) {
+// 		logger.error("Error fetching og:image", {
+// 			error: getErrorMessage(error),
+// 			url: ogImage,
+// 		});
 
-		return null;
-	}
-}
+// 		return null;
+// 	}
+// }
 
 interface NavigateCarouselOptions
 	extends GetInstagramPostReelScreenshotHelperOptions {
@@ -97,7 +94,7 @@ async function navigateCarousel(
 	const { index, logger, page } = options;
 
 	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
-	await handleDialogs({ logger, page });
+	await page.locator('[aria-label="Close"]').click();
 
 	logger.info("Navigating carousel to image", { targetIndex: index });
 
@@ -134,6 +131,14 @@ async function extractInstagramImage(
 
 	await page.waitForSelector('article div[role="button"]', {
 		timeout: 30_000,
+	});
+	const imageUrls = await page.$$eval("img", (imgs) =>
+		imgs.map((img) => img.src),
+	);
+
+	console.log("All image URLs on page:");
+	imageUrls.forEach((url, i) => {
+		console.log(`${i + 1}: ${url}`);
 	});
 
 	const divs = await page.$$("article > div");
@@ -198,7 +203,8 @@ async function getInstagramPostReelScreenshotHelper(
 		if (imageBuffer) return imageBuffer;
 
 		// Fallback to og:image
-		return await fetchOgImage(options);
+		// return await fetchOgImage(options);
+		return null;
 	} catch (error) {
 		logger.error(
 			"Error processing Instagram post images, falling back to ogImage",
@@ -206,7 +212,8 @@ async function getInstagramPostReelScreenshotHelper(
 		);
 
 		// Final fallback to og:image
-		return await fetchOgImage(options);
+		// return await fetchOgImage(options);
+		return null;
 	}
 }
 
@@ -226,34 +233,52 @@ export async function getInstagramPostReelScreenshot(
 	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
-		// Complete page navigation sequence
 		page = await getOrCreatePage({ browser, logger });
 		await setupBrowserPage({ logger, page, viewport: INSTAGRAM_VIEWPORT });
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
 
-		const screenshot = await getInstagramPostReelScreenshotHelper({
-			...options,
-			page,
-		});
+		const screenshot = await tryGetInstagramScreenshot({ ...options, page }, 3); // 👈 3 tries
 		if (screenshot) {
-			//We don't use the isPageScreenshot flag since we get the image directly
 			const metaData = await getMetadata({ logger, page, url });
-			logger.info("Instagram screenshot captured successfully");
-
 			return { metaData, screenshot };
 		}
 
-		logger.info("No Instagram content found, falling back to page screenshot");
-		return null;
-	} catch (error) {
-		logger.warn("Instagram screenshot failed, returning null for fallback", {
-			error: getErrorMessage(error),
-		});
-
+		logger.info("No Instagram content found, returning null after retries");
 		return null;
 	} finally {
 		if (page) await closePageSafely({ logger, page });
 	}
+}
+
+async function tryGetInstagramScreenshot(
+	options: GetInstagramPostReelScreenshotHelperOptions,
+	retries = 2, // total retries allowed
+): Promise<Buffer | null> {
+	const { logger } = options;
+
+	for (let attempt = 1; attempt <= retries; attempt++) {
+		try {
+			logger.info(`Attempt ${attempt} to extract Instagram screenshot`);
+			const screenshot = await getInstagramPostReelScreenshotHelper(options);
+			if (screenshot) {
+				logger.info(
+					`Instagram screenshot extracted successfully at ${attempt}attempt`,
+					{
+						attempt,
+					},
+				);
+				return screenshot;
+			}
+		} catch (error) {
+			logger.warn("Instagram screenshot attempt failed", {
+				attempt,
+				error: getErrorMessage(error),
+			});
+		}
+	}
+
+	logger.error("All attempts to extract Instagram screenshot failed");
+	return null;
 }

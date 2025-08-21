@@ -40,6 +40,14 @@ export async function getPageScreenshot(
 		await cloudflareChecker({ logger, page });
 		await handleDialogs({ logger, page });
 
+		// Usage with Puppeteer:
+		const dom = await page.content();
+		const prettyDom = formatHTML(dom);
+
+		console.log("===== FORMATTED DOM =====");
+		console.log(prettyDom);
+		console.log("===== END DOM =====");
+
 		// Take screenshot
 		const screenshot = await captureScreenshot({
 			logger,
@@ -67,6 +75,22 @@ export async function getPageScreenshot(
 	} finally {
 		if (page) await closePageSafely({ logger, page });
 	}
+}
+
+function formatHTML(html: string) {
+	const tab = "  "; // 2 spaces
+	let result = "";
+	let indent = 0;
+
+	html.split(/>\s*</).forEach((element) => {
+		if (/^\/\w/.test(element)) indent -= 1; // Closing tag
+		result += tab.repeat(indent) + "<" + element + ">\n";
+		if (/^<?\w[^>]*[^/]$/.test(element) && !element.startsWith("!")) {
+			indent += 1; // Opening tag
+		}
+	});
+
+	return result.trim();
 }
 
 export type GetPageScreenshotReturnType = Awaited<
