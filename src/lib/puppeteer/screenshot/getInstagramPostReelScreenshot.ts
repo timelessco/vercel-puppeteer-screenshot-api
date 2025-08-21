@@ -261,9 +261,13 @@ export async function getInstagramPostReelScreenshot(
 		if (page) await closePageSafely({ logger, page });
 	}
 }
+type HandleInstagramDialogsOptions = Pick<
+	NavigateCarouselOptions,
+	"logger" | "page"
+>;
 
-export async function handleDialogsInstagram(
-	options: HandleDialogsOptions,
+async function handleInstagramDialogs(
+	options: HandleInstagramDialogsOptions,
 ): Promise<void> {
 	const { logger, page } = options;
 	
