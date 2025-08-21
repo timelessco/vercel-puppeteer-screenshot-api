@@ -135,9 +135,7 @@ async function extractInstagramImage(
 ): Promise<Buffer | null> {
 	const { index, logger, page } = options;
 
-	await page.waitForSelector("article > div", {
-		timeout: 30_000,
-	});
+	await page.waitForSelector("article > div");
 
 	const divs = await page.$$("article > div");
 	logger.debug("Searching for article divs", { found: divs.length });
