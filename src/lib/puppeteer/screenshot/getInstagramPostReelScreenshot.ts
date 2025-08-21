@@ -275,9 +275,9 @@ async function handleInstagramDialogs(
 		const closeButton = page.locator('[aria-label="Close"]');
 		await closeButton.click();
 		logger.info("Clicked [aria-label='Close'] button");
-	} catch (locatorError) {
+	} catch (error) {
 		logger.debug("No [aria-label='Close'] button found or clickable", {
-			error: locatorError,
+			error,
 		});
 	}
 }
