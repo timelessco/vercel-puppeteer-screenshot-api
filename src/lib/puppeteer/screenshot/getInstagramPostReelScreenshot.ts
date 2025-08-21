@@ -9,6 +9,7 @@ import { cloudflareChecker } from "@/lib/puppeteer/navigation/cloudflareChecker"
 import {
 	gotoPage,
 	handleDialogs,
+	type HandleDialogsOptions,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
 
@@ -97,6 +98,9 @@ async function navigateCarousel(
 	const { index, logger, page } = options;
 
 	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
+	//this is a separate function to handle dialogs only for instagram
+	await handleDialogsInstagram({ logger, page });
+	//this function act as a fallback if the handleDialogsInstagram fails
 	await handleDialogs({ logger, page });
 
 	logger.info("Navigating carousel to image", { targetIndex: index });
@@ -255,5 +259,20 @@ export async function getInstagramPostReelScreenshot(
 		return null;
 	} finally {
 		if (page) await closePageSafely({ logger, page });
+	}
+}
+
+export async function handleDialogsInstagram(
+	options: HandleDialogsOptions,
+): Promise<void> {
+	const { logger, page } = options;
+	try {
+		const closeButton = page.locator('[aria-label="Close"]');
+		await closeButton.click();
+		logger.info("Clicked [aria-label='Close'] button");
+	} catch (locatorError) {
+		logger.debug("No [aria-label='Close'] button found or clickable", {
+			error: locatorError,
+		});
 	}
 }
