@@ -233,34 +233,52 @@ export async function getInstagramPostReelScreenshot(
 	let page: GetOrCreatePageReturnType | null = null;
 
 	try {
-		// Complete page navigation sequence
 		page = await getOrCreatePage({ browser, logger });
 		await setupBrowserPage({ logger, page, viewport: INSTAGRAM_VIEWPORT });
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
 
-		const screenshot = await getInstagramPostReelScreenshotHelper({
-			...options,
-			page,
-		});
+		const screenshot = await tryGetInstagramScreenshot({ ...options, page }, 3); // 👈 3 tries
 		if (screenshot) {
-			//We don't use the isPageScreenshot flag since we get the image directly
 			const metaData = await getMetadata({ logger, page, url });
-			logger.info("Instagram screenshot captured successfully");
-
 			return { metaData, screenshot };
 		}
 
-		logger.info("No Instagram content found, falling back to page screenshot");
-		return null;
-	} catch (error) {
-		logger.warn("Instagram screenshot failed, returning null for fallback", {
-			error: getErrorMessage(error),
-		});
-
+		logger.info("No Instagram content found, returning null after retries");
 		return null;
 	} finally {
 		if (page) await closePageSafely({ logger, page });
 	}
+}
+
+async function tryGetInstagramScreenshot(
+	options: GetInstagramPostReelScreenshotHelperOptions,
+	retries = 2, // total retries allowed
+): Promise<Buffer | null> {
+	const { logger } = options;
+
+	for (let attempt = 1; attempt <= retries; attempt++) {
+		try {
+			logger.info(`Attempt ${attempt} to extract Instagram screenshot`);
+			const screenshot = await getInstagramPostReelScreenshotHelper(options);
+			if (screenshot) {
+				logger.info(
+					`Instagram screenshot extracted successfully at ${attempt}attempt`,
+					{
+						attempt,
+					},
+				);
+				return screenshot;
+			}
+		} catch (error) {
+			logger.warn("Instagram screenshot attempt failed", {
+				attempt,
+				error: getErrorMessage(error),
+			});
+		}
+	}
+
+	logger.error("All attempts to extract Instagram screenshot failed");
+	return null;
 }
