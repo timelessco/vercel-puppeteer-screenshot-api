@@ -260,6 +260,7 @@ export async function getInstagramPostReelScreenshot(
 		if (page) await closePageSafely({ logger, page });
 	}
 }
+
 type HandleInstagramDialogsOptions = Pick<
 	NavigateCarouselOptions,
 	"logger" | "page"
