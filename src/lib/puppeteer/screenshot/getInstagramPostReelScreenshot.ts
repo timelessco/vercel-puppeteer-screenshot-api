@@ -135,7 +135,23 @@ async function extractInstagramImage(
 	// await page.waitForSelector('article div[role="button"]', {
 	// 	timeout: 30_000,
 	// });
+	const article = await page.$("article");
 
+	if (article) {
+		const imageUrls = await article.$$eval("img", (imgs) =>
+			imgs.map((img) => img.src),
+		);
+
+		logger.debug("Found images in article", {
+			count: imageUrls.length,
+			urls: imageUrls,
+		});
+
+		// If you want to print to console:
+		console.log("Article images:", imageUrls);
+	} else {
+		logger.warn("No <article> element found");
+	}
 	const divs = await page.$$("article > div");
 	logger.debug("Searching for article divs", { found: divs.length });
 
