@@ -97,6 +97,9 @@ async function navigateCarousel(
 	const { index, logger, page } = options;
 
 	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
+	// This is a separate function to handle dialogs only for instagram
+	await handleInstagramDialogs({ logger, page });
+	// This function act as a fallback if the handleInstagramDialogs fails
 	await handleDialogs({ logger, page });
 
 	logger.info("Navigating carousel to image", { targetIndex: index });
@@ -255,5 +258,25 @@ export async function getInstagramPostReelScreenshot(
 		return null;
 	} finally {
 		if (page) await closePageSafely({ logger, page });
+	}
+}
+
+type HandleInstagramDialogsOptions = Pick<
+	NavigateCarouselOptions,
+	"logger" | "page"
+>;
+
+async function handleInstagramDialogs(
+	options: HandleInstagramDialogsOptions,
+): Promise<void> {
+	const { logger, page } = options;
+
+	try {
+		await page.locator('[aria-label="Close"]').click();
+		logger.info("Clicked [aria-label='Close'] button");
+	} catch (error) {
+		logger.debug("No [aria-label='Close'] button found or clickable", {
+			error,
+		});
 	}
 }
