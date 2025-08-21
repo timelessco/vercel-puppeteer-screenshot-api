@@ -266,6 +266,7 @@ export async function handleDialogsInstagram(
 	options: HandleDialogsOptions,
 ): Promise<void> {
 	const { logger, page } = options;
+	
 	try {
 		const closeButton = page.locator('[aria-label="Close"]');
 		await closeButton.click();
