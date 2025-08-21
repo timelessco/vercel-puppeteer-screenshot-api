@@ -129,9 +129,9 @@ async function extractInstagramImage(
 ): Promise<Buffer | null> {
 	const { index, logger, page } = options;
 
-	// await page.waitForSelector('article div[role="button"]', {
-	// 	timeout: 30_000,
-	// });
+	await page.waitForSelector('article div[role="button"]', {
+		timeout: 30_000,
+	});
 	const imageUrls = await page.$$eval("img", (imgs) =>
 		imgs.map((img) => img.src),
 	);
