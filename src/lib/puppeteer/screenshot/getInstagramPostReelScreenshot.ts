@@ -1,3 +1,5 @@
+import type { ElementHandle } from "rebrowser-puppeteer-core";
+
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import {
 	closePageSafely,
@@ -11,6 +13,7 @@ import { getErrorMessage } from "@/utils/errorUtils";
 
 import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
+import { captureScreenshot } from "./captureScreenshot";
 import { fetchImageDirectly } from "./getImageScreenshot";
 
 const INSTAGRAM_VIEWPORT = {
@@ -127,55 +130,62 @@ interface ExtractInstagramImageOptions
 async function extractInstagramImage(
 	options: ExtractInstagramImageOptions,
 ): Promise<Buffer | null> {
-	const { index, logger, page } = options;
+	const { logger, page } = options;
 	const dom = await page.content();
 	const prettyDom = formatHTML(dom);
-
 	console.log("===== FORMATTED DOM IN INSTAGRAM POST REEL SCREENSHOT =====");
 	console.log(prettyDom);
 	console.log("===== END DOM  IN INSTAGRAM POST REEL SCREENSHOT=====");
+	await page.locator('[aria-label="Close"]').click();
 
-	await page.waitForSelector('article div[role="button"]', {
-		timeout: 30_000,
+	const screenshot = await captureScreenshot({
+		logger,
+		target: page,
+		timerLabel: "X/Twitter content screenshot",
 	});
-	const imageUrls = await page.$$eval("img", (imgs) =>
-		imgs.map((img) => img.src),
-	);
+	return screenshot;
 
-	console.log("All image URLs on page:");
-	imageUrls.forEach((url, i) => {
-		console.log(`${i + 1}: ${url}`);
-	});
+	// await page.waitForSelector('article div[role="button"]', {
+	// 	timeout: 30_000,
+	// });
+	// const imageUrls = await page.$$eval("img", (imgs) =>
+	// 	imgs.map((img) => img.src),
+	// );
 
-	const divs = await page.$$("article > div");
-	logger.debug("Searching for article divs", { found: divs.length });
+	// console.log("All image URLs on page:");
+	// imageUrls.forEach((url, i) => {
+	// 	console.log(`${i + 1}: ${url}`);
+	// });
 
-	if (divs.length > 1) {
-		const targetDiv = divs[1];
-		await targetDiv.waitForSelector("img", { timeout: 10_000 });
+	// const divs = await page.$$("div");
+	// logger.debug("Searching for article divs", { found: divs.length });
 
-		const imgs = await targetDiv.$$("img");
-		logger.debug("Found Instagram images", { count: imgs.length });
+	// if (divs.length > 1) {
+	// 	const targetDiv = divs[1];
+	// 	await targetDiv.waitForSelector("img", { timeout: 10_000 });
 
-		if (imgs.length === 0) {
-			logger.warn("No images found in Instagram post");
-			return null;
-		}
+	// 	const imgs = await targetDiv.$$("img");
+	// 	logger.debug("Found Instagram images", { count: imgs.length });
 
-		const targetIndex = index && index > 1 ? imgs.length - 1 : 0;
-		logger.debug("Selecting image", {
-			targetIndex,
-			totalImages: imgs.length,
-		});
+	// 	if (imgs.length === 0) {
+	// 		logger.warn("No images found in Instagram post");
+	// 		return null;
+	// 	}
 
-		const srcHandle = await imgs[targetIndex].getProperty("src");
-		const src = await srcHandle.jsonValue();
-		logger.debug("Fetching image from URL", { url: src });
+	// 	const targetIndex = index && index > 1 ? imgs.length - 1 : 0;
+	// 	logger.debug("Selecting image", {
+	// 		targetIndex,
+	// 		totalImages: imgs.length,
+	// 	});
 
-		return await fetchImageDirectly({ ...options, url: src });
-	}
+	// 	const srcHandle = await imgs[targetIndex].getProperty("src");
+	// 	const src = await srcHandle.jsonValue();
+	// 	logger.debug("Fetching image from URL", { url: src });
 
-	return null;
+	// 	return await fetchImageDirectly({ ...options, url: src });
+	// }
+
+	// return null;
 }
 
 /**
