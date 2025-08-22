@@ -132,6 +132,11 @@ async function extractInstagramImage(
 ): Promise<Buffer | null> {
 	const { index, logger, page } = options;
 
+	await page.setUserAgent(
+		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
+	);
+	console.log("USER AGENT", await page.evaluate(() => navigator.userAgent));
+
 	await page.waitForSelector('article div[role="button"]', {
 		timeout: 30_000,
 	});
