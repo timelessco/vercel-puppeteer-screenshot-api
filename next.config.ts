@@ -50,6 +50,8 @@ const nextConfig: NextConfig = {
 		"@sparticuz/chromium-min",
 		"puppeteer-extra",
 		"puppeteer-extra-plugin-stealth",
+		"puppeteer-extra-plugin-user-preferences",
+		"puppeteer-extra-plugin-user-data-dir",
 	],
 
 	// Works, but need to replace with serverExternalPackages later
@@ -58,7 +60,12 @@ const nextConfig: NextConfig = {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		config.externals ??= [];
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-		config.externals.push("puppeteer-extra", "puppeteer-extra-plugin-stealth");
+		config.externals.push(
+			"puppeteer-extra",
+			"puppeteer-extra-plugin-stealth",
+			"puppeteer-extra-plugin-user-preferences",
+			"puppeteer-extra-plugin-user-data-dir",
+		);
 
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 		return config;

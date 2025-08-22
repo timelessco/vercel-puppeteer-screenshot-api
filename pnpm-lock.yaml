@@ -51,6 +51,12 @@ importers:
       puppeteer-extra-plugin-stealth:
         specifier: 2.11.2
         version: 2.11.2(puppeteer-extra@3.3.6(puppeteer-core@24.16.2)(puppeteer@24.15.0(typescript@5.9.2)))
+      puppeteer-extra-plugin-user-data-dir:
+        specifier: 2.4.1
+        version: 2.4.1(puppeteer-extra@3.3.6(puppeteer-core@24.16.2)(puppeteer@24.15.0(typescript@5.9.2)))
+      puppeteer-extra-plugin-user-preferences:
+        specifier: 2.4.1
+        version: 2.4.1(puppeteer-extra@3.3.6(puppeteer-core@24.16.2)(puppeteer@24.15.0(typescript@5.9.2)))
       react:
         specifier: 19.1.1
         version: 19.1.1
