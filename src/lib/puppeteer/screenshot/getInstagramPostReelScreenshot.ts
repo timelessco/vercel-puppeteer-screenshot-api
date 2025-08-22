@@ -1,5 +1,3 @@
-import type { ElementHandle } from "rebrowser-puppeteer-core";
-
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import {
 	closePageSafely,
@@ -14,7 +12,6 @@ import { getErrorMessage } from "@/utils/errorUtils";
 import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
 import { captureScreenshot } from "./captureScreenshot";
-import { fetchImageDirectly } from "./getImageScreenshot";
 
 const INSTAGRAM_VIEWPORT = {
 	deviceScaleFactor: 3,
