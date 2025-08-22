@@ -128,6 +128,12 @@ async function extractInstagramImage(
 	options: ExtractInstagramImageOptions,
 ): Promise<Buffer | null> {
 	const { index, logger, page } = options;
+	const dom = await page.content();
+	const prettyDom = formatHTML(dom);
+
+	console.log("===== FORMATTED DOM IN INSTAGRAM POST REEL SCREENSHOT =====");
+	console.log(prettyDom);
+	console.log("===== END DOM  IN INSTAGRAM POST REEL SCREENSHOT=====");
 
 	await page.waitForSelector('article div[role="button"]', {
 		timeout: 30_000,
@@ -281,4 +287,19 @@ async function tryGetInstagramScreenshot(
 
 	logger.error("All attempts to extract Instagram screenshot failed");
 	return null;
+}
+function formatHTML(html: string) {
+	const tab = "  "; // 2 spaces
+	let result = "";
+	let indent = 0;
+
+	html.split(/>\s*</).forEach((element) => {
+		if (/^\/\w/.test(element)) indent -= 1; // Closing tag
+		result += tab.repeat(indent) + "<" + element + ">\n";
+		if (/^<?\w[^>]*[^/]$/.test(element) && !element.startsWith("!")) {
+			indent += 1; // Opening tag
+		}
+	});
+
+	return result.trim();
 }
