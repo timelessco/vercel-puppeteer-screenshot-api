@@ -42,6 +42,7 @@ export async function setupBrowserPage(
 	await page.emulateMediaFeatures(mediaFeatures);
 
 	if (userAgent) {
+		console.log("USER AGENT", await page.evaluate(() => navigator.userAgent));
 		await page.setUserAgent(userAgent);
 	}
 
