@@ -39,7 +39,6 @@ export async function setupBrowserPage(
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
 
-	await page.evaluate(() => document.fonts.ready);
 	if (enableAntiDetection) {
 		// JavaScript-level anti-detection evasions
 		await applyAntiDetectionEvasions(options);
