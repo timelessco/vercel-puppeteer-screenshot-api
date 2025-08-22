@@ -139,8 +139,6 @@ async function extractInstagramImage(
 	await page.setUserAgent(
 		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36",
 	);
-	const mainHTML = await page.$eval("main", (el) => el.innerHTML);
-	logger.debug("Current <main> DOM snapshot", { html: mainHTML });
 
 	await page.waitForSelector("article > div", { timeout: 10_000 });
 
