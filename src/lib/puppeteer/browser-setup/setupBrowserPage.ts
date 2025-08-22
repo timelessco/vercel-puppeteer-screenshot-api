@@ -3,13 +3,10 @@ import type { MediaFeature, Viewport } from "rebrowser-puppeteer-core";
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
 import { DEFAULT_MEDIA_FEATURES, DEFAULT_VIEWPORT } from "../core/constants";
 import type { CreateLoggerReturnType } from "../core/createLogger";
-import { applyAntiDetectionEvasions } from "./applyAntiDetectionEvasions";
-import { applyCDPWebdriverRemoval } from "./applyCDPWebdriverRemoval";
 import { setupAdBlocker } from "./setupAdBlocker";
 
 export interface SetupBrowserPageOptions {
 	enableAdBlocker?: boolean;
-	enableAntiDetection?: boolean;
 	logger: CreateLoggerReturnType;
 	mediaFeatures?: MediaFeature[];
 	page: GetOrCreatePageReturnType;
@@ -28,7 +25,6 @@ export async function setupBrowserPage(
 ): Promise<void> {
 	const {
 		enableAdBlocker = false,
-		enableAntiDetection = true,
 		mediaFeatures = DEFAULT_MEDIA_FEATURES,
 		page,
 		viewport = DEFAULT_VIEWPORT,
@@ -39,13 +35,13 @@ export async function setupBrowserPage(
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
 
-	if (enableAntiDetection) {
-		// JavaScript-level anti-detection evasions
-		await applyAntiDetectionEvasions(options);
+	// if (enableAntiDetection) {
+	// 	// JavaScript-level anti-detection evasions
+	// 	await applyAntiDetectionEvasions(options);
 
-		// CDP-level webdriver removal
-		await applyCDPWebdriverRemoval(options);
-	}
+	// 	// CDP-level webdriver removal
+	// 	await applyCDPWebdriverRemoval(options);
+	// }
 
 	if (enableAdBlocker) {
 		await setupAdBlocker(options);

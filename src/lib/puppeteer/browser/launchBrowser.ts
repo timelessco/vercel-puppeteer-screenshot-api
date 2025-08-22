@@ -1,3 +1,5 @@
+import { addExtra, PuppeteerExtra } from "puppeteer-extra";
+import PuppeteerExtraPluginStealth from "puppeteer-extra-plugin-stealth";
 import type { LaunchOptions } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";
@@ -115,7 +117,8 @@ export async function launchBrowser(options: LaunchBrowserOptions) {
 		timeout,
 	});
 
-	let puppeteer: typeof import("rebrowser-puppeteer-core");
+	let rebrowserPuppeteer: typeof import("rebrowser-puppeteer-core");
+	let puppeteer: PuppeteerExtra;
 	let launchOptions: LaunchOptions = {
 		args: [...SHARED_LAUNCH_ARGS],
 		headless,
@@ -133,7 +136,7 @@ export async function launchBrowser(options: LaunchBrowserOptions) {
 			)) as unknown as typeof import("@sparticuz/chromium");
 			const chromium = chromiumModule.default;
 
-			puppeteer = await import("rebrowser-puppeteer-core");
+			rebrowserPuppeteer = await import("rebrowser-puppeteer-core");
 
 			launchOptions = {
 				...launchOptions,
@@ -160,10 +163,14 @@ export async function launchBrowser(options: LaunchBrowserOptions) {
 			});
 
 			// @ts-expect-error - Type incompatibility between puppeteer and puppeteer-core
-			puppeteer = await import("rebrowser-puppeteer");
+			rebrowserPuppeteer = await import("rebrowser-puppeteer");
 		}
 
-		const browser = await puppeteer.launch(launchOptions);
+		// @ts-expect-error - Type incompatibility between rebrowserPuppeteer and puppeteer-extra
+		puppeteer = addExtra(rebrowserPuppeteer);
+		const stealth = PuppeteerExtraPluginStealth();
+		// @ts-expect-error - Type incompatibility between rebrowserPuppeteer and puppeteer-extra
+		const browser = await puppeteer.use(stealth).launch(launchOptions);
 
 		logger.info("Browser launched successfully", {
 			browserVersion: await browser.version(),
