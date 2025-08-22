@@ -1,5 +1,9 @@
 import { addExtra, PuppeteerExtra } from "puppeteer-extra";
 import PuppeteerExtraPluginStealth from "puppeteer-extra-plugin-stealth";
+
+import "puppeteer-extra-plugin-stealth/evasions/chrome.app";
+import "puppeteer-extra-plugin-stealth/evasions/user-agent-override";
+
 import type { LaunchOptions } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";
