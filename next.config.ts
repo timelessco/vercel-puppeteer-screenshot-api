@@ -51,6 +51,18 @@ const nextConfig: NextConfig = {
 		"puppeteer-extra",
 		"puppeteer-extra-plugin-stealth",
 	],
+
+	// Works, but need to replace with serverExternalPackages later
+	webpack: (config) => {
+		// add externals
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		config.externals ??= [];
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+		config.externals.push("puppeteer-extra", "puppeteer-extra-plugin-stealth");
+
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+		return config;
+	},
 };
 
 const isDevOrLocal =
