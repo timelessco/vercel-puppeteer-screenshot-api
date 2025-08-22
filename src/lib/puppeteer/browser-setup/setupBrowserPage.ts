@@ -13,6 +13,7 @@ export interface SetupBrowserPageOptions {
 	logger: CreateLoggerReturnType;
 	mediaFeatures?: MediaFeature[];
 	page: GetOrCreatePageReturnType;
+	userAgent?: null | string;
 	viewport?: Viewport;
 }
 
@@ -31,6 +32,7 @@ export async function setupBrowserPage(
 		enableAntiDetection = true,
 		mediaFeatures = DEFAULT_MEDIA_FEATURES,
 		page,
+		userAgent = null,
 		viewport = DEFAULT_VIEWPORT,
 	} = options;
 	// Set up logging before any navigation for debugging
@@ -38,6 +40,11 @@ export async function setupBrowserPage(
 
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
+
+	if (userAgent) {
+		console.log("USER AGENT", await page.evaluate(() => navigator.userAgent));
+		await page.setUserAgent(userAgent);
+	}
 
 	if (enableAntiDetection) {
 		// JavaScript-level anti-detection evasions
