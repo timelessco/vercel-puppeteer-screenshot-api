@@ -190,9 +190,11 @@ export async function launchBrowser(options: LaunchBrowserOptions) {
 		// @ts-expect-error - Type incompatibility between rebrowserPuppeteer and puppeteer-extra
 		puppeteer = addExtra(rebrowserPuppeteer);
 		const stealth = PuppeteerExtraPluginStealth();
-		console.log("🚀 ~ launchBrowser ~ stealth:", stealth.enabledEvasions);
+		puppeteer.use(stealth);
 		// @ts-expect-error - Type incompatibility between rebrowserPuppeteer and puppeteer-extra
-		const browser = await puppeteer.use(stealth).launch(launchOptions);
+		const browser = await (puppeteer as typeof rebrowserPuppeteer).launch(
+			launchOptions,
+		);
 
 		logger.info("Browser launched successfully", {
 			browserVersion: await browser.version(),
