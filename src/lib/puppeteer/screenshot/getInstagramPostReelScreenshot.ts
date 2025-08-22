@@ -140,7 +140,7 @@ async function extractInstagramImage(
 		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36",
 	);
 
-	await page.waitForSelector("article > div", { timeout: 10_000 });
+	await page.waitForSelector("article > div", { timeout: 30_000 });
 
 	const divs = await page.$$("article > div");
 	logger.debug("Searching for article divs", { found: divs.length });
