@@ -1,5 +1,4 @@
 import { addExtra, PuppeteerExtra } from "puppeteer-extra";
-import PuppeteerExtraPluginStealth from "puppeteer-extra-plugin-stealth";
 
 import "puppeteer-extra-plugin-stealth/evasions/chrome.app";
 import "puppeteer-extra-plugin-stealth/evasions/chrome.csi";
@@ -18,7 +17,10 @@ import "puppeteer-extra-plugin-stealth/evasions/sourceurl";
 import "puppeteer-extra-plugin-stealth/evasions/user-agent-override";
 import "puppeteer-extra-plugin-stealth/evasions/webgl.vendor";
 import "puppeteer-extra-plugin-stealth/evasions/window.outerdimensions";
+import "puppeteer-extra-plugin-user-preferences";
+import "puppeteer-extra-plugin-user-data-dir";
 
+import PuppeteerExtraPluginStealth from "puppeteer-extra-plugin-stealth";
 import type { LaunchOptions } from "rebrowser-puppeteer-core";
 
 import { getErrorMessage } from "@/utils/errorUtils";

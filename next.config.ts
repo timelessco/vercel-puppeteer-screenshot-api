@@ -50,7 +50,6 @@ const nextConfig: NextConfig = {
 		"@sparticuz/chromium-min",
 		"puppeteer-extra",
 		"puppeteer-extra-plugin-stealth",
-		"puppeteer-extra-plugin-recaptcha",
 	],
 };
 
