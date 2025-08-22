@@ -234,6 +234,7 @@ export async function getInstagramPostReelScreenshot(
 		await setupBrowserPage({
 			logger,
 			page,
+			// This user agent slightly reduce the chance of getting redirected to a login page
 			userAgent: INSTAGRAM_USER_AGENT,
 			viewport: INSTAGRAM_VIEWPORT,
 		});

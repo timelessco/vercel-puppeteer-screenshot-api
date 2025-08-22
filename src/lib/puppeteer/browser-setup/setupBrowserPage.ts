@@ -41,7 +41,6 @@ export async function setupBrowserPage(
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
 
-	// This user agent slightly reduce the chance of getting redirected to a login page
 	if (userAgent) {
 		await page.setUserAgent(userAgent);
 	}
