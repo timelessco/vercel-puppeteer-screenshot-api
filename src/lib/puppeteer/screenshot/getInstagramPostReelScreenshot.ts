@@ -23,6 +23,8 @@ const INSTAGRAM_VIEWPORT = {
 	isMobile: true,
 	width: 390,
 };
+const INSTAGRAM_USER_AGENT =
+	"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36";
 
 /**
  * Extracts Instagram image index from URL parameters
@@ -135,11 +137,6 @@ async function extractInstagramImage(
 ): Promise<Buffer | null> {
 	const { index, logger, page } = options;
 
-	// This user agent slightly reduce the chance of getting redirected to a login page
-	await page.setUserAgent(
-		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
-	);
-
 	await page.waitForSelector('article div[role="button"]', { timeout: 30_000 });
 
 	const divs = await page.$$("article > div");
@@ -234,7 +231,12 @@ export async function getInstagramPostReelScreenshot(
 	try {
 		// Complete page navigation sequence
 		page = await getOrCreatePage({ browser, logger });
-		await setupBrowserPage({ logger, page, viewport: INSTAGRAM_VIEWPORT });
+		await setupBrowserPage({
+			logger,
+			page,
+			userAgent: INSTAGRAM_USER_AGENT,
+			viewport: INSTAGRAM_VIEWPORT,
+		});
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
