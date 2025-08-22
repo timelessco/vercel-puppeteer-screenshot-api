@@ -50,28 +50,8 @@ const nextConfig: NextConfig = {
 		"@sparticuz/chromium-min",
 		"puppeteer-extra",
 		"puppeteer-extra-plugin-stealth",
-		"puppeteer-extra-plugin-user-preferences",
-		"puppeteer-extra-plugin-user-data-dir",
 		"puppeteer-extra-plugin-recaptcha",
 	],
-
-	// Works, but need to replace with serverExternalPackages later
-	webpack: (config) => {
-		// add externals
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-		config.externals ??= [];
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-		config.externals.push(
-			"puppeteer-extra",
-			"puppeteer-extra-plugin-stealth",
-			"puppeteer-extra-plugin-user-preferences",
-			"puppeteer-extra-plugin-user-data-dir",
-			"puppeteer-extra-plugin-recaptcha",
-		);
-
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
-		return config;
-	},
 };
 
 const isDevOrLocal =
