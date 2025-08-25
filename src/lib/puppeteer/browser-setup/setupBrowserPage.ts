@@ -1,5 +1,7 @@
 import type { MediaFeature, Viewport } from "rebrowser-puppeteer-core";
 
+import { isNonNullable } from "@/utils/assertionUtils";
+
 import type { GetOrCreatePageReturnType } from "../browser/pageUtils";
 import { DEFAULT_MEDIA_FEATURES, DEFAULT_VIEWPORT } from "../core/constants";
 import type { CreateLoggerReturnType } from "../core/createLogger";
@@ -10,6 +12,7 @@ export interface SetupBrowserPageOptions {
 	logger: CreateLoggerReturnType;
 	mediaFeatures?: MediaFeature[];
 	page: GetOrCreatePageReturnType;
+	userAgent?: string;
 	viewport?: Viewport;
 }
 
@@ -27,6 +30,7 @@ export async function setupBrowserPage(
 		enableAdBlocker = true,
 		mediaFeatures = DEFAULT_MEDIA_FEATURES,
 		page,
+		userAgent,
 		viewport = DEFAULT_VIEWPORT,
 	} = options;
 	// Set up logging before any navigation for debugging
@@ -35,10 +39,15 @@ export async function setupBrowserPage(
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
 
+	if (isNonNullable(userAgent)) {
+		await page.setUserAgent(userAgent);
+	}
+
 	if (enableAdBlocker) {
 		await setupAdBlocker(options);
 	}
 
+	console.log("USER AGENT", await page.evaluate(() => navigator.userAgent));
 	// Most of the ad blocking and cookie consent handling is handled by the Ghostery ad blocker
 	// Enable this if when you encounter a site that is not blocked by Ghostery
 	// Set up cookie consent handling with DuckDuckGo autoconsent
