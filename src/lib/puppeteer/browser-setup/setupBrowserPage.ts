@@ -28,6 +28,7 @@ export async function setupBrowserPage(
 ): Promise<void> {
 	const {
 		enableAdBlocker = true,
+		logger,
 		mediaFeatures = DEFAULT_MEDIA_FEATURES,
 		page,
 		userAgent,
@@ -47,7 +48,8 @@ export async function setupBrowserPage(
 		await setupAdBlocker(options);
 	}
 
-	console.log("USER AGENT", await page.evaluate(() => navigator.userAgent));
+	const userAgentString = await page.evaluate(() => navigator.userAgent);
+	logger.info("User Agent", { userAgent: userAgentString });
 	// Most of the ad blocking and cookie consent handling is handled by the Ghostery ad blocker
 	// Enable this if when you encounter a site that is not blocked by Ghostery
 	// Set up cookie consent handling with DuckDuckGo autoconsent
