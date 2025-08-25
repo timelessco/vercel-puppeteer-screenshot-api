@@ -17,16 +17,10 @@ export interface GetOrCreatePageOptions {
 export async function getOrCreatePage(options: GetOrCreatePageOptions) {
 	const { browser, logger } = options;
 
-	// Optimize: reuse existing empty page if available
-	const pages = await browser.pages();
-	const page = pages[0] || (await browser.newPage());
+	// Should create a new page to properly utilize the puppeteer-extra plugins to work
+	const page = await browser.newPage();
 
-	const allPages = await browser.pages();
-	logger.info("Page ready", {
-		reusedPage: pages.length > 0,
-		totalPages: allPages.length,
-	});
-
+	logger.info("Page ready");
 	return page;
 }
 

@@ -48,6 +48,10 @@ const nextConfig: NextConfig = {
 		"rebrowser-puppeteer",
 		"rebrowser-puppeteer-core",
 		"@sparticuz/chromium-min",
+		"puppeteer-extra",
+		"puppeteer-extra-plugin-stealth",
+		"puppeteer-extra-plugin-user-preferences",
+		"puppeteer-extra-plugin-user-data-dir",
 	],
 };
 
