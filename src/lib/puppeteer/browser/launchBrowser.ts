@@ -76,7 +76,7 @@ const VERCEL_ONLY_ARGS = [
 
 	// Disable GPU features to save memory
 	// Disables GPU hardware acceleration which isn't available in serverless
-	"--disable-gpu",
+	// "--disable-gpu",
 	// Disables GPU sandbox to reduce overhead in headless mode
 	"--disable-gpu-sandbox",
 	// Disables canvas hardware acceleration to save memory
