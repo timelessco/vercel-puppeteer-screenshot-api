@@ -35,15 +35,9 @@ export async function setupAdBlocker(
 	const { logger, page } = options;
 
 	try {
-		const blocker = await PuppeteerBlocker.fromLists(
-			fetch,
-			[
-				...fullLists,
-				// Additional aggressive blocking for annoyances if needed
-				// "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
-			],
-			{ enableCompression: true },
-		);
+		const blocker = await PuppeteerBlocker.fromLists(fetch, fullLists, {
+			enableCompression: true,
+		});
 
 		// Enable blocking in page
 		// @ts-expect-error - Type mismatch between puppeteer and rebrowser-puppeteer-core

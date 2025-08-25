@@ -24,7 +24,7 @@ export async function setupBrowserPage(
 	options: SetupBrowserPageOptions,
 ): Promise<void> {
 	const {
-		enableAdBlocker = false,
+		enableAdBlocker = true,
 		mediaFeatures = DEFAULT_MEDIA_FEATURES,
 		page,
 		viewport = DEFAULT_VIEWPORT,
@@ -34,14 +34,6 @@ export async function setupBrowserPage(
 
 	await page.setViewport(viewport);
 	await page.emulateMediaFeatures(mediaFeatures);
-
-	// if (enableAntiDetection) {
-	// 	// JavaScript-level anti-detection evasions
-	// 	await applyAntiDetectionEvasions(options);
-
-	// 	// CDP-level webdriver removal
-	// 	await applyCDPWebdriverRemoval(options);
-	// }
 
 	if (enableAdBlocker) {
 		await setupAdBlocker(options);
