@@ -42,6 +42,21 @@ function extractInstagramImageIndex(url: string): number | undefined {
 	}
 }
 
+/**
+ * Truncates Instagram title at the first colon to reduce length
+ * Full information is preserved in the description field
+ * @param {string | null | undefined} title - The title to truncate
+ * @returns {string | undefined} The truncated title or undefined
+ */
+function truncateInstagramTitle(
+	title: null | string | undefined,
+): string | undefined {
+	if (!title) return undefined;
+
+	const colonIndex = title.indexOf(":");
+	return colonIndex > 0 ? title.slice(0, colonIndex).trim() : title;
+}
+
 interface GetInstagramPostReelScreenshotHelperOptions
 	extends GetInstagramPostReelScreenshotOptions {
 	page: GetOrCreatePageReturnType;
@@ -250,11 +265,15 @@ export async function getInstagramPostReelScreenshot(
 			//We don't use the isPageScreenshot flag since we get the image directly
 			const metaData = await getMetadata({ logger, page, url });
 			logger.info("Instagram screenshot captured successfully");
-			if (metaData) {
-				// we get a lengthy title, we only want the first part alone also the data that we are omitting is in the description
-				metaData.title = metaData.title?.split(":")[0] ?? metaData.title;
-			}
-			return { metaData, screenshot };
+
+			// Process metadata without mutation - extract title, process it, merge back
+			const processedMetadata = metaData
+				? {
+						...metaData,
+						title: truncateInstagramTitle(metaData.title) ?? undefined,
+					}
+				: metaData;
+			return { metaData: processedMetadata, screenshot };
 		}
 
 		logger.info("No Instagram content found, falling back to page screenshot");
