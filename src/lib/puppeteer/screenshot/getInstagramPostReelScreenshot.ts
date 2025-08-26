@@ -251,8 +251,8 @@ export async function getInstagramPostReelScreenshot(
 			const metaData = await getMetadata({ logger, page, url });
 			logger.info("Instagram screenshot captured successfully");
 			if (metaData) {
-				// we get a lengthy title, we only want the first part alone also the data that we are omiting is in the description
-				metaData.title = metaData.title?.split(":")[0];
+				// we get a lengthy title, we only want the first part alone also the data that we are omitting is in the description
+				metaData.title = metaData.title?.split(":")[0] ?? metaData.title;
 			}
 			return { metaData, screenshot };
 		}
