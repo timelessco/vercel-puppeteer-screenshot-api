@@ -50,13 +50,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	const { logger } = config;
 
 	try {
-		const { metaData, screenshot } = await retryWithBackoff({
+		const { allImages, metaData, screenshot } = await retryWithBackoff({
 			callback: () => getScreenshot(config),
 			options: { logger },
 		});
 		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(
-			{ metaData, screenshot },
+			{ allImages, metaData, screenshot },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
 		);
 	} catch (error) {
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export type GetScreenshotOptions = RequestConfig;
 
 async function getScreenshot(config: GetScreenshotOptions): Promise<{
+	allImages?: Buffer[];
 	metaData: GetMetadataReturnType;
 	screenshot: Buffer;
 }> {
