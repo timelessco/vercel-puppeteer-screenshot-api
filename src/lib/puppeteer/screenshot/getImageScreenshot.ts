@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions } from "@/app/try/route";
+import type { GetScreenshotOptions, ScreenshotResult } from "@/app/try/route";
 
 import { setupBrowserPage } from "../browser-setup/setupBrowserPage";
 import {
@@ -175,11 +175,11 @@ type GetImageScreenshotOptions = WithBrowserOptions;
 /**
  * Handle image URL detection and screenshot capture
  * @param {GetImageScreenshotOptions} options - Options containing page, url, and logger
- * @returns {Promise<{ metaData: null; screenshot: Buffer } | null>} Screenshot result or null if not an image/failed
+ * @returns {Promise<ScreenshotResult | null>} Screenshot result or null if not an image/failed
  */
 export async function getImageScreenshot(
 	options: GetImageScreenshotOptions,
-): Promise<null | { metaData: null; screenshot: Buffer }> {
+): Promise<null | ScreenshotResult> {
 	const { browser, logger, url } = options;
 
 	logger.info("Processing image screenshot", { url });
@@ -197,7 +197,7 @@ export async function getImageScreenshot(
 			url,
 		});
 
-		if (screenshot) return { metaData: null, screenshot };
+		if (screenshot) return { allImages: [], metaData: null, screenshot };
 
 		logger.warn("Image screenshot failed, returning null for fallback");
 		return null;

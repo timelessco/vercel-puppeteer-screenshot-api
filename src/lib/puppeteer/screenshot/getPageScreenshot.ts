@@ -11,8 +11,9 @@ import {
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { ScreenshotResult } from "@/app/try/route";
 
-import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
+import { getMetadata } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
 import { captureScreenshot } from "./captureScreenshot";
 
@@ -21,11 +22,11 @@ type GetPageScreenshotOptions = WithBrowserOptions;
 /**
  * Screenshot handler that attempts regular navigation and errors on failure
  * @param {GetPageScreenshotOptions} options - Options containing browser, url, logger, and optional metrics flag
- * @returns {Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }>} Screenshot buffer with metadata or error page
+ * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or error page
  */
 export async function getPageScreenshot(
 	options: GetPageScreenshotOptions,
-): Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }> {
+): Promise<null | ScreenshotResult> {
 	const { browser, fullPage, logger, shouldGetPageMetrics, url } = options;
 	let page: GetOrCreatePageReturnType | null = null;
 
@@ -56,7 +57,7 @@ export async function getPageScreenshot(
 			url,
 		});
 		logger.info("Screenshot captured successfully");
-		return { metaData, screenshot };
+		return { allImages: [], metaData, screenshot };
 	} catch (error) {
 		// If navigation fails, create an error page
 		logger.error("Navigation failed, creating error page", {

@@ -11,8 +11,9 @@ import {
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { ScreenshotResult } from "@/app/try/route";
 
-import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
+import { getMetadata } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
 import { fetchImageDirectly } from "./getImageScreenshot";
 
@@ -98,32 +99,34 @@ async function fetchOgImage(
 	}
 }
 
-interface NavigateCarouselOptions
-	extends GetInstagramPostReelScreenshotHelperOptions {
-	index: number;
-}
-
 interface ExtractInstagramImageOptions
 	extends GetInstagramPostReelScreenshotHelperOptions {
 	index?: number;
 }
 
 /**
- * Extracts Instagram image from article element
+ * Extracts all Instagram images from carousel by navigating through each slide.
+ * Always fetches ALL images regardless of img_index parameter because:
+ * - img_index determines which image becomes the primary screenshot
+ * - allImages provides additional data for all carousel images
  * @param {ExtractInstagramImageOptions} options - Options with page and optional index
- * @returns {Promise<Buffer[] | null>} Image buffer array or null if not found
+ * @returns {Promise<Buffer[]>} Array of image buffers for all carousel images
  */
 async function extractAllInstagramImages(
 	options: ExtractInstagramImageOptions,
 ): Promise<Buffer[]> {
 	const { logger, page } = options;
 	const collected = new Set<string>();
+	const MAX_CAROUSEL_IMAGES = 20;
+	let iterations = 0;
 
 	await page.waitForSelector("article", { timeout: 30_000 });
 
 	let hasNext = true;
 
-	while (hasNext) {
+	while (hasNext && iterations < MAX_CAROUSEL_IMAGES) {
+		iterations++;
+
 		// get visible images
 		const urls: string[] = await page.$$eval("article img", (imgs) =>
 			imgs.map((i) => i.getAttribute("src") ?? "").filter(Boolean),
@@ -150,20 +153,40 @@ async function extractAllInstagramImages(
 		}
 	}
 
-	const buffers: Buffer[] = [];
+	if (iterations >= MAX_CAROUSEL_IMAGES) {
+		logger.warn("Reached maximum carousel iteration limit", {
+			maxIterations: MAX_CAROUSEL_IMAGES,
+		});
+	}
 
 	// the first image is the logo of the user so we are skipping it
 	const allImages = [...collected].slice(1);
 
-	// fetch buffer for each image
-	for (const url of allImages) {
-		const buffer = await fetchImageDirectly({ ...options, url });
-		buffers.push(buffer);
-	}
+	// fetch all images in parallel for better performance
+	// use Promise.allSettled to handle partial failures gracefully
+	const results = await Promise.allSettled(
+		allImages.map((url) => fetchImageDirectly({ ...options, url })),
+	);
+
+	const buffers: Buffer[] = results.map((result, index) => {
+		if (result.status === "fulfilled") {
+			return result.value;
+		}
+
+		logger.warn("Failed to fetch carousel image", {
+			error: getErrorMessage(result.reason),
+			index,
+			url: allImages[index],
+		});
+
+		// Return empty buffer for failed fetches
+		return Buffer.alloc(0);
+	});
 
 	logger.info("Collected image sources", {
-		allImages,
 		count: allImages.length,
+		failed: results.filter((r) => r.status === "rejected").length,
+		succeeded: results.filter((r) => r.status === "fulfilled").length,
 	});
 
 	return buffers;
@@ -196,10 +219,14 @@ async function getInstagramPostReelScreenshotHelper(
 
 		const imageBuffers = await extractAllInstagramImages(options);
 
-		const index =
-			imageIndex && imageIndex >= imageBuffers.length
-				? imageBuffers.length - 1
-				: (imageIndex ?? 0);
+		// Select the primary image based on img_index parameter
+		// img_index determines which carousel image becomes the main screenshot
+		// while imageBuffers (allImages) contains all carousel images as additional data
+		// Clamp index to valid range: default to 0 if no imageIndex, cap at last image index
+		const index = Math.min(
+			imageIndex ?? 0,
+			Math.max(0, imageBuffers.length - 1),
+		);
 
 		if (imageBuffers.length > 0) {
 			return {
@@ -228,15 +255,11 @@ type GetInstagramPostReelScreenshotOptions = WithBrowserOptions;
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images
  * @param {GetInstagramPostReelScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
+ * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or null if not an Instagram URL
  */
 export async function getInstagramPostReelScreenshot(
 	options: GetInstagramPostReelScreenshotOptions,
-): Promise<null | {
-	allImages: Buffer[];
-	metaData: GetMetadataReturnType;
-	screenshot: Buffer;
-}> {
+): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("Instagram POST or REEL detected");
@@ -293,7 +316,7 @@ export async function getInstagramPostReelScreenshot(
 }
 
 type HandleInstagramDialogsOptions = Pick<
-	NavigateCarouselOptions,
+	GetInstagramPostReelScreenshotHelperOptions,
 	"logger" | "page"
 >;
 

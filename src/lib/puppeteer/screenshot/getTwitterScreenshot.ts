@@ -14,9 +14,9 @@ import {
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions } from "@/app/try/route";
+import type { GetScreenshotOptions, ScreenshotResult } from "@/app/try/route";
 
-import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
+import { getMetadata } from "../core/getMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 
 interface GetTwitterScreenshotHelperOptions {
@@ -152,11 +152,11 @@ interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 /**
  * Captures screenshot from X/Twitter with special handling for tweets and profiles
  * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }>} Screenshot buffer with metadata or null if not a Twitter URL
+ * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or null if not a Twitter URL
  */
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
-): Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }> {
+): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("X/Twitter URL detected");
@@ -188,7 +188,7 @@ export async function getTwitterScreenshot(
 				url,
 			});
 			logger.info("X/Twitter screenshot captured successfully");
-			return { metaData, screenshot };
+			return { allImages: [], metaData, screenshot };
 		}
 
 		logger.info(

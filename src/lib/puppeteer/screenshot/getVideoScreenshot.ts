@@ -1,4 +1,5 @@
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { ScreenshotResult } from "@/app/try/route";
 
 import { setupBrowserPage } from "../browser-setup/setupBrowserPage";
 import {
@@ -110,11 +111,11 @@ type GetVideoScreenshotOptions = WithBrowserOptions;
 /**
  * Handle video URL detection and screenshot capture
  * @param {GetVideoScreenshotOptions} options - Options containing page, url, and logger
- * @returns {Promise<{ metaData: null; screenshot: Buffer } | null>} Screenshot result or null if not a video/failed
+ * @returns {Promise<ScreenshotResult | null>} Screenshot result or null if not a video/failed
  */
 export async function getVideoScreenshot(
 	options: GetVideoScreenshotOptions,
-): Promise<null | { metaData: null; screenshot: Buffer }> {
+): Promise<null | ScreenshotResult> {
 	const { browser, logger, url } = options;
 
 	logger.info("Processing video screenshot", { url });
@@ -128,7 +129,7 @@ export async function getVideoScreenshot(
 		const screenshot = await getVideoScreenshotHelper({ logger, page, url });
 
 		if (screenshot) {
-			return { metaData: null, screenshot };
+			return { allImages: [], metaData: null, screenshot };
 		}
 
 		logger.warn("Video screenshot failed, returning null for fallback");
