@@ -103,40 +103,6 @@ interface NavigateCarouselOptions
 	index: number;
 }
 
-/**
- * Navigates Instagram carousel to specified image index
- * @param {NavigateCarouselOptions} options - Options with page and target index
- * @returns {Promise<void>}
- */
-// async function navigateCarousel(
-// 	options: NavigateCarouselOptions,
-// ): Promise<void> {
-// 	const { index, logger, page } = options;
-
-// 	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
-// 	// This is a separate function to handle dialogs only for instagram
-// 	await handleInstagramDialogs({ logger, page });
-// 	// This function act as a fallback if the handleInstagramDialogs fails
-// 	await handleDialogs({ logger, page });
-
-// 	// logger.info("Navigating carousel to image", { targetIndex: index });
-
-// 	// try {
-// 	// 	for (let i = 0; i < index - 1; i++) {
-// 	// 		logger.debug(`Carousel navigation: clicking next (${i + 1}/${index})`);
-// 	// 		await page.locator(`[aria-label="Next"]`).click();
-// 	// 		await new Promise((res) => setTimeout(res, 500));
-// 	// 	}
-
-// 	// 	logger.debug("Carousel navigation completed");
-// 	// } catch (error) {
-// 	// 	logger.warn("Failed to navigate carousel", {
-// 	// 		error: getErrorMessage(error),
-// 	// 		targetIndex: index,
-// 	// 	});
-// 	// }
-// }
-
 interface ExtractInstagramImageOptions
 	extends GetInstagramPostReelScreenshotHelperOptions {
 	index?: number;
@@ -145,46 +111,8 @@ interface ExtractInstagramImageOptions
 /**
  * Extracts Instagram image from article element
  * @param {ExtractInstagramImageOptions} options - Options with page and optional index
- * @returns {Promise<Buffer | null>} Image buffer or null if not found
+ * @returns {Promise<Buffer[] | null>} Image buffer array or null if not found
  */
-// async function extractInstagramImage(
-// 	options: ExtractInstagramImageOptions,
-// ): Promise<Buffer | null> {
-// 	const { index, logger, page } = options;
-
-// 	await page.waitForSelector('article div[role="button"]', { timeout: 30_000 });
-
-// 	const divs = await page.$$("article > div");
-// 	logger.debug("Searching for article divs", { found: divs.length });
-
-// 	if (divs.length > 1) {
-// 		const targetDiv = divs[1];
-// 		await targetDiv.waitForSelector("img", { timeout: 10_000 });
-
-// 		const imgs = await targetDiv.$$("img");
-// 		logger.debug("Found Instagram images", { count: imgs.length });
-
-// 		if (imgs.length === 0) {
-// 			logger.warn("No images found in Instagram post");
-// 			return null;
-// 		}
-
-// 		const targetIndex = index && index > 1 ? imgs.length - 1 : 0;
-// 		logger.debug("Selecting image", {
-// 			targetIndex,
-// 			totalImages: imgs.length,
-// 		});
-
-// 		const srcHandle = await imgs[targetIndex].getProperty("src");
-// 		const src = await srcHandle.jsonValue();
-// 		logger.debug("Fetching image from URL", { url: src });
-
-// 		return await fetchImageDirectly({ ...options, url: src });
-// 	}
-
-// 	return null;
-// }
-
 async function extractAllInstagramImages(
 	options: ExtractInstagramImageOptions,
 ): Promise<Buffer[]> {
@@ -222,13 +150,21 @@ async function extractAllInstagramImages(
 		}
 	}
 
-	// fetch buffers
-	const buffers = [];
-	for (const url of collected) {
-		logger.debug("Downloading image", { url });
+	const buffers: Buffer[] = [];
+
+	// the first image is the logo of the user so we are skipping it
+	const allImages = [...collected].slice(1);
+
+	// fetch buffer for each image
+	for (const url of allImages) {
 		const buffer = await fetchImageDirectly({ ...options, url });
-		if (buffer.length > 0) buffers.push(buffer);
+		buffers.push(buffer);
 	}
+
+	logger.info("Collected image sources", {
+		allImages,
+		count: allImages.length,
+	});
 
 	return buffers;
 }
@@ -255,24 +191,10 @@ async function getInstagramPostReelScreenshotHelper(
 			url,
 		});
 
-		// // Navigate carousel if needed
-		if (url.includes("p")) {
-			// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
-			// This is a separate function to handle dialogs only for instagram
-			await handleInstagramDialogs({ ...options });
-			// This function act as a fallback if the handleInstagramDialogs fails
-			await handleDialogs({ ...options });
-			// await navigateCarousel({ ...options, index: imageIndex });
-		}
+		await handleInstagramDialogs({ ...options });
+		await handleDialogs({ ...options });
 
 		const imageBuffers = await extractAllInstagramImages(options);
-
-		// // Try to extract image from article
-		// const imageBuffer = await extractInstagramImage({
-		// 	...options,
-		// 	index: imageIndex,
-		// });
-		// if (imageBuffer) return imageBuffer;
 
 		if (imageBuffers.length > 0) {
 			return { imageBuffer: imageBuffers[imageIndex ?? 1], imageBuffers };
