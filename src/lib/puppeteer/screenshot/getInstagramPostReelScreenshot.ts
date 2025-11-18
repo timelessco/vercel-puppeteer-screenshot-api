@@ -11,8 +11,9 @@ import {
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { getErrorMessage } from "@/utils/errorUtils";
+import type { ScreenshotResult } from "@/app/try/route";
 
-import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
+import { getMetadata } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
 import { fetchImageDirectly } from "./getImageScreenshot";
 
@@ -36,7 +37,7 @@ function extractInstagramImageIndex(url: string): number | undefined {
 		const urlObj = new URL(url);
 		const imgIndexFromUrl = urlObj.searchParams.get("img_index");
 
-		return imgIndexFromUrl ? Number.parseInt(imgIndexFromUrl) : undefined;
+		return imgIndexFromUrl ? Number.parseInt(imgIndexFromUrl) - 1 : undefined;
 	} catch {
 		return undefined;
 	}
@@ -98,101 +99,111 @@ async function fetchOgImage(
 	}
 }
 
-interface NavigateCarouselOptions
-	extends GetInstagramPostReelScreenshotHelperOptions {
-	index: number;
-}
-
-/**
- * Navigates Instagram carousel to specified image index
- * @param {NavigateCarouselOptions} options - Options with page and target index
- * @returns {Promise<void>}
- */
-async function navigateCarousel(
-	options: NavigateCarouselOptions,
-): Promise<void> {
-	const { index, logger, page } = options;
-
-	// Handle dialogs only if index is greater than 1 so that we can get the thumbnail image of the video before it starts
-	// This is a separate function to handle dialogs only for instagram
-	await handleInstagramDialogs({ logger, page });
-	// This function act as a fallback if the handleInstagramDialogs fails
-	await handleDialogs({ logger, page });
-
-	logger.info("Navigating carousel to image", { targetIndex: index });
-
-	try {
-		for (let i = 0; i < index - 1; i++) {
-			logger.debug(`Carousel navigation: clicking next (${i + 1}/${index})`);
-			await page.locator(`[aria-label="Next"]`).click();
-			await new Promise((res) => setTimeout(res, 500));
-		}
-
-		logger.debug("Carousel navigation completed");
-	} catch (error) {
-		logger.warn("Failed to navigate carousel", {
-			error: getErrorMessage(error),
-			targetIndex: index,
-		});
-	}
-}
-
 interface ExtractInstagramImageOptions
 	extends GetInstagramPostReelScreenshotHelperOptions {
 	index?: number;
 }
 
 /**
- * Extracts Instagram image from article element
+ * Extracts all Instagram images from carousel by navigating through each slide.
+ * Always fetches ALL images regardless of img_index parameter because:
+ * - img_index determines which image becomes the primary screenshot
+ * - allImages provides additional data for all carousel images
  * @param {ExtractInstagramImageOptions} options - Options with page and optional index
- * @returns {Promise<Buffer | null>} Image buffer or null if not found
+ * @returns {Promise<Buffer[]>} Array of image buffers for all carousel images
  */
-async function extractInstagramImage(
+async function extractAllInstagramImages(
 	options: ExtractInstagramImageOptions,
-): Promise<Buffer | null> {
-	const { index, logger, page } = options;
+): Promise<Buffer[]> {
+	const { logger, page } = options;
+	const collected = new Set<string>();
+	const MAX_CAROUSEL_IMAGES = 20;
+	let iterations = 0;
 
-	await page.waitForSelector('article div[role="button"]', { timeout: 30_000 });
+	await page.waitForSelector("article", { timeout: 30_000 });
 
-	const divs = await page.$$("article > div");
-	logger.debug("Searching for article divs", { found: divs.length });
+	let hasNext = true;
 
-	if (divs.length > 1) {
-		const targetDiv = divs[1];
-		await targetDiv.waitForSelector("img", { timeout: 10_000 });
+	while (hasNext && iterations < MAX_CAROUSEL_IMAGES) {
+		iterations++;
 
-		const imgs = await targetDiv.$$("img");
-		logger.debug("Found Instagram images", { count: imgs.length });
+		// get visible images
+		const urls: string[] = await page.$$eval("article img", (imgs) =>
+			imgs.map((i) => i.getAttribute("src") ?? "").filter(Boolean),
+		);
 
-		if (imgs.length === 0) {
-			logger.warn("No images found in Instagram post");
-			return null;
+		urls.forEach((u) => collected.add(u));
+
+		logger.debug("Collected image URLs so far", { count: collected.size });
+
+		// find next button inside carousel
+		const nextBtn = await page.$('button[aria-label="Next"]');
+
+		if (!nextBtn) {
+			hasNext = false;
+			break;
 		}
 
-		const targetIndex = index && index > 1 ? imgs.length - 1 : 0;
-		logger.debug("Selecting image", {
-			targetIndex,
-			totalImages: imgs.length,
-		});
-
-		const srcHandle = await imgs[targetIndex].getProperty("src");
-		const src = await srcHandle.jsonValue();
-		logger.debug("Fetching image from URL", { url: src });
-
-		return await fetchImageDirectly({ ...options, url: src });
+		try {
+			await nextBtn.click();
+			await new Promise((res) => setTimeout(res, 500));
+		} catch {
+			logger.debug("No more carousel images");
+			hasNext = false;
+		}
 	}
 
-	return null;
+	if (iterations >= MAX_CAROUSEL_IMAGES) {
+		logger.warn("Reached maximum carousel iteration limit", {
+			maxIterations: MAX_CAROUSEL_IMAGES,
+		});
+	}
+
+	// the first image is the logo of the user so we are skipping it
+	const allImages = [...collected].slice(1);
+
+	// fetch all images in parallel for better performance
+	// use Promise.allSettled to handle partial failures gracefully
+	const results = await Promise.allSettled(
+		allImages.map((url) => fetchImageDirectly({ ...options, url })),
+	);
+
+	const buffers: Buffer[] = results.map((result, index) => {
+		if (result.status === "fulfilled") {
+			return result.value;
+		}
+
+		logger.warn("Failed to fetch carousel image", {
+			error: getErrorMessage(result.reason),
+			index,
+			url: allImages[index],
+		});
+
+		// Return empty buffer for failed fetches
+		return Buffer.alloc(0);
+	});
+
+	logger.info("Collected image sources", {
+		count: allImages.length,
+		failed: results.filter((r) => r.status === "rejected").length,
+		succeeded: results.filter((r) => r.status === "fulfilled").length,
+	});
+
+	return buffers;
+}
+interface InstagramExtractResult {
+	imageBuffer: Buffer;
+	imageBuffers: Buffer[];
 }
 
 /**
  * Captures screenshot from Instagram posts with carousel and image handling
  * @param {GetInstagramPostReelScreenshotHelperOptions} options - Options containing page, url, and logger
- * @returns {Promise<Buffer | null>} Screenshot buffer or null if capture fails
+ * @returns {Promise<InstagramExtractResult | null>} Screenshot buffer or null if capture fails
  */
 async function getInstagramPostReelScreenshotHelper(
 	options: GetInstagramPostReelScreenshotHelperOptions,
-): Promise<Buffer | null> {
+): Promise<InstagramExtractResult | null> {
 	const { logger, url } = options;
 
 	try {
@@ -203,20 +214,30 @@ async function getInstagramPostReelScreenshotHelper(
 			url,
 		});
 
-		// Navigate carousel if needed
-		if (imageIndex && imageIndex > 1) {
-			await navigateCarousel({ ...options, index: imageIndex });
+		await handleInstagramDialogs({ ...options });
+		await handleDialogs({ ...options });
+
+		const imageBuffers = await extractAllInstagramImages(options);
+
+		// Select the primary image based on img_index parameter
+		// img_index determines which carousel image becomes the main screenshot
+		// while imageBuffers (allImages) contains all carousel images as additional data
+		// Clamp index to valid range: default to 0 if no imageIndex, cap at last image index
+		const index = Math.min(
+			imageIndex ?? 0,
+			Math.max(0, imageBuffers.length - 1),
+		);
+
+		if (imageBuffers.length > 0) {
+			return {
+				imageBuffer: imageBuffers[index],
+				imageBuffers,
+			};
 		}
 
-		// Try to extract image from article
-		const imageBuffer = await extractInstagramImage({
-			...options,
-			index: imageIndex,
-		});
-		if (imageBuffer) return imageBuffer;
-
 		// Fallback to og:image
-		return await fetchOgImage(options);
+		const ogImage = await fetchOgImage(options);
+		return ogImage ? { imageBuffer: ogImage, imageBuffers } : null;
 	} catch (error) {
 		logger.error(
 			"Error processing Instagram post images, falling back to ogImage",
@@ -224,7 +245,8 @@ async function getInstagramPostReelScreenshotHelper(
 		);
 
 		// Final fallback to og:image
-		return await fetchOgImage(options);
+		const ogImage = await fetchOgImage(options);
+		return ogImage ? { imageBuffer: ogImage, imageBuffers: [] } : null;
 	}
 }
 
@@ -233,11 +255,11 @@ type GetInstagramPostReelScreenshotOptions = WithBrowserOptions;
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images
  * @param {GetInstagramPostReelScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }>} Screenshot buffer with metadata or null if not an Instagram URL
+ * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or null if not an Instagram URL
  */
 export async function getInstagramPostReelScreenshot(
 	options: GetInstagramPostReelScreenshotOptions,
-): Promise<null | { metaData: GetMetadataReturnType; screenshot: Buffer }> {
+): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("Instagram POST or REEL detected");
@@ -273,7 +295,11 @@ export async function getInstagramPostReelScreenshot(
 						title: truncateInstagramTitle(metaData.title) ?? undefined,
 					}
 				: metaData;
-			return { metaData: processedMetadata, screenshot };
+			return {
+				allImages: screenshot.imageBuffers,
+				metaData: processedMetadata,
+				screenshot: screenshot.imageBuffer,
+			};
 		}
 
 		logger.info("No Instagram content found, falling back to page screenshot");
@@ -290,7 +316,7 @@ export async function getInstagramPostReelScreenshot(
 }
 
 type HandleInstagramDialogsOptions = Pick<
-	NavigateCarouselOptions,
+	GetInstagramPostReelScreenshotHelperOptions,
 	"logger" | "page"
 >;
 

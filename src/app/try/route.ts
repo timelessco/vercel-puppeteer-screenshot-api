@@ -50,13 +50,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	const { logger } = config;
 
 	try {
-		const { metaData, screenshot } = await retryWithBackoff({
+		const { allImages, metaData, screenshot } = await retryWithBackoff({
 			callback: () => getScreenshot(config),
 			options: { logger },
 		});
 		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(
-			{ metaData, screenshot },
+			{ allImages, metaData, screenshot },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
 		);
 	} catch (error) {
@@ -72,10 +72,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 export type GetScreenshotOptions = RequestConfig;
 
-async function getScreenshot(config: GetScreenshotOptions): Promise<{
+/**
+ * Standard screenshot result returned by all screenshot handlers
+ * allImages contains carousel images for Instagram, empty array for other handlers
+ */
+export interface ScreenshotResult {
+	allImages: Buffer[];
 	metaData: GetMetadataReturnType;
 	screenshot: Buffer;
-}> {
+}
+
+async function getScreenshot(
+	config: GetScreenshotOptions,
+): Promise<ScreenshotResult> {
 	const { fullPage, logger, url } = config;
 
 	try {
@@ -94,7 +103,7 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			try {
 				const buffer = await fetchImageDirectly(newConfig);
 				logger.info("Successfully fetched image directly without browser");
-				return { metaData: null, screenshot: buffer };
+				return { allImages: [], metaData: null, screenshot: buffer };
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
 					error,
@@ -114,7 +123,7 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			try {
 				const buffer = await fetchImageDirectly(newConfig);
 				logger.info("Successfully fetched ambiguous image directly");
-				return { metaData: null, screenshot: buffer };
+				return { allImages: [], metaData: null, screenshot: buffer };
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
 					error,
@@ -151,7 +160,7 @@ async function getScreenshot(config: GetScreenshotOptions): Promise<{
 			);
 		}
 
-		// Instagram check
+		// Instagram check - returns allImages from handler
 		if (
 			processedUrl.includes(INSTAGRAM) &&
 			(processedUrl.includes("/p/") || processedUrl.includes("/reel/"))
