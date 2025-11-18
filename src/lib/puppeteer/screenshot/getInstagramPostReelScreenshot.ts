@@ -36,7 +36,7 @@ function extractInstagramImageIndex(url: string): number | undefined {
 		const urlObj = new URL(url);
 		const imgIndexFromUrl = urlObj.searchParams.get("img_index");
 
-		return imgIndexFromUrl ? Number.parseInt(imgIndexFromUrl) : undefined;
+		return imgIndexFromUrl ? Number.parseInt(imgIndexFromUrl) - 1 : undefined;
 	} catch {
 		return undefined;
 	}
@@ -196,8 +196,16 @@ async function getInstagramPostReelScreenshotHelper(
 
 		const imageBuffers = await extractAllInstagramImages(options);
 
+		const index =
+			imageIndex && imageIndex >= imageBuffers.length
+				? imageBuffers.length - 1
+				: (imageIndex ?? 0);
+
 		if (imageBuffers.length > 0) {
-			return { imageBuffer: imageBuffers[imageIndex ?? 1], imageBuffers };
+			return {
+				imageBuffer: imageBuffers[index],
+				imageBuffers,
+			};
 		}
 
 		// Fallback to og:image
