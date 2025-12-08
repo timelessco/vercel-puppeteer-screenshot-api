@@ -14,10 +14,6 @@ import {
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { extractTwitterMediaUrls } from "@/lib/twitter";
-import type {
-	ExtractedTwitterMedia,
-	ExtractionResult,
-} from "@/lib/twitter/types";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions } from "@/app/try/route";
 
@@ -157,10 +153,10 @@ interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 }
 
 interface TwitterScreenshotResult {
-	/** Extracted media URLs (if extractMediaUrls is true) */
-	extractedMedia?: ExtractedTwitterMedia;
-	/** Extraction method used (if media was extracted) */
-	extractionMethod?: ExtractionResult["method"];
+	/** Image URLs */
+	allImages: Buffer[];
+	/** Video URLs */
+	videoUrl: null | string;
 	/** Metadata from the page */
 	metaData: GetMetadataReturnType;
 	/** Screenshot buffer */
@@ -185,52 +181,46 @@ interface TwitterScreenshotResult {
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
 ): Promise<null | TwitterScreenshotResult> {
-	const { browser, extractMediaUrls, logger, shouldGetPageMetrics, url } =
-		options;
+	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("X/Twitter URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
-	let extractedMedia: ExtractedTwitterMedia | undefined;
-	let extractionMethod: ExtractionResult["method"] | undefined;
+	let allImages: Buffer[] = [];
+	let videoUrl: null | string = null;
 
 	try {
 		// Step 1: Try to extract media URLs BEFORE launching browser (if requested)
 		// This is much faster and cheaper than using Puppeteer
 		// Uses Twitter Syndication API - fast, no auth required
-		if (extractMediaUrls) {
-			logger.info(
-				"Attempting to extract Twitter media URLs before screenshot (Syndication API)",
-			);
+		logger.info(
+			"Attempting to extract Twitter media URLs before screenshot (Syndication API)",
+		);
 
-			try {
-				const extractionResult = await extractTwitterMediaUrls({
-					logger,
-					url,
-				});
+		try {
+			const extractionResult = await extractTwitterMediaUrls({
+				logger,
+				url,
+			});
 
-				if (extractionResult.success && extractionResult.media) {
-					extractedMedia = extractionResult.media;
-					extractionMethod = extractionResult.method;
-
-					logger.info("✓ Successfully extracted Twitter media URLs", {
-						gifs: extractedMedia.gifs.length,
-						images: extractedMedia.images.length,
-						method: extractionMethod,
-						videos: extractedMedia.videos.length,
-					});
-				} else {
-					logger.warn("Syndication API failed, will capture screenshot only", {
-						error: extractionResult.error,
-					});
-				}
-			} catch (error) {
-				logger.warn(
-					"Error during media extraction, continuing with screenshot",
-					{
-						error: getErrorMessage(error),
-					},
+			if (extractionResult.success && extractionResult.media) {
+				allImages = extractionResult.media.images.map((image) =>
+					Buffer.from(image.url),
 				);
+				videoUrl = extractionResult.media.videos[0]?.url ?? null;
+
+				logger.info("✓ Successfully extracted Twitter media URLs", {
+					images: allImages.length,
+					videoUrl,
+				});
+			} else {
+				logger.warn("Syndication API failed, will capture screenshot only", {
+					error: extractionResult.error,
+				});
 			}
+		} catch (error) {
+			logger.warn("Error during media extraction, continuing with screenshot", {
+				error: getErrorMessage(error),
+			});
 		}
 
 		// Step 2: Complete page navigation sequence for screenshot
@@ -259,10 +249,10 @@ export async function getTwitterScreenshot(
 			});
 			logger.info("X/Twitter screenshot captured successfully");
 			return {
-				extractedMedia,
-				extractionMethod,
+				allImages,
 				metaData,
 				screenshot,
+				videoUrl,
 			};
 		}
 

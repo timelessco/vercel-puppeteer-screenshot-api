@@ -118,14 +118,13 @@ function processMediaFromSyndication(
 			// Add all video qualities
 			videos.push(...processedVariants);
 
-			const bestVideo = selectBestVideo(
+			const highestQualityVideo = selectBestVideo(
 				media.video_info.variants,
 				preferredQuality,
 			);
 
-			logger.debug("Found video", {
-				bestQuality: bestVideo?.quality,
-				qualities: processedVariants.map((v) => v.quality),
+			logger.debug("highest quality video", {
+				highestQualityVideo,
 			});
 		} else if (media.type === "animated_gif" && media.video_info?.variants) {
 			// Handle GIFs (Twitter converts GIFs to MP4)
@@ -146,18 +145,6 @@ function processMediaFromSyndication(
 		gifsCount: gifs.length,
 		imagesCount: images.length,
 		videosCount: videos.length,
-	});
-
-	logger.info("in extractMediaUrls", {
-		gifs,
-		images,
-		tweet: {
-			author: tweetData.user.name,
-			handle: tweetData.user.screen_name,
-			id: tweetData.id_str,
-			text: tweetData.text,
-		},
-		videos,
 	});
 
 	return {

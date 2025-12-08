@@ -50,13 +50,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	const { logger } = config;
 
 	try {
-		const { allImages, metaData, screenshot } = await retryWithBackoff({
-			callback: () => getScreenshot(config),
-			options: { logger },
-		});
+		const { allImages, metaData, screenshot, videoUrl } =
+			await retryWithBackoff({
+				callback: () => getScreenshot(config),
+				options: { logger },
+			});
+
+		logger.info("video url", { videoUrl });
+		logger.info("all images", { allImages });
+
 		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(
-			{ allImages, metaData, screenshot },
+			{ allImages, metaData, screenshot, videoUrl },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
 		);
 	} catch (error) {
@@ -80,6 +85,7 @@ export interface ScreenshotResult {
 	allImages: Buffer[];
 	metaData: GetMetadataReturnType;
 	screenshot: Buffer;
+	videoUrl: null | string;
 }
 
 async function getScreenshot(
@@ -103,7 +109,12 @@ async function getScreenshot(
 			try {
 				const buffer = await fetchImageDirectly(newConfig);
 				logger.info("Successfully fetched image directly without browser");
-				return { allImages: [], metaData: null, screenshot: buffer };
+				return {
+					allImages: [],
+					metaData: null,
+					screenshot: buffer,
+					videoUrl: null,
+				};
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
 					error,
@@ -123,7 +134,12 @@ async function getScreenshot(
 			try {
 				const buffer = await fetchImageDirectly(newConfig);
 				logger.info("Successfully fetched ambiguous image directly");
-				return { allImages: [], metaData: null, screenshot: buffer };
+				return {
+					allImages: [],
+					metaData: null,
+					screenshot: buffer,
+					videoUrl: null,
+				};
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
 					error,
@@ -176,21 +192,7 @@ async function getScreenshot(
 		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
 			return await withBrowser(
 				newConfig,
-				async (options) => {
-					const result = await getTwitterScreenshot({
-						...options,
-						extractMediaUrls: true,
-					});
-					// Adapt TwitterScreenshotResult to ScreenshotResult by ensuring allImages exists (even if empty)
-					if (result) {
-						return {
-							allImages: [],
-							metaData: result.metaData,
-							screenshot: result.screenshot,
-						};
-					}
-					return null;
-				},
+				getTwitterScreenshot,
 				getPageScreenshot,
 			);
 		}
