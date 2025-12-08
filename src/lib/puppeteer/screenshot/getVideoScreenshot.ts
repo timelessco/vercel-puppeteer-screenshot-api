@@ -129,7 +129,12 @@ export async function getVideoScreenshot(
 		const screenshot = await getVideoScreenshotHelper({ logger, page, url });
 
 		if (screenshot) {
-			return { allImages: [], metaData: null, screenshot };
+			return {
+				allImages: [],
+				metaData: null,
+				screenshot,
+				videoUrl: null,
+			};
 		}
 
 		logger.warn("Video screenshot failed, returning null for fallback");

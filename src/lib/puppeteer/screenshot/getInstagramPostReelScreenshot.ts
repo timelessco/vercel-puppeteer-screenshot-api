@@ -299,6 +299,7 @@ export async function getInstagramPostReelScreenshot(
 				allImages: screenshot.imageBuffers,
 				metaData: processedMetadata,
 				screenshot: screenshot.imageBuffer,
+				videoUrl: null,
 			};
 		}
 
