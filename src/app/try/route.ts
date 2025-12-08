@@ -176,7 +176,8 @@ async function getScreenshot(
 		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
 			return await withBrowser(
 				newConfig,
-				getTwitterScreenshot,
+				(options) =>
+					getTwitterScreenshot({ ...options, extractMediaUrls: true }),
 				getPageScreenshot,
 			);
 		}

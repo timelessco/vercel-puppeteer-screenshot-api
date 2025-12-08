@@ -13,10 +13,15 @@ import {
 	gotoPage,
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
+import { extractTwitterMediaUrls } from "@/lib/twitter";
+import type {
+	ExtractedTwitterMedia,
+	ExtractionResult,
+} from "@/lib/twitter/types";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions, ScreenshotResult } from "@/app/try/route";
+import type { GetScreenshotOptions } from "@/app/try/route";
 
-import { getMetadata } from "../core/getMetadata";
+import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 
 interface GetTwitterScreenshotHelperOptions {
@@ -147,23 +152,88 @@ async function getTwitterScreenshotHelper(
 
 interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 	browser: LaunchBrowserReturnType;
+	/** Whether to extract media URLs before taking screenshot */
+	extractMediaUrls?: boolean;
+}
+
+interface TwitterScreenshotResult {
+	/** Extracted media URLs (if extractMediaUrls is true) */
+	extractedMedia?: ExtractedTwitterMedia;
+	/** Extraction method used (if media was extracted) */
+	extractionMethod?: ExtractionResult["method"];
+	/** Metadata from the page */
+	metaData: GetMetadataReturnType;
+	/** Screenshot buffer */
+	screenshot: Buffer;
 }
 
 /**
  * Captures screenshot from X/Twitter with special handling for tweets and profiles
+ * Optionally extracts direct media URLs (videos, images, GIFs) before taking screenshot
  * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or null if not a Twitter URL
+ * @returns {Promise<null | TwitterScreenshotResult>} Screenshot buffer with metadata and optional media URLs, or null if not a Twitter URL
+ * @example
+ * // Get screenshot only (existing behavior)
+ * const result = await getTwitterScreenshot({ browser, url, logger });
+ * @example
+ * // Get screenshot + direct media URLs
+ * const result = await getTwitterScreenshot({ browser, url, logger, extractMediaUrls: true });
+ * if (result.extractedMedia) {
+ *   console.log('Video URLs:', result.extractedMedia.videos);
+ * }
  */
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
-): Promise<null | ScreenshotResult> {
-	const { browser, logger, shouldGetPageMetrics, url } = options;
+): Promise<null | TwitterScreenshotResult> {
+	const { browser, extractMediaUrls, logger, shouldGetPageMetrics, url } =
+		options;
 
 	logger.info("X/Twitter URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
+	let extractedMedia: ExtractedTwitterMedia | undefined;
+	let extractionMethod: ExtractionResult["method"] | undefined;
 
 	try {
-		// Complete page navigation sequence
+		// Step 1: Try to extract media URLs BEFORE launching browser (if requested)
+		// This is much faster and cheaper than using Puppeteer
+		// Uses Twitter Syndication API - fast, no auth required
+		if (extractMediaUrls) {
+			logger.info(
+				"Attempting to extract Twitter media URLs before screenshot (Syndication API)",
+			);
+
+			try {
+				const extractionResult = await extractTwitterMediaUrls({
+					logger,
+					url,
+				});
+
+				if (extractionResult.success && extractionResult.media) {
+					extractedMedia = extractionResult.media;
+					extractionMethod = extractionResult.method;
+
+					logger.info("✓ Successfully extracted Twitter media URLs", {
+						gifs: extractedMedia.gifs.length,
+						images: extractedMedia.images.length,
+						method: extractionMethod,
+						videos: extractedMedia.videos.length,
+					});
+				} else {
+					logger.warn("Syndication API failed, will capture screenshot only", {
+						error: extractionResult.error,
+					});
+				}
+			} catch (error) {
+				logger.warn(
+					"Error during media extraction, continuing with screenshot",
+					{
+						error: getErrorMessage(error),
+					},
+				);
+			}
+		}
+
+		// Step 2: Complete page navigation sequence for screenshot
 		page = await getOrCreatePage({ browser, logger });
 		await setupBrowserPage({
 			logger,
@@ -188,7 +258,12 @@ export async function getTwitterScreenshot(
 				url,
 			});
 			logger.info("X/Twitter screenshot captured successfully");
-			return { allImages: [], metaData, screenshot };
+			return {
+				extractedMedia,
+				extractionMethod,
+				metaData,
+				screenshot,
+			};
 		}
 
 		logger.info(
