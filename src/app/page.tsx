@@ -8,8 +8,26 @@ import { Spotlight } from "@/ui/home-page/Spotlight";
 import { ToggleButton } from "@/ui/home-page/ToggleButton";
 import { StyledButton } from "@/components/StyledButton";
 
+interface ApiResponse {
+	allImages?: Array<{ data: number[] }>;
+	metaData?: unknown;
+	screenshot?: { data: number[] };
+	videoUrl?: null | string;
+}
+function bufferToBase64(buffer: number[]): string {
+	const base64 = btoa(
+		buffer.reduce(
+			(acc: string, byte: number) => acc + String.fromCodePoint(byte),
+			"",
+		),
+	);
+	return `data:image/png;base64,${base64}`;
+}
+
 export default function Home() {
 	const [imgUrl, setImgUrl] = useState<string>("");
+	const [allImageUrls, setAllImageUrls] = useState<string[]>([]);
+	const [videoUrl, setVideoUrl] = useState<null | string>(null);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [time, setTime] = useState<number>(0);
 	const [duration, setDuration] = useState<number>(0);
@@ -20,13 +38,16 @@ export default function Home() {
 	const [verbose, setVerbose] = useState<boolean>(true);
 
 	useEffect(() => {
-		// Cleanup function to revoke object URL when component unmounts or imgUrl changes
+		// Cleanup function to revoke object URLs
 		return () => {
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
 			}
+			allImageUrls.forEach((url) => {
+				URL.revokeObjectURL(url);
+			});
 		};
-	}, [imgUrl]);
+	}, [imgUrl, allImageUrls]);
 
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -48,6 +69,7 @@ export default function Home() {
 
 		setDuration(0);
 		setTime(0);
+		setVideoUrl(null);
 
 		const timePoint = Date.now();
 		const intervalTimer = startDuration();
@@ -75,21 +97,34 @@ export default function Home() {
 				throw new Error(`Failed to capture screenshot: ${res.statusText}`);
 			}
 
-			const data = (await res.json()) as { screenshot?: { data: number[] } };
+			const data = (await res.json()) as ApiResponse;
 
-			// Revoke previous URL if exists
+			// Revoke previous URLs if exist
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
 			}
+			allImageUrls.forEach((url) => {
+				URL.revokeObjectURL(url);
+			});
 
-			const base64 = btoa(
-				data.screenshot?.data.reduce(
-					(acc: string, byte: number) => acc + String.fromCodePoint(byte),
-					"",
-				) ?? "",
-			);
-			const imageUrl = `data:image/png;base64,${base64}`;
-			setImgUrl(imageUrl);
+			// Set main screenshot
+			if (data.screenshot?.data) {
+				const imageUrl = bufferToBase64(data.screenshot.data);
+				setImgUrl(imageUrl);
+			}
+
+			// Set Instagram carousel images
+			if (data.allImages && data.allImages.length > 0) {
+				const imageUrls = data.allImages.map((img) => bufferToBase64(img.data));
+				setAllImageUrls(imageUrls);
+			} else {
+				setAllImageUrls([]);
+			}
+
+			// Set Twitter video URL
+			if (data.videoUrl) {
+				setVideoUrl(data.videoUrl);
+			}
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
 			alert(
@@ -127,14 +162,16 @@ export default function Home() {
 		return "";
 	}
 
+	const hasAdditionalMedia = allImageUrls.length > 0 || videoUrl;
+
 	return (
-		<main className="relative h-full overflow-hidden bg-black bg-grid-white/02">
+		<main className="relative min-h-screen overflow-auto bg-black bg-grid-white/02">
 			<Spotlight
 				className="-top-40 left-0 md:-top-20 md:left-60"
 				fill="white"
 			/>
 
-			<div className="relative z-20 flex h-full w-full flex-col items-center justify-center px-4 text-white">
+			<div className="relative z-20 flex w-full flex-col items-center justify-center px-4 py-16 text-white">
 				<section
 					aria-label="Hero section"
 					className="mb-16 max-w-lg text-center"
@@ -247,6 +284,7 @@ export default function Home() {
 					</div>
 				</form>
 
+				{/* Main Screenshot */}
 				{imgUrl && (
 					<section
 						aria-label="Screenshot preview"
@@ -262,6 +300,85 @@ export default function Home() {
 							/>
 						</div>
 					</section>
+				)}
+
+				{/* Additional Media Section */}
+				{hasAdditionalMedia && (
+					<div className="mt-6 w-full max-w-4xl space-y-6">
+						{/* Twitter Video */}
+						{videoUrl && (
+							<section
+								aria-label="Extracted video"
+								className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
+							>
+								<div className="p-4">
+									<h2 className="mb-3 text-lg font-semibold text-neutral-200">
+										Video
+									</h2>
+									<div className="overflow-hidden rounded-lg">
+										<video
+											className="w-xl"
+											controls
+											preload="metadata"
+											src={videoUrl}
+										>
+											<track
+												default
+												kind="captions"
+												label="English captions"
+												src="no captions"
+												srcLang="en"
+											/>
+											Your browser does not support the video tag.
+										</video>
+									</div>
+									<div className="mt-2 flex items-center gap-2">
+										<a
+											className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
+											href={videoUrl}
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											Open video in new tab ↗
+										</a>
+									</div>
+								</div>
+							</section>
+						)}
+
+						{/* All Images */}
+						{allImageUrls.length > 0 && (
+							<section
+								aria-label="All images"
+								className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
+							>
+								<div className="p-4">
+									<h2 className="mb-3 text-lg font-semibold text-neutral-200">
+										All Images ({allImageUrls.length})
+									</h2>
+									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+										{allImageUrls.map((url, index) => (
+											<div
+												className="relative aspect-square overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
+												key={index}
+											>
+												{/* eslint-disable-next-line @next/next/no-img-element */}
+												<img
+													alt={`twitter post`}
+													className="h-full w-full object-cover transition-transform duration-200 hover:scale-105"
+													loading="lazy"
+													src={url}
+												/>
+												<div className="absolute right-2 bottom-2 rounded-full bg-black/70 px-2 py-1 text-xs text-white">
+													{index + 1}/{allImageUrls.length}
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							</section>
+						)}
+					</div>
 				)}
 			</div>
 

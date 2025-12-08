@@ -19,6 +19,7 @@ import type { GetScreenshotOptions } from "@/app/try/route";
 
 import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
 import { captureScreenshot } from "./captureScreenshot";
+import { fetchImageDirectly } from "./getImageScreenshot";
 
 interface GetTwitterScreenshotHelperOptions {
 	logger: GetTwitterScreenshotOptions["logger"];
@@ -203,9 +204,30 @@ export async function getTwitterScreenshot(
 			});
 
 			if (extractionResult.success && extractionResult.media) {
-				allImages = extractionResult.media.images.map((image) =>
-					Buffer.from(image.url),
+				const results = await Promise.allSettled(
+					extractionResult.media.images.map((image) =>
+						fetchImageDirectly({ ...options, url: image.url }),
+					),
 				);
+
+				allImages = results
+					.map((result, index) => {
+						if (result.status === "fulfilled") {
+							return result.value;
+						}
+						logger.warn("Failed to fetch Twitter image", {
+							index,
+							reason: result.reason,
+						});
+						return null;
+					})
+					.filter((buffer): buffer is Buffer => buffer !== null);
+
+				logger.info("Successfully fetched Twitter image buffers", {
+					fetched: allImages.length,
+					total: extractionResult.media.images.length,
+				});
+
 				videoUrl = extractionResult.media.videos[0]?.url ?? null;
 
 				logger.info("✓ Successfully extracted Twitter media URLs", {
