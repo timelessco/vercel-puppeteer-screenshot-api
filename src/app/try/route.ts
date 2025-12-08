@@ -176,8 +176,21 @@ async function getScreenshot(
 		if (processedUrl.includes(X) || processedUrl.includes(TWITTER)) {
 			return await withBrowser(
 				newConfig,
-				(options) =>
-					getTwitterScreenshot({ ...options, extractMediaUrls: true }),
+				async (options) => {
+					const result = await getTwitterScreenshot({
+						...options,
+						extractMediaUrls: true,
+					});
+					// Adapt TwitterScreenshotResult to ScreenshotResult by ensuring allImages exists (even if empty)
+					if (result) {
+						return {
+							allImages: [],
+							metaData: result.metaData,
+							screenshot: result.screenshot,
+						};
+					}
+					return null;
+				},
 				getPageScreenshot,
 			);
 		}

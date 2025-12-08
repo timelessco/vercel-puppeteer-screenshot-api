@@ -11,10 +11,8 @@ const QUALITY_THRESHOLDS = {
 
 /**
  * Determines quality label based on bitrate
- *
  * @param {number} bitrate - Bitrate in bps (bits per second)
  * @returns {'high' | 'medium' | 'low'} Quality label
- *
  * @example
  * getQualityLabel(2176000) // Returns: 'high'
  * getQualityLabel(832000)  // Returns: 'medium'
@@ -29,7 +27,6 @@ function getQualityLabel(bitrate: number): "high" | "low" | "medium" {
 /**
  * Filters video variants to only include MP4 videos with bitrate
  * Excludes HLS streams (m3u8) and variants without bitrate
- *
  * @param {TwitterVideoVariant[]} variants - Array of video variants from Twitter API
  * @returns {TwitterVideoVariant[]} Filtered array of valid MP4 variants
  */
@@ -50,10 +47,8 @@ function filterValidVariants(
 
 /**
  * Processes video variants into structured format with quality labels
- *
  * @param {TwitterVideoVariant[]} variants - Raw video variants from Twitter API
  * @returns {ProcessedVideo[]} Array of processed videos sorted by quality (high to low)
- *
  * @example
  * const variants = [
  *   { url: 'video1.mp4', bitrate: 2176000, content_type: 'video/mp4' },
@@ -84,11 +79,9 @@ export function processVideoVariants(
 /**
  * Selects the best video URL based on preferred quality
  * Falls back to next best available quality if preferred is not available
- *
  * @param {TwitterVideoVariant[]} variants - Array of video variants
- * @param {('high' | 'medium' | 'low')} [preferredQuality='high'] - Preferred video quality
+ * @param {('high' | 'medium' | 'low')} [preferredQuality] - Preferred video quality
  * @returns {ProcessedVideo | null} Best matching video or null if no valid videos
- *
  * @example
  * const variants = [...];
  * selectBestVideo(variants, 'high')
@@ -141,7 +134,6 @@ export function selectBestVideo(
 /**
  * Gets all available video qualities for a tweet
  * Useful for providing users with quality options
- *
  * @param {TwitterVideoVariant[]} variants - Array of video variants
  * @returns {ProcessedVideo[]} All available videos sorted by quality
  */
@@ -154,10 +146,8 @@ export function getAllVideoQualities(
 /**
  * Gets video quality statistics
  * Useful for logging and debugging
- *
  * @param {TwitterVideoVariant[]} variants - Array of video variants
  * @returns {object} Statistics about available video qualities
- *
  * @example
  * getVideoQualityStats(variants)
  * // Returns:

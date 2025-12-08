@@ -20,10 +20,8 @@ const TWITTER_DOMAINS = [
  * - https://x.com/user/status/1234567890
  * - https://twitter.com/i/web/status/1234567890
  * - https://mobile.twitter.com/user/status/1234567890
- *
  * @param {string} url - Twitter URL to parse
  * @returns {string | null} Tweet ID if found, null otherwise
- *
  * @example
  * extractTweetId('https://twitter.com/elonmusk/status/1234567890')
  * // Returns: '1234567890'
@@ -38,13 +36,13 @@ export function extractTweetId(url: string): null | string {
 		}
 
 		// Pattern 1: /status/1234567890
-		const statusMatch = urlObj.pathname.match(/\/status\/(\d+)/);
+		const statusMatch = /\/status\/(\d+)/.exec(urlObj.pathname);
 		if (statusMatch?.[1]) {
 			return statusMatch[1];
 		}
 
 		// Pattern 2: /i/web/status/1234567890
-		const webStatusMatch = urlObj.pathname.match(/\/i\/web\/status\/(\d+)/);
+		const webStatusMatch = /\/i\/web\/status\/(\d+)/.exec(urlObj.pathname);
 		if (webStatusMatch?.[1]) {
 			return webStatusMatch[1];
 		}
@@ -58,10 +56,8 @@ export function extractTweetId(url: string): null | string {
 
 /**
  * Checks if a URL is a valid Twitter/X tweet URL
- *
  * @param {string} url - URL to check
  * @returns {boolean} True if URL is a valid tweet URL
- *
  * @example
  * isTweetUrl('https://twitter.com/user/status/123')
  * // Returns: true
@@ -75,10 +71,8 @@ export function isTweetUrl(url: string): boolean {
 
 /**
  * Extracts username from Twitter URL if available
- *
  * @param {string} url - Twitter URL to parse
  * @returns {string | null} Username if found, null otherwise
- *
  * @example
  * extractUsername('https://twitter.com/elonmusk/status/123')
  * // Returns: 'elonmusk'
@@ -93,7 +87,7 @@ export function extractUsername(url: string): null | string {
 		}
 
 		// Pattern: /username/status/...
-		const usernameMatch = urlObj.pathname.match(/^\/([^/]+)\/status\//);
+		const usernameMatch = /^\/([^/]+)\/status\//.exec(urlObj.pathname);
 		if (usernameMatch?.[1] && usernameMatch[1] !== "i") {
 			return usernameMatch[1];
 		}
@@ -106,10 +100,8 @@ export function extractUsername(url: string): null | string {
 
 /**
  * Parses Twitter URL into structured components
- *
  * @param {string} url - Twitter URL to parse
  * @returns {ParsedTwitterUrl} Parsed URL components
- *
  * @example
  * parseTwitterUrl('https://twitter.com/user/status/123')
  * // Returns:
@@ -135,10 +127,8 @@ export function parseTwitterUrl(url: string): ParsedTwitterUrl {
 /**
  * Normalizes Twitter URL to canonical format
  * Converts x.com to twitter.com and removes unnecessary parameters
- *
  * @param {string} url - Twitter URL to normalize
  * @returns {string | null} Normalized URL or null if invalid
- *
  * @example
  * normalizeTwitterUrl('https://x.com/user/status/123?s=20')
  * // Returns: 'https://twitter.com/user/status/123'
@@ -158,10 +148,8 @@ export function normalizeTwitterUrl(url: string): null | string {
 /**
  * Validates that a string is a valid tweet ID
  * Tweet IDs are numeric strings, typically 18-19 digits (Snowflake IDs)
- *
  * @param {string} id - Tweet ID to validate
  * @returns {boolean} True if valid tweet ID format
- *
  * @example
  * isValidTweetId('1234567890123456789')
  * // Returns: true
@@ -177,10 +165,8 @@ export function isValidTweetId(id: string): boolean {
 
 /**
  * Checks if URL is a Twitter/X domain (not necessarily a tweet)
- *
  * @param {string} url - URL to check
  * @returns {boolean} True if URL is from Twitter/X domain
- *
  * @example
  * isTwitterDomain('https://twitter.com/explore')
  * // Returns: true
