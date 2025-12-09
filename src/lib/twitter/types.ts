@@ -109,17 +109,6 @@ export interface ExtractedTwitterMedia {
 	images: ProcessedImage[];
 	/** Array of GIF URLs (as MP4) */
 	gifs: ProcessedGif[];
-	/** Tweet metadata */
-	tweet: {
-		/** Tweet text */
-		text: string;
-		/** Author's name */
-		author: string;
-		/** Author's handle */
-		handle: string;
-		/** Tweet ID */
-		id: string;
-	};
 }
 
 /**

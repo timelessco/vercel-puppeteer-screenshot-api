@@ -12,7 +12,7 @@ interface ApiResponse {
 	allImages?: Array<{ data: number[] }>;
 	metaData?: unknown;
 	screenshot?: { data: number[] };
-	videoUrl?: null | string;
+	video_url?: null | string;
 }
 function bufferToBase64(buffer: number[]): string {
 	const base64 = btoa(
@@ -27,7 +27,7 @@ function bufferToBase64(buffer: number[]): string {
 export default function Home() {
 	const [imgUrl, setImgUrl] = useState<string>("");
 	const [allImageUrls, setAllImageUrls] = useState<string[]>([]);
-	const [videoUrl, setVideoUrl] = useState<null | string>(null);
+	const [video_url, setVideo_url] = useState<null | string>(null);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [time, setTime] = useState<number>(0);
 	const [duration, setDuration] = useState<number>(0);
@@ -69,7 +69,7 @@ export default function Home() {
 
 		setDuration(0);
 		setTime(0);
-		setVideoUrl(null);
+		setVideo_url(null);
 
 		const timePoint = Date.now();
 		const intervalTimer = startDuration();
@@ -122,8 +122,8 @@ export default function Home() {
 			}
 
 			// Set Twitter video URL
-			if (data.videoUrl) {
-				setVideoUrl(data.videoUrl);
+			if (data.video_url) {
+				setVideo_url(data.video_url);
 			}
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
@@ -162,7 +162,7 @@ export default function Home() {
 		return "";
 	}
 
-	const hasAdditionalMedia = allImageUrls.length > 0 || videoUrl;
+	const hasAdditionalMedia = allImageUrls.length > 0 || video_url;
 
 	return (
 		<main className="relative min-h-screen overflow-auto bg-black bg-grid-white/02">
@@ -306,7 +306,7 @@ export default function Home() {
 				{hasAdditionalMedia && (
 					<div className="mt-6 w-full max-w-4xl space-y-6">
 						{/* Twitter Video */}
-						{videoUrl && (
+						{video_url && (
 							<section
 								aria-label="Extracted video"
 								className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
@@ -320,7 +320,7 @@ export default function Home() {
 											className="w-xl"
 											controls
 											preload="metadata"
-											src={videoUrl}
+											src={video_url}
 										>
 											<track
 												default
@@ -335,7 +335,7 @@ export default function Home() {
 									<div className="mt-2 flex items-center gap-2">
 										<a
 											className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
-											href={videoUrl}
+											href={video_url}
 											rel="noopener noreferrer"
 											target="_blank"
 										>

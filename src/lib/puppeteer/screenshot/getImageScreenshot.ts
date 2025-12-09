@@ -202,7 +202,7 @@ export async function getImageScreenshot(
 				allImages: [],
 				metaData: null,
 				screenshot,
-				videoUrl: null,
+				video_url: null,
 			};
 
 		logger.warn("Image screenshot failed, returning null for fallback");

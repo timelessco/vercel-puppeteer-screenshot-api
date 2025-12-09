@@ -133,7 +133,7 @@ export async function getVideoScreenshot(
 				allImages: [],
 				metaData: null,
 				screenshot,
-				videoUrl: null,
+				video_url: null,
 			};
 		}
 

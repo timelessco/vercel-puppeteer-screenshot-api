@@ -50,18 +50,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	const { logger } = config;
 
 	try {
-		const { allImages, metaData, screenshot, videoUrl } =
+		const { allImages, metaData, screenshot, video_url } =
 			await retryWithBackoff({
 				callback: () => getScreenshot(config),
 				options: { logger },
 			});
 
-		logger.info("video url", { videoUrl });
+		logger.info("video url", { video_url });
 		logger.info("all images", { allImages });
 
 		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(
-			{ allImages, metaData, screenshot, videoUrl },
+			{ allImages, metaData, screenshot, video_url },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
 		);
 	} catch (error) {
@@ -85,7 +85,7 @@ export interface ScreenshotResult {
 	allImages: Buffer[];
 	metaData: GetMetadataReturnType;
 	screenshot: Buffer;
-	videoUrl: null | string;
+	video_url: null | string;
 }
 
 async function getScreenshot(
@@ -113,7 +113,7 @@ async function getScreenshot(
 					allImages: [],
 					metaData: null,
 					screenshot: buffer,
-					videoUrl: null,
+					video_url: null,
 				};
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
@@ -138,7 +138,7 @@ async function getScreenshot(
 					allImages: [],
 					metaData: null,
 					screenshot: buffer,
-					videoUrl: null,
+					video_url: null,
 				};
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {

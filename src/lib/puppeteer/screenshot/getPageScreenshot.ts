@@ -61,7 +61,7 @@ export async function getPageScreenshot(
 			allImages: [],
 			metaData,
 			screenshot,
-			videoUrl: null,
+			video_url: null,
 		};
 	} catch (error) {
 		// If navigation fails, create an error page
