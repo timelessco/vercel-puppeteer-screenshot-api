@@ -201,6 +201,8 @@ export async function getTwitterScreenshot(
 				url,
 			});
 
+			logger.info("Extraction result", { extractionResult });
+
 			if (extractionResult.success && extractionResult.media) {
 				const results = await Promise.allSettled(
 					extractionResult.media.images.map((image) =>
