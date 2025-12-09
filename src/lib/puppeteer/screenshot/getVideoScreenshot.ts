@@ -131,9 +131,9 @@ export async function getVideoScreenshot(
 		if (screenshot) {
 			return {
 				allImages: [],
+				allVideos: [],
 				metaData: null,
 				screenshot,
-				video_url: null,
 			};
 		}
 

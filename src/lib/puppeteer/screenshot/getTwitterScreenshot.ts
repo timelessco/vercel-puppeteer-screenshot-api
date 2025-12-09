@@ -156,8 +156,8 @@ interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 interface TwitterScreenshotResult {
 	/** Image URLs */
 	allImages: Buffer[];
-	/** Video URLs */
-	video_url: null | string;
+	/** Array of video URLs */
+	allVideos: string[];
 	/** Metadata from the page */
 	metaData: GetMetadataReturnType;
 	/** Screenshot buffer */
@@ -187,7 +187,7 @@ export async function getTwitterScreenshot(
 	logger.info("X/Twitter URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
 	let allImages: Buffer[] = [];
-	let video_url: null | string = null;
+	let allVideos: string[] = [];
 
 	try {
 		// Uses Twitter Syndication API, no authentication required
@@ -228,11 +228,11 @@ export async function getTwitterScreenshot(
 					total: extractionResult.media.images.length,
 				});
 
-				video_url = extractionResult.media.videos[0]?.url ?? null;
+				allVideos = extractionResult.media.videos;
 
 				logger.info("✓ Successfully extracted Twitter media URLs", {
 					images: allImages.length,
-					video_url,
+					videos: allVideos.length,
 				});
 			} else {
 				logger.warn("Syndication API failed, will capture screenshot only", {
@@ -271,9 +271,9 @@ export async function getTwitterScreenshot(
 			logger.info("X/Twitter screenshot captured successfully");
 			return {
 				allImages,
+				allVideos,
 				metaData,
 				screenshot,
-				video_url,
 			};
 		}
 

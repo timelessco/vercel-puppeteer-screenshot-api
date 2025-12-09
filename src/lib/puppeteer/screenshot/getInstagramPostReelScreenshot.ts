@@ -297,9 +297,9 @@ export async function getInstagramPostReelScreenshot(
 				: metaData;
 			return {
 				allImages: screenshot.imageBuffers,
+				allVideos: [],
 				metaData: processedMetadata,
 				screenshot: screenshot.imageBuffer,
-				video_url: null,
 			};
 		}
 

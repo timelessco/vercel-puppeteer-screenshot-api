@@ -103,12 +103,12 @@ export interface ProcessedGif {
  * Extracted media URLs from a tweet
  */
 export interface ExtractedTwitterMedia {
-	/** Array of video URLs with quality information */
-	videos: ProcessedVideo[];
-	/** Array of image URLs */
-	images: ProcessedImage[];
 	/** Array of GIF URLs (as MP4) */
 	gifs: ProcessedGif[];
+	/** Array of image URLs */
+	images: ProcessedImage[];
+	/** Array of video URLs (highest quality) */
+	videos: string[];
 }
 
 /**

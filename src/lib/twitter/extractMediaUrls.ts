@@ -72,14 +72,9 @@ export async function extractTwitterMediaUrls(
 				url: item.media_url_https,
 			});
 		} else if (item.type === "video" && item.video_info?.variants) {
-			const video_url = getBestVideoUrl(item.video_info.variants);
-			if (video_url) {
-				media.videos.push({
-					bitrate: 0,
-					contentType: "video/mp4",
-					quality: "high",
-					url: video_url,
-				});
+			const videoUrl = getBestVideoUrl(item.video_info.variants);
+			if (videoUrl) {
+				media.videos.push(videoUrl);
 			}
 		} else if (item.type === "animated_gif" && item.video_info?.variants) {
 			const gifUrl = getBestVideoUrl(item.video_info.variants);

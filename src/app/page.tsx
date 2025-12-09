@@ -10,9 +10,9 @@ import { StyledButton } from "@/components/StyledButton";
 
 interface ApiResponse {
 	allImages?: Array<{ data: number[] }>;
+	allVideos?: string[];
 	metaData?: unknown;
 	screenshot?: { data: number[] };
-	video_url?: null | string;
 }
 function bufferToBase64(buffer: number[]): string {
 	const base64 = btoa(
@@ -27,7 +27,7 @@ function bufferToBase64(buffer: number[]): string {
 export default function Home() {
 	const [imgUrl, setImgUrl] = useState<string>("");
 	const [allImageUrls, setAllImageUrls] = useState<string[]>([]);
-	const [video_url, setVideo_url] = useState<null | string>(null);
+	const [allVideoUrls, setAllVideoUrls] = useState<string[]>([]);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [time, setTime] = useState<number>(0);
 	const [duration, setDuration] = useState<number>(0);
@@ -69,7 +69,7 @@ export default function Home() {
 
 		setDuration(0);
 		setTime(0);
-		setVideo_url(null);
+		setAllVideoUrls([]);
 
 		const timePoint = Date.now();
 		const intervalTimer = startDuration();
@@ -121,9 +121,11 @@ export default function Home() {
 				setAllImageUrls([]);
 			}
 
-			// Set Twitter video URL
-			if (data.video_url) {
-				setVideo_url(data.video_url);
+			// Set Twitter video URLs
+			if (data.allVideos && data.allVideos.length > 0) {
+				setAllVideoUrls(data.allVideos);
+			} else {
+				setAllVideoUrls([]);
 			}
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
@@ -162,7 +164,7 @@ export default function Home() {
 		return "";
 	}
 
-	const hasAdditionalMedia = allImageUrls.length > 0 || video_url;
+	const hasAdditionalMedia = allImageUrls.length > 0 || allVideoUrls.length > 0;
 
 	return (
 		<main className="relative min-h-screen overflow-auto bg-black bg-grid-white/02">
@@ -305,42 +307,49 @@ export default function Home() {
 				{/* Additional Media Section */}
 				{hasAdditionalMedia && (
 					<div className="mt-6 w-full max-w-4xl space-y-6">
-						{/* Twitter Video */}
-						{video_url && (
+						{/* Twitter Videos */}
+						{allVideoUrls.length > 0 && (
 							<section
-								aria-label="Extracted video"
+								aria-label="Extracted videos"
 								className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
 							>
 								<div className="p-4">
 									<h2 className="mb-3 text-lg font-semibold text-neutral-200">
-										Video
+										Videos ({allVideoUrls.length})
 									</h2>
-									<div className="overflow-hidden rounded-lg">
-										<video
-											className="w-xl"
-											controls
-											preload="metadata"
-											src={video_url}
-										>
-											<track
-												default
-												kind="captions"
-												label="English captions"
-												src="no captions"
-												srcLang="en"
-											/>
-											Your browser does not support the video tag.
-										</video>
-									</div>
-									<div className="mt-2 flex items-center gap-2">
-										<a
-											className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
-											href={video_url}
-											rel="noopener noreferrer"
-											target="_blank"
-										>
-											Open video in new tab ↗
-										</a>
+									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+										{allVideoUrls.map((videoUrl, index) => (
+											<div
+												className="overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
+												key={videoUrl}
+											>
+												<video
+													className="w-full"
+													controls
+													preload="metadata"
+													src={videoUrl}
+												>
+													<track
+														default
+														kind="captions"
+														label="English captions"
+														src="no captions"
+														srcLang="en"
+													/>
+													Your browser does not support the video tag.
+												</video>
+												<div className="p-2">
+													<a
+														className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
+														href={videoUrl}
+														rel="noopener noreferrer"
+														target="_blank"
+													>
+														Open video {index + 1} in new tab ↗
+													</a>
+												</div>
+											</div>
+										))}
 									</div>
 								</div>
 							</section>
@@ -360,7 +369,7 @@ export default function Home() {
 										{allImageUrls.map((url, index) => (
 											<div
 												className="relative aspect-square overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
-												key={index}
+												key={url}
 											>
 												{/* eslint-disable-next-line @next/next/no-img-element */}
 												<img
