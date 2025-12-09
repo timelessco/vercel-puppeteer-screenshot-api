@@ -27,6 +27,28 @@ interface GetTwitterScreenshotHelperOptions {
 	url: GetTwitterScreenshotOptions["url"];
 }
 
+interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
+	browser: LaunchBrowserReturnType;
+	/** Whether to extract media URLs before taking screenshot */
+	extractMediaUrls?: boolean;
+}
+
+interface TwitterScreenshotResult {
+	/** Image URLs */
+	allImages: Buffer[];
+	/** Array of video URLs */
+	allVideos: string[];
+	/** Metadata from the page */
+	metaData: GetMetadataReturnType;
+	/** Screenshot buffer */
+	screenshot: Buffer;
+}
+
+interface ExtractTwitterMediaResult {
+	allImages: Buffer[];
+	allVideos: string[];
+}
+
 /**
  * Captures screenshot of Twitter/X content by finding the appropriate element
  * @param {GetTwitterScreenshotHelperOptions} options - Options containing page, url, and logger
@@ -147,38 +169,75 @@ async function getTwitterScreenshotHelper(
 	}
 }
 
-interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
-	browser: LaunchBrowserReturnType;
-	/** Whether to extract media URLs before taking screenshot */
-	extractMediaUrls?: boolean;
-}
-
-interface TwitterScreenshotResult {
-	/** Image URLs */
-	allImages: Buffer[];
-	/** Array of video URLs */
-	allVideos: string[];
-	/** Metadata from the page */
-	metaData: GetMetadataReturnType;
-	/** Screenshot buffer */
-	screenshot: Buffer;
-}
-
 /**
- * Captures screenshot from X/Twitter with special handling for tweets and profiles
- * Optionally extracts direct media URLs (videos, images, GIFs) before taking screenshot
- * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<null | TwitterScreenshotResult>} Screenshot buffer with metadata and optional media URLs, or null if not a Twitter URL
- * @example
- * // Get screenshot only (existing behavior)
- * const result = await getTwitterScreenshot({ browser, url, logger });
- * @example
- * // Get screenshot + direct media URLs
- * const result = await getTwitterScreenshot({ browser, url, logger, extractMediaUrls: true });
- * if (result.extractedMedia) {
- *   console.log('Video URLs:', result.extractedMedia.videos);
- * }
+ * Extracts media (images and videos) from Twitter post using Syndication API
+ * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, and logger
+ * @returns {Promise<ExtractTwitterMediaResult>} Object with allImages and allVideos arrays
  */
+async function extractTwitterMedia(
+	options: GetTwitterScreenshotOptions,
+): Promise<ExtractTwitterMediaResult> {
+	const { logger, url } = options;
+
+	try {
+		logger.info(
+			"Attempting to extract Twitter media URLs before screenshot (Syndication API)",
+		);
+
+		const extractionResult = await extractTwitterMediaUrls({
+			logger,
+			url,
+		});
+
+		logger.info("Extraction result", { extractionResult });
+
+		if (extractionResult.success && extractionResult.media) {
+			const results = await Promise.allSettled(
+				extractionResult.media.images.map((image) =>
+					fetchImageDirectly({ ...options, url: image.url }),
+				),
+			);
+
+			const allImages = results
+				.map((result, index) => {
+					if (result.status === "fulfilled") {
+						return result.value;
+					}
+					logger.warn("Failed to fetch Twitter image", {
+						index,
+						reason: result.reason,
+					});
+					return null;
+				})
+				.filter((buffer): buffer is Buffer => buffer !== null);
+
+			logger.info("Successfully fetched Twitter image buffers", {
+				fetched: allImages.length,
+				total: extractionResult.media.images.length,
+			});
+
+			const allVideos = extractionResult.media.videos;
+
+			logger.info("✓ Successfully extracted Twitter media URLs", {
+				images: allImages.length,
+				videos: allVideos.length,
+			});
+
+			return { allImages, allVideos };
+		}
+
+		logger.warn("Syndication API failed, will capture screenshot only", {
+			error: extractionResult.error,
+		});
+		return { allImages: [], allVideos: [] };
+	} catch (error) {
+		logger.warn("Error during media extraction, continuing with screenshot", {
+			error: getErrorMessage(error),
+		});
+		return { allImages: [], allVideos: [] };
+	}
+}
+
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
 ): Promise<null | TwitterScreenshotResult> {
@@ -186,65 +245,11 @@ export async function getTwitterScreenshot(
 
 	logger.info("X/Twitter URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
-	let allImages: Buffer[] = [];
-	let allVideos: string[] = [];
+
+	// Extract media using Syndication API
+	const { allImages, allVideos } = await extractTwitterMedia(options);
 
 	try {
-		// Uses Twitter Syndication API, no authentication required
-		logger.info(
-			"Attempting to extract Twitter media URLs before screenshot (Syndication API)",
-		);
-
-		try {
-			const extractionResult = await extractTwitterMediaUrls({
-				logger,
-				url,
-			});
-
-			logger.info("Extraction result", { extractionResult });
-
-			if (extractionResult.success && extractionResult.media) {
-				const results = await Promise.allSettled(
-					extractionResult.media.images.map((image) =>
-						fetchImageDirectly({ ...options, url: image.url }),
-					),
-				);
-
-				allImages = results
-					.map((result, index) => {
-						if (result.status === "fulfilled") {
-							return result.value;
-						}
-						logger.warn("Failed to fetch Twitter image", {
-							index,
-							reason: result.reason,
-						});
-						return null;
-					})
-					.filter((buffer): buffer is Buffer => buffer !== null);
-
-				logger.info("Successfully fetched Twitter image buffers", {
-					fetched: allImages.length,
-					total: extractionResult.media.images.length,
-				});
-
-				allVideos = extractionResult.media.videos;
-
-				logger.info("✓ Successfully extracted Twitter media URLs", {
-					images: allImages.length,
-					videos: allVideos.length,
-				});
-			} else {
-				logger.warn("Syndication API failed, will capture screenshot only", {
-					error: extractionResult.error,
-				});
-			}
-		} catch (error) {
-			logger.warn("Error during media extraction, continuing with screenshot", {
-				error: getErrorMessage(error),
-			});
-		}
-
 		page = await getOrCreatePage({ browser, logger });
 		await setupBrowserPage({
 			logger,
