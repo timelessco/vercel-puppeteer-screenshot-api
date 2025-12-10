@@ -125,6 +125,7 @@ async function extractMediaFromEmbed(url: string): Promise<InstagramMedia[]> {
 				"user-agent":
 					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 			},
+			signal: AbortSignal.timeout(10_000),
 		});
 
 		if (!response.ok) {
@@ -176,7 +177,7 @@ async function extractMediaFromEmbed(url: string): Promise<InstagramMedia[]> {
 	}
 }
 
-// Helper: Extract embed data from HTML
+// Extract embed data from HTML
 function extractEmbedData(html: string) {
 	const match = /"init",\s*\[\],\s*\[(.*?)\]\],/.exec(html);
 
@@ -193,7 +194,7 @@ function extractEmbedData(html: string) {
 	return embedDataRaw;
 }
 
-// Helper: Extract media items from shortcode media object
+//  Extract media items from shortcode media object
 function extractMediaItems(shortcodeMedia: InstagramNode): InstagramMedia[] {
 	// Handle carousel posts
 	const carouselEdges = shortcodeMedia.edge_sidecar_to_children?.edges;
@@ -208,7 +209,7 @@ function extractMediaItems(shortcodeMedia: InstagramNode): InstagramMedia[] {
 	return [createMediaItem(shortcodeMedia)];
 }
 
-// Helper: Create media item object
+//  Create media item object
 function createMediaItem(node: InstagramNode): InstagramMedia {
 	const isVideo = node.__typename === "GraphVideo";
 
@@ -221,18 +222,18 @@ function createMediaItem(node: InstagramNode): InstagramMedia {
 	};
 }
 
-// Helper: Parse HTML to find media if JSON method fails
+//  Parse HTML to find media if JSON method fails
 function extractMediaFromHtml(html: string): InstagramMedia[] {
 	const media: InstagramMedia[] = [];
 
-	// 1. Try to find the main image in the embed
+	// Try to find the main image in the embed
 	// Look for <img class="EmbeddedMediaImage" ... src="..." ...>
 	const imgMatch = /<img[^>]*class="EmbeddedMediaImage"[^>]*src="([^"]+)"/.exec(
 		html,
 	);
 	let thumbnailUrl = imgMatch?.[1];
 
-	// 2. Try to find higher resolution in srcset
+	// Try to find higher resolution in srcset
 	// srcset="url 640w, url 750w, ..."
 	const srcsetMatch =
 		/<img[^>]*class="EmbeddedMediaImage"[^>]*srcset="([^"]+)"/.exec(html);
@@ -254,7 +255,7 @@ function extractMediaFromHtml(html: string): InstagramMedia[] {
 	// Decode HTML entities in URL (e.g. &amp; -> &)
 	const decodedThumbnail = thumbnailUrl?.replaceAll("&amp;", "&");
 
-	// 3. Try to extract video URL if this is a video post
+	// Try to extract video URL if this is a video post
 	let videoUrl: string | undefined;
 
 	// Check if it's likely a video (Reel/Video post)
@@ -304,7 +305,7 @@ function extractMediaFromHtml(html: string): InstagramMedia[] {
 		}
 	}
 
-	// 4. Create media item based on what we found
+	// Create media item based on what we found
 	if (videoUrl && decodedThumbnail) {
 		// We found both video and thumbnail
 		media.push({
