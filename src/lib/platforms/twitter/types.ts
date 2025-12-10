@@ -45,41 +45,6 @@ export interface TwitterUser {
 }
 
 /**
- * Twitter Syndication API Response
- */
-export interface TwitterSyndicationResponse {
-	__typename: "Tweet";
-	/** Tweet ID as string */
-	id_str: string;
-	/** Tweet text content */
-	text: string;
-	/** User who posted the tweet */
-	user: TwitterUser;
-	/** Array of media attached to the tweet */
-	mediaDetails?: TwitterMediaDetails[];
-	/** Creation timestamp */
-	created_at?: string;
-	/** Conversation ID */
-	conversation_id_str?: string;
-	/** Language code */
-	lang?: string;
-}
-
-/**
- * Processed video information with quality label
- */
-export interface ProcessedVideo {
-	/** Direct URL to video file */
-	url: string;
-	/** Quality label (high, medium, low) */
-	quality: "high" | "low" | "medium";
-	/** Bitrate in bps */
-	bitrate: number;
-	/** Content type */
-	contentType: string;
-}
-
-/**
  * Processed image information
  */
 export interface ProcessedImage {
@@ -124,8 +89,6 @@ export interface ExtractTwitterMediaOptions {
 		info: (message: string, context?: Record<string, unknown>) => void;
 		warn: (message: string, context?: Record<string, unknown>) => void;
 	};
-	/** Preferred video quality (default: 'high') */
-	preferredQuality?: "high" | "low" | "medium";
 }
 
 /**
@@ -140,18 +103,4 @@ export interface ExtractionResult {
 	error?: string;
 	/** Method used for extraction */
 	method: "syndication";
-}
-
-/**
- * Parsed Twitter URL components
- */
-export interface ParsedTwitterUrl {
-	/** Tweet ID */
-	tweetId: string;
-	/** Username (if available) */
-	username?: string;
-	/** Original URL */
-	originalUrl: string;
-	/** Whether URL is valid */
-	isValid: boolean;
 }

@@ -1,10 +1,34 @@
+import { z } from "zod";
+
 import type {
 	ExtractedTwitterMedia,
 	ExtractionResult,
 	ExtractTwitterMediaOptions,
-	TwitterSyndicationResponse,
 	TwitterVideoVariant,
 } from "./types";
+
+const TwitterVideoVariantSchema = z.object({
+	bitrate: z.number().optional(),
+	content_type: z.string(),
+	url: z.url(),
+});
+
+const TwitterMediaDetailsSchema = z.object({
+	ext_alt_text: z.string().optional(),
+	media_url_https: z.url(),
+	type: z.enum(["photo", "video", "animated_gif"]),
+	video_info: z
+		.object({
+			variants: z.array(TwitterVideoVariantSchema),
+		})
+		.optional(),
+});
+
+const TwitterSyndicationResponseSchema = z.object({
+	__typename: z.literal("Tweet"),
+	id_str: z.string(),
+	mediaDetails: z.array(TwitterMediaDetailsSchema).optional(),
+});
 
 const TWITTER_SYNDICATION_API =
 	"https://cdn.syndication.twimg.com/tweet-result";
@@ -38,18 +62,35 @@ export async function extractTwitterMediaUrls(
 				"User-Agent":
 					"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 			},
+			signal: AbortSignal.timeout(5000),
 		},
 	);
 
 	if (!response.ok) {
+		logger.warn("Twitter syndication API request failed", {
+			status: response.status,
+			statusText: response.statusText,
+			tweetId,
+		});
 		return {
-			error: "Failed to fetch tweet",
+			error: `Failed to fetch tweet: ${response.status} ${response.statusText}`,
 			method: "syndication",
 			success: false,
 		};
 	}
 
-	const data = (await response.json()) as TwitterSyndicationResponse;
+	const parseResult = TwitterSyndicationResponseSchema.safeParse(
+		await response.json(),
+	);
+	if (!parseResult.success) {
+		logger.warn("Invalid API response structure", { error: parseResult.error });
+		return {
+			error: "Invalid API response",
+			method: "syndication",
+			success: false,
+		};
+	}
+	const data = parseResult.data;
 
 	logger.debug("Fetched tweet data", { data });
 
@@ -100,21 +141,34 @@ function extractTweetId(url: string): null | string {
 	try {
 		const urlObj = new URL(url);
 
-		// Pattern 1: /status/1234567890
+		// Validate hostname is Twitter/X
+		const allowedHosts = [
+			"twitter.com",
+			"x.com",
+			"www.twitter.com",
+			"www.x.com",
+			"mobile.twitter.com",
+			"mobile.x.com",
+		];
+		if (!allowedHosts.includes(urlObj.hostname.toLowerCase())) {
+			return null;
+		}
+
+		// Validate protocol
+		if (urlObj.protocol !== "https:") {
+			return null;
+		}
+
 		const statusMatch = /\/status\/(\d+)/.exec(urlObj.pathname);
 		if (statusMatch?.[1]) {
-			return statusMatch[1];
+			const tweetId = statusMatch[1];
+			// Validate tweet ID length (Twitter IDs are max 19-20 digits)
+			if (tweetId.length > 0 && tweetId.length <= 20) {
+				return tweetId;
+			}
 		}
-
-		// Pattern 2: /i/web/status/1234567890
-		const webStatusMatch = /\/i\/web\/status\/(\d+)/.exec(urlObj.pathname);
-		if (webStatusMatch?.[1]) {
-			return webStatusMatch[1];
-		}
-
 		return null;
 	} catch {
-		// Invalid URL
 		return null;
 	}
 }
