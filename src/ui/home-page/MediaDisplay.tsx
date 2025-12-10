@@ -6,7 +6,11 @@ interface MediaDisplayProps {
 function isValidMediaUrl(url: string): boolean {
 	try {
 		const parsedUrl = new URL(url);
-		return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+		return (
+			parsedUrl.protocol === "http:" ||
+			parsedUrl.protocol === "https:" ||
+			parsedUrl.protocol === "data:"
+		);
 	} catch {
 		return false;
 	}
