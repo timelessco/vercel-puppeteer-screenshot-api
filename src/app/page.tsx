@@ -43,9 +43,13 @@ export default function Home() {
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
 			}
-			allImageUrls.forEach((url) => {
-				URL.revokeObjectURL(url);
-			});
+	useEffect(() => {
+		return () => {
+			if (imgUrl) {
+				URL.revokeObjectURL(imgUrl);
+			}
+		};
+	}, [imgUrl]);
 		};
 	}, [imgUrl, allImageUrls]);
 
