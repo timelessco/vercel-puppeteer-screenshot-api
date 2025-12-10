@@ -233,21 +233,24 @@ export async function getTwitterScreenshot(
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("X/Twitter URL detected");
-	let page: GetOrCreatePageReturnType | null = null;
 
-	// Extract media using Syndication API
-	const { allImages, allVideos } = await extractTwitterMedia(options);
+	const [{ allImages, allVideos }, page] = await Promise.all([
+		extractTwitterMedia(options),
+		(async () => {
+			const p = await getOrCreatePage({ browser, logger });
+			await setupBrowserPage({
+				logger,
+				mediaFeatures: [
+					{ name: "prefers-color-scheme", value: "light" },
+					{ name: "prefers-reduced-motion", value: "reduce" },
+				],
+				page: p,
+			});
+			return p;
+		})(),
+	]);
 
 	try {
-		page = await getOrCreatePage({ browser, logger });
-		await setupBrowserPage({
-			logger,
-			mediaFeatures: [
-				{ name: "prefers-color-scheme", value: "light" },
-				{ name: "prefers-reduced-motion", value: "reduce" },
-			],
-			page,
-		});
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
@@ -281,6 +284,6 @@ export async function getTwitterScreenshot(
 		});
 		return null;
 	} finally {
-		if (page) await closePageSafely({ logger, page });
+		await closePageSafely({ logger, page });
 	}
 }
