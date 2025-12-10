@@ -1,5 +1,6 @@
 import type { ElementHandle } from "rebrowser-puppeteer-core";
 
+import { extractTwitterMediaUrls } from "@/lib/platforms/twitter/extractMediaUrls";
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
 import {
@@ -13,7 +14,6 @@ import {
 	gotoPage,
 	handleDialogs,
 } from "@/lib/puppeteer/navigation/navigationUtils";
-import { extractTwitterMediaUrls } from "@/lib/twitter/extractMediaUrls";
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { GetScreenshotOptions, ScreenshotResult } from "@/app/try/route";
 
