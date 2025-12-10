@@ -29,13 +29,6 @@ interface GetTwitterScreenshotHelperOptions {
 
 interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 	browser: LaunchBrowserReturnType;
-	/** Whether to extract media URLs before taking screenshot */
-	extractMediaUrls?: boolean;
-}
-
-interface ExtractTwitterMediaResult {
-	allImages: Buffer[];
-	allVideos: string[];
 }
 
 /**
@@ -158,6 +151,11 @@ async function getTwitterScreenshotHelper(
 	}
 }
 
+type ExtractTwitterMediaResult = Pick<
+	ScreenshotResult,
+	"allImages" | "allVideos"
+>;
+
 /**
  * Extracts media (images and videos) from Twitter post using Syndication API
  * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, and logger
@@ -231,32 +229,39 @@ export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
 ): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
+	let page: GetOrCreatePageReturnType | null = null;
 
 	logger.info("X/Twitter URL detected");
 
-	const [{ allImages, allVideos }, page] = await Promise.all([
-		extractTwitterMedia(options),
-		(async () => {
-			const p = await getOrCreatePage({ browser, logger });
-			await setupBrowserPage({
-				logger,
-				mediaFeatures: [
-					{ name: "prefers-color-scheme", value: "light" },
-					{ name: "prefers-reduced-motion", value: "reduce" },
-				],
-				page: p,
-			});
-			return p;
-		})(),
-	]);
-
 	try {
+		const [{ allImages, allVideos }, resolvedPage] = await Promise.all([
+			extractTwitterMedia(options),
+			(async () => {
+				const p = await getOrCreatePage({ browser, logger });
+				await setupBrowserPage({
+					logger,
+					mediaFeatures: [
+						{ name: "prefers-color-scheme", value: "light" },
+						{ name: "prefers-reduced-motion", value: "reduce" },
+					],
+					page: p,
+				});
+				return p;
+			})(),
+		]);
+
+		page = resolvedPage;
+
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
 		await handleDialogs({ logger, page });
 
-		const screenshot = await getTwitterScreenshotHelper({ logger, page, url });
+		const screenshot = await getTwitterScreenshotHelper({
+			logger,
+			page,
+			url,
+		});
 		if (screenshot) {
 			const metaData = await getMetadata({
 				//here we set the isPageScreenshot to true since the screenshot is 2x
@@ -284,6 +289,6 @@ export async function getTwitterScreenshot(
 		});
 		return null;
 	} finally {
-		await closePageSafely({ logger, page });
+		if (page) await closePageSafely({ logger, page });
 	}
 }

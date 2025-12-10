@@ -57,7 +57,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 			});
 
 		logger.info("all videos", { allVideos });
-		logger.info("all images", { allImages });
+		logger.info("all images", { allImages: allImages.length });
 
 		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(

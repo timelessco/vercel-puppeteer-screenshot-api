@@ -3,17 +3,24 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
+import type { GetMetadataReturnType } from "@/lib/puppeteer/core/getMetadata";
 import { GithubIcon } from "@/ui/home-page/GithubIcon";
 import { MediaDisplay } from "@/ui/home-page/MediaDisplay";
 import { ScreenshotForm } from "@/ui/home-page/ScreenshotForm";
 import { Spotlight } from "@/ui/home-page/Spotlight";
 
-interface ApiResponse {
-	allImages?: Array<{ data: number[] }>;
-	allVideos?: string[];
-	metaData?: unknown;
-	screenshot?: { data: number[] };
+interface ScreenshotResponseBuffer {
+	data: number[];
+	type: "buffer";
 }
+
+interface ScreenshotResponse {
+	allImages: ScreenshotResponseBuffer[];
+	allVideos: string[];
+	metaData: GetMetadataReturnType;
+	screenshot: ScreenshotResponseBuffer;
+}
+
 function bufferToBase64(buffer: number[]): string {
 	const base64 = btoa(
 		buffer.reduce(
@@ -38,16 +45,12 @@ export default function Home() {
 	const [verbose, setVerbose] = useState<boolean>(true);
 
 	useEffect(() => {
-		// Cleanup function to revoke object URLs
 		return () => {
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
 			}
-			allImageUrls.forEach((url) => {
-				URL.revokeObjectURL(url);
-			});
 		};
-	}, [imgUrl, allImageUrls]);
+	}, [imgUrl]);
 
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -97,7 +100,7 @@ export default function Home() {
 				throw new Error(`Failed to capture screenshot: ${res.statusText}`);
 			}
 
-			const data = (await res.json()) as ApiResponse;
+			const data = (await res.json()) as ScreenshotResponse;
 
 			// Revoke previous URLs if exist
 			if (imgUrl) {
@@ -108,13 +111,11 @@ export default function Home() {
 			});
 
 			// Set main screenshot
-			if (data.screenshot?.data) {
-				const imageUrl = bufferToBase64(data.screenshot.data);
-				setImgUrl(imageUrl);
-			}
+			const imageUrl = bufferToBase64(data.screenshot.data);
+			setImgUrl(imageUrl);
 
 			// Set Instagram carousel images
-			if (data.allImages && data.allImages.length > 0) {
+			if (data.allImages.length > 0) {
 				const imageUrls = data.allImages.map((img) => bufferToBase64(img.data));
 				setAllImageUrls(imageUrls);
 			} else {
@@ -122,7 +123,7 @@ export default function Home() {
 			}
 
 			// Set Twitter video URLs
-			if (data.allVideos && data.allVideos.length > 0) {
+			if (data.allVideos.length > 0) {
 				setAllVideoUrls(data.allVideos);
 			} else {
 				setAllVideoUrls([]);
@@ -165,7 +166,7 @@ export default function Home() {
 	}
 
 	return (
-		<main className="relative min-h-screen overflow-auto bg-black bg-grid-white/02">
+		<main className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-black bg-grid-white/02">
 			<Spotlight
 				className="-top-40 left-0 md:-top-20 md:left-60"
 				fill="white"
