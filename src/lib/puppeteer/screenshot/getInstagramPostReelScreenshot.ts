@@ -3,6 +3,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
+import { logger } from "@sentry/nextjs";
+
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { ScreenshotResult } from "@/app/try/route";
 
@@ -80,7 +82,9 @@ export async function getInstagramPostReelScreenshot(
 		logger.info("Instagram POST or REEL detected");
 
 		const media = await extractMediaFromEmbed(url);
-		console.log("!!@#!@#!@#!@#!@media", media);
+		logger.info("Extracted media from Instagram embed", {
+			count: media.length,
+		});
 
 		const results = await Promise.allSettled(
 			media.map((m) =>
@@ -115,6 +119,65 @@ export async function getInstagramPostReelScreenshot(
 
 		return null;
 	}
+}
+
+/**
+ * Extracts media URLs from HTML img tags when contextJSON is not available
+ * This is used as a fallback for single posts and reels
+ * @param {string} html - The HTML content to parse
+ * @returns {InstagramMedia[]} Array of extracted media items
+ */
+function extractMediaFromHTML(html: string): InstagramMedia[] {
+	const results: InstagramMedia[] = [];
+	const seen = new Set<string>();
+
+	// Extract image URLs from img tags
+	const imgRegex = /<img[^>]*src="([^"]+)"[^>]*>/gi;
+	let imgMatch;
+
+	while ((imgMatch = imgRegex.exec(html)) !== null) {
+		const src = imgMatch[1];
+		// Filter for actual post images (not profile pics or icons)
+		// t51.2885-15 identifies Instagram post images
+		if (
+			(src.includes("fbcdn.net") || src.includes("cdninstagram.com")) &&
+			src.includes("t51.2885-15") &&
+			!seen.has(src)
+		) {
+			seen.add(src);
+			results.push({
+				type: "image",
+				url: src,
+			});
+		}
+		logger.info("Extracted image from HTML", { src });
+	}
+
+	// Try to extract video URLs if present
+	const videoUrlRegex = /"video_url":"(https:\/\/[^"]+)"/g;
+	let videoMatch;
+
+	while ((videoMatch = videoUrlRegex.exec(html)) !== null) {
+		const videoUrl = videoMatch[1].replaceAll(String.raw`\u0026`, "&");
+		if (!seen.has(videoUrl)) {
+			seen.add(videoUrl);
+
+			// Try to find corresponding thumbnail from the images we already extracted
+			const thumbnail = results.find((r) => r.type === "image")?.url;
+			logger.info("Found thumbnail for video", { thumbnail });
+
+			results.push({
+				thumbnail,
+				type: "video",
+				url: videoUrl,
+			});
+		}
+	}
+
+	console.log(
+		`Extracted ${results.length} media items from HTML fallback method`,
+	);
+	return results;
 }
 
 async function extractMediaFromEmbed(url: string): Promise<InstagramMedia[]> {
@@ -160,9 +223,14 @@ async function extractMediaFromEmbed(url: string): Promise<InstagramMedia[]> {
 
 		const embedDataRaw = JSON.parse(embedDataMatch[1]);
 
+		logger.info("!!@#!@#!@#!@#!@embedDataRaw", { embedDataRaw });
+
+		// Fallback: Extract from HTML when contextJSON is null (single posts/reels)
 		if (!embedDataRaw?.contextJSON) {
-			console.error("No contextJSON in embed data");
-			return [];
+			console.log(
+				"No contextJSON in embed data - using HTML fallback for single post/reel",
+			);
+			return extractMediaFromHTML(html);
 		}
 
 		// Parse the contextJSON which contains the actual media data
@@ -170,10 +238,14 @@ async function extractMediaFromEmbed(url: string): Promise<InstagramMedia[]> {
 			embedDataRaw.contextJSON as string,
 		) as InstagramEmbedData;
 
+		logger.info("!!@#!@#!@#!@#!@contextData", { contextData });
+
 		// Extract media from gql_data
 		const shortcodeMedia =
 			contextData.gql_data?.xdt_shortcode_media ??
 			contextData.gql_data?.shortcode_media;
+
+		logger.info("!!@#!@#!@#!@#!@shortcodeMedia", { shortcodeMedia });
 
 		if (!shortcodeMedia) {
 			console.error("No shortcode media found in context data");
