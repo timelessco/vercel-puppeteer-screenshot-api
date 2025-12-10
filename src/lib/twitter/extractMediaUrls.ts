@@ -100,21 +100,34 @@ function extractTweetId(url: string): null | string {
 	try {
 		const urlObj = new URL(url);
 
-		// Pattern 1: /status/1234567890
+		// Validate hostname is Twitter/X
+		const allowedHosts = [
+			"twitter.com",
+			"x.com",
+			"www.twitter.com",
+			"www.x.com",
+			"mobile.twitter.com",
+			"mobile.x.com",
+		];
+		if (!allowedHosts.includes(urlObj.hostname.toLowerCase())) {
+			return null;
+		}
+
+		// Validate protocol
+		if (urlObj.protocol !== "https:") {
+			return null;
+		}
+
 		const statusMatch = /\/status\/(\d+)/.exec(urlObj.pathname);
 		if (statusMatch?.[1]) {
-			return statusMatch[1];
+			const tweetId = statusMatch[1];
+			// Validate tweet ID length (Twitter IDs are max 19-20 digits)
+			if (tweetId.length > 0 && tweetId.length <= 20) {
+				return tweetId;
+			}
 		}
-
-		// Pattern 2: /i/web/status/1234567890
-		const webStatusMatch = /\/i\/web\/status\/(\d+)/.exec(urlObj.pathname);
-		if (webStatusMatch?.[1]) {
-			return webStatusMatch[1];
-		}
-
 		return null;
 	} catch {
-		// Invalid URL
 		return null;
 	}
 }
