@@ -116,19 +116,10 @@ export default function Home() {
 			setImgUrl(imageUrl);
 
 			// Set all extracted images
-			if (data.allImages.length > 0) {
-				const imageUrls = data.allImages.map((img) => bufferToBase64(img.data));
-				setAllImageUrls(imageUrls);
-			} else {
-				setAllImageUrls([]);
-			}
+			setAllImageUrls(data.allImages.map((img) => bufferToBase64(img.data)));
 
 			// Set Twitter video URLs
-			if (data.allVideos.length > 0) {
-				setAllVideoUrls(data.allVideos);
-			} else {
-				setAllVideoUrls([]);
-			}
+			setAllVideoUrls(data.allVideos);
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
 			alert(
