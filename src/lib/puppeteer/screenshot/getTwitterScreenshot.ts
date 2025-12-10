@@ -15,9 +15,9 @@ import {
 } from "@/lib/puppeteer/navigation/navigationUtils";
 import { extractTwitterMediaUrls } from "@/lib/twitter/extractMediaUrls";
 import { getErrorMessage } from "@/utils/errorUtils";
-import type { GetScreenshotOptions } from "@/app/try/route";
+import type { GetScreenshotOptions, ScreenshotResult } from "@/app/try/route";
 
-import { getMetadata, type GetMetadataReturnType } from "../core/getMetadata";
+import { getMetadata } from "../core/getMetadata";
 import { captureScreenshot } from "./captureScreenshot";
 import { fetchImageDirectly } from "./getImageScreenshot";
 
@@ -31,17 +31,6 @@ interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
 	browser: LaunchBrowserReturnType;
 	/** Whether to extract media URLs before taking screenshot */
 	extractMediaUrls?: boolean;
-}
-
-interface TwitterScreenshotResult {
-	/** Image URLs */
-	allImages: Buffer[];
-	/** Array of video URLs */
-	allVideos: string[];
-	/** Metadata from the page */
-	metaData: GetMetadataReturnType;
-	/** Screenshot buffer */
-	screenshot: Buffer;
 }
 
 interface ExtractTwitterMediaResult {
@@ -240,7 +229,7 @@ async function extractTwitterMedia(
 
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
-): Promise<null | TwitterScreenshotResult> {
+): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 
 	logger.info("X/Twitter URL detected");
