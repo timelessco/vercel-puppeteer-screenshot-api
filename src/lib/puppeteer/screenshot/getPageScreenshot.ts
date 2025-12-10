@@ -57,7 +57,12 @@ export async function getPageScreenshot(
 			url,
 		});
 		logger.info("Screenshot captured successfully");
-		return { allImages: [], metaData, screenshot };
+		return {
+			allImages: [],
+			allVideos: [],
+			metaData,
+			screenshot,
+		};
 	} catch (error) {
 		// If navigation fails, create an error page
 		logger.error("Navigation failed, creating error page", {

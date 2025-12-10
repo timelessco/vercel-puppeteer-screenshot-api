@@ -1,5 +1,6 @@
 import type { ElementHandle } from "rebrowser-puppeteer-core";
 
+import { extractTwitterMediaUrls } from "@/lib/platforms/twitter/extractMediaUrls";
 import { setupBrowserPage } from "@/lib/puppeteer/browser-setup/setupBrowserPage";
 import type { LaunchBrowserReturnType } from "@/lib/puppeteer/browser/launchBrowser";
 import {
@@ -18,11 +19,16 @@ import type { GetScreenshotOptions, ScreenshotResult } from "@/app/try/route";
 
 import { getMetadata } from "../core/getMetadata";
 import { captureScreenshot } from "./captureScreenshot";
+import { fetchImageDirectly } from "./getImageScreenshot";
 
 interface GetTwitterScreenshotHelperOptions {
 	logger: GetTwitterScreenshotOptions["logger"];
 	page: GetOrCreatePageReturnType;
 	url: GetTwitterScreenshotOptions["url"];
+}
+
+interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
+	browser: LaunchBrowserReturnType;
 }
 
 /**
@@ -145,40 +151,117 @@ async function getTwitterScreenshotHelper(
 	}
 }
 
-interface GetTwitterScreenshotOptions extends GetScreenshotOptions {
-	browser: LaunchBrowserReturnType;
-}
+type ExtractTwitterMediaResult = Pick<
+	ScreenshotResult,
+	"allImages" | "allVideos"
+>;
 
 /**
- * Captures screenshot from X/Twitter with special handling for tweets and profiles
- * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
- * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or null if not a Twitter URL
+ * Extracts media (images and videos) from Twitter post using Syndication API
+ * @param {GetTwitterScreenshotOptions} options - Options containing browser, url, and logger
+ * @returns {Promise<ExtractTwitterMediaResult>} Object with allImages and allVideos arrays
  */
+async function extractTwitterMedia(
+	options: GetTwitterScreenshotOptions,
+): Promise<ExtractTwitterMediaResult> {
+	const { logger, url } = options;
+
+	try {
+		logger.info(
+			"Attempting to extract Twitter media URLs before screenshot (Syndication API)",
+		);
+
+		const extractionResult = await extractTwitterMediaUrls({
+			logger,
+			url,
+		});
+
+		logger.info("Extraction result", { extractionResult });
+
+		if (extractionResult.success && extractionResult.media) {
+			const results = await Promise.allSettled(
+				extractionResult.media.images.map((image) =>
+					fetchImageDirectly({ ...options, url: image.url }),
+				),
+			);
+
+			const allImages = results
+				.map((result, index) => {
+					if (result.status === "fulfilled") {
+						return result.value;
+					}
+					logger.warn("Failed to fetch Twitter image", {
+						index,
+						reason: result.reason,
+					});
+					return null;
+				})
+				.filter((buffer): buffer is Buffer => buffer !== null);
+
+			logger.info("Successfully fetched Twitter image buffers", {
+				fetched: allImages.length,
+				total: extractionResult.media.images.length,
+			});
+
+			const allVideos = extractionResult.media.videos;
+
+			logger.info("✓ Successfully extracted Twitter media URLs", {
+				images: allImages.length,
+				videos: allVideos.length,
+			});
+
+			return { allImages, allVideos };
+		}
+
+		logger.warn("Syndication API failed, will capture screenshot only", {
+			error: extractionResult.error,
+		});
+		return { allImages: [], allVideos: [] };
+	} catch (error) {
+		logger.warn("Error during media extraction, continuing with screenshot", {
+			error: getErrorMessage(error),
+		});
+		return { allImages: [], allVideos: [] };
+	}
+}
+
 export async function getTwitterScreenshot(
 	options: GetTwitterScreenshotOptions,
 ): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
-
-	logger.info("X/Twitter URL detected");
 	let page: GetOrCreatePageReturnType | null = null;
 
+	logger.info("X/Twitter URL detected");
+
 	try {
-		// Complete page navigation sequence
-		page = await getOrCreatePage({ browser, logger });
-		await setupBrowserPage({
-			logger,
-			mediaFeatures: [
-				{ name: "prefers-color-scheme", value: "light" },
-				{ name: "prefers-reduced-motion", value: "reduce" },
-			],
-			page,
-		});
+		const [{ allImages, allVideos }, resolvedPage] = await Promise.all([
+			extractTwitterMedia(options),
+			(async () => {
+				const p = await getOrCreatePage({ browser, logger });
+				await setupBrowserPage({
+					logger,
+					mediaFeatures: [
+						{ name: "prefers-color-scheme", value: "light" },
+						{ name: "prefers-reduced-motion", value: "reduce" },
+					],
+					page: p,
+				});
+				return p;
+			})(),
+		]);
+
+		page = resolvedPage;
+
 		await gotoPage({ logger, page, url });
 		if (shouldGetPageMetrics) await getPageMetrics({ logger, page });
 		await cloudflareChecker({ logger, page });
 		await handleDialogs({ logger, page });
 
-		const screenshot = await getTwitterScreenshotHelper({ logger, page, url });
+		const screenshot = await getTwitterScreenshotHelper({
+			logger,
+			page,
+			url,
+		});
 		if (screenshot) {
 			const metaData = await getMetadata({
 				//here we set the isPageScreenshot to true since the screenshot is 2x
@@ -188,7 +271,12 @@ export async function getTwitterScreenshot(
 				url,
 			});
 			logger.info("X/Twitter screenshot captured successfully");
-			return { allImages: [], metaData, screenshot };
+			return {
+				allImages,
+				allVideos,
+				metaData,
+				screenshot,
+			};
 		}
 
 		logger.info(

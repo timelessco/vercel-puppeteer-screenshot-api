@@ -3,13 +3,38 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
+import type { GetMetadataReturnType } from "@/lib/puppeteer/core/getMetadata";
 import { GithubIcon } from "@/ui/home-page/GithubIcon";
+import { MediaDisplay } from "@/ui/home-page/MediaDisplay";
+import { ScreenshotForm } from "@/ui/home-page/ScreenshotForm";
 import { Spotlight } from "@/ui/home-page/Spotlight";
-import { ToggleButton } from "@/ui/home-page/ToggleButton";
-import { StyledButton } from "@/components/StyledButton";
+
+interface ScreenshotResponseBuffer {
+	data: number[];
+	type: "buffer";
+}
+
+interface ScreenshotResponse {
+	allImages: ScreenshotResponseBuffer[];
+	allVideos: string[];
+	metaData: GetMetadataReturnType;
+	screenshot: ScreenshotResponseBuffer;
+}
+
+function bufferToBase64(buffer: number[]): string {
+	const u8 = new Uint8Array(buffer);
+	const CHUNK_SIZE = 32_768; // 32KB chunks to avoid stack overflow
+	const chunks: string[] = [];
+	for (let i = 0; i < u8.length; i += CHUNK_SIZE) {
+		chunks.push(String.fromCodePoint(...u8.subarray(i, i + CHUNK_SIZE)));
+	}
+	return `data:image/png;base64,${btoa(chunks.join(""))}`;
+}
 
 export default function Home() {
 	const [imgUrl, setImgUrl] = useState<string>("");
+	const [allImageUrls, setAllImageUrls] = useState<string[]>([]);
+	const [allVideoUrls, setAllVideoUrls] = useState<string[]>([]);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [time, setTime] = useState<number>(0);
 	const [duration, setDuration] = useState<number>(0);
@@ -20,7 +45,6 @@ export default function Home() {
 	const [verbose, setVerbose] = useState<boolean>(true);
 
 	useEffect(() => {
-		// Cleanup function to revoke object URL when component unmounts or imgUrl changes
 		return () => {
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
@@ -48,6 +72,8 @@ export default function Home() {
 
 		setDuration(0);
 		setTime(0);
+		setAllVideoUrls([]);
+		setAllImageUrls([]);
 
 		const timePoint = Date.now();
 		const intervalTimer = startDuration();
@@ -75,21 +101,25 @@ export default function Home() {
 				throw new Error(`Failed to capture screenshot: ${res.statusText}`);
 			}
 
-			const data = (await res.json()) as { screenshot?: { data: number[] } };
+			const data = (await res.json()) as ScreenshotResponse;
 
-			// Revoke previous URL if exists
+			// Revoke previous URLs if exist
 			if (imgUrl) {
 				URL.revokeObjectURL(imgUrl);
 			}
+			allImageUrls.forEach((url) => {
+				URL.revokeObjectURL(url);
+			});
 
-			const base64 = btoa(
-				data.screenshot?.data.reduce(
-					(acc: string, byte: number) => acc + String.fromCodePoint(byte),
-					"",
-				) ?? "",
-			);
-			const imageUrl = `data:image/png;base64,${base64}`;
+			// Set main screenshot
+			const imageUrl = bufferToBase64(data.screenshot.data);
 			setImgUrl(imageUrl);
+
+			// Set all extracted images
+			setAllImageUrls(data.allImages.map((img) => bufferToBase64(img.data)));
+
+			// Set Twitter video URLs
+			setAllVideoUrls(data.allVideos);
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
 			alert(
@@ -128,13 +158,13 @@ export default function Home() {
 	}
 
 	return (
-		<main className="relative h-full overflow-hidden bg-black bg-grid-white/02">
+		<main className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-black bg-grid-white/02">
 			<Spotlight
 				className="-top-40 left-0 md:-top-20 md:left-60"
 				fill="white"
 			/>
 
-			<div className="relative z-20 flex h-full w-full flex-col items-center justify-center px-4 text-white">
+			<div className="relative z-20 flex w-full flex-col items-center justify-center px-4 py-16 text-white">
 				<section
 					aria-label="Hero section"
 					className="mb-16 max-w-lg text-center"
@@ -148,104 +178,23 @@ export default function Home() {
 					</p>
 				</section>
 
-				<form
-					aria-label="Form to take screenshot"
-					className="w-full max-w-2xl"
+				<ScreenshotForm
+					fullPage={fullPage}
+					headless={headless}
+					loading={loading}
+					onFullPageToggle={() => {
+						setFullPage((prev) => !prev);
+					}}
+					onHeadlessToggle={() => {
+						setHeadless((prev) => !prev);
+					}}
 					onSubmit={(e) => void handleSubmit(e)}
-				>
-					<div className="flex flex-col space-y-3">
-						<label
-							className="flex items-center justify-between text-2xl"
-							htmlFor="url"
-						>
-							<span>Site url</span>
-
-							<span className="font-mono text-lg">{getTimeDisplay()}</span>
-						</label>
-
-						<div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-							<input
-								aria-label="Enter website URL to screenshot"
-								className="flex-1 rounded-xl border border-neutral-800 bg-black/50 px-4 py-2.5 text-lg text-neutral-300 transition-colors duration-200 focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 focus:outline-none"
-								disabled={loading}
-								id="url"
-								name="url"
-								placeholder="https://example.com"
-								required
-								type="url"
-							/>
-
-							<div className="flex flex-wrap gap-3">
-								<StyledButton
-									aria-label={
-										loading ? "Loading screenshot" : "Take screenshot"
-									}
-									className="group relative grid overflow-hidden rounded-xl px-5 py-2.5 shadow-[0_1000px_0_0_hsl(0_0%_20%)_inset] transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50"
-									disabled={loading}
-									type="submit"
-								>
-									<span className="absolute inset-0 h-full w-full animate-flip overflow-hidden rounded-xl mask-[linear-gradient(white,transparent_50%)] before:absolute before:inset-[0_auto_auto_50%] before:aspect-square before:w-[200%] before:[translate:-50%_-15%] before:-rotate-90 before:animate-rotate before:bg-[conic-gradient(from_0deg,transparent_0_340deg,white_360deg)]" />
-
-									<span className="absolute inset-px rounded-[11px] bg-neutral-950 transition-all duration-200 group-hover:bg-neutral-900" />
-
-									<span className="z-10 flex items-center space-x-2 text-lg text-neutral-300">
-										{loading && (
-											<svg
-												aria-hidden="true"
-												className="animate-spin"
-												fill="currentColor"
-												height="16"
-												viewBox="0 0 256 256"
-												width="16"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path d="M232,128a104,104,0,0,1-208,0c0-41,23.81-78.36,60.66-95.27a8,8,0,0,1,6.68,14.54C60.15,61.59,40,93.27,40,128a88,88,0,0,0,176,0c0-34.73-20.15-66.41-51.34-80.73a8,8,0,0,1,6.68-14.54C208.19,49.64,232,87,232,128Z" />
-											</svg>
-										)}
-
-										<span>{loading ? "Loading..." : "Screenshot"}</span>
-									</span>
-								</StyledButton>
-
-								<ToggleButton
-									aria-label={`Full page capture: ${fullPage ? "enabled" : "disabled"}`}
-									disabled={loading}
-									isActive={fullPage}
-									labelOff="Full Page: OFF"
-									labelOn="Full Page: ON"
-									onToggle={() => {
-										setFullPage((prev) => !prev);
-									}}
-								/>
-							</div>
-						</div>
-					</div>
-
-					<div className="mt-2 flex flex-wrap gap-2">
-						{process.env.NODE_ENV !== "production" && (
-							<ToggleButton
-								aria-label={`Headless mode: ${headless ? "enabled" : "disabled"}`}
-								disabled={loading}
-								isActive={headless}
-								labelOff="Headless: OFF"
-								labelOn="Headless: ON"
-								onToggle={() => {
-									setHeadless((prev) => !prev);
-								}}
-							/>
-						)}
-						<ToggleButton
-							aria-label={`Verbose mode: ${verbose ? "enabled" : "disabled"}`}
-							disabled={loading}
-							isActive={verbose}
-							labelOff="Verbose: OFF"
-							labelOn="Verbose: ON"
-							onToggle={() => {
-								setVerbose((prev) => !prev);
-							}}
-						/>
-					</div>
-				</form>
+					onVerboseToggle={() => {
+						setVerbose((prev) => !prev);
+					}}
+					timeDisplay={getTimeDisplay()}
+					verbose={verbose}
+				/>
 
 				{imgUrl && (
 					<section
@@ -263,6 +212,8 @@ export default function Home() {
 						</div>
 					</section>
 				)}
+
+				<MediaDisplay allImageUrls={allImageUrls} allVideoUrls={allVideoUrls} />
 			</div>
 
 			<div

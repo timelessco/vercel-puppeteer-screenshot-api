@@ -50,13 +50,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 	const { logger } = config;
 
 	try {
-		const { allImages, metaData, screenshot } = await retryWithBackoff({
-			callback: () => getScreenshot(config),
-			options: { logger },
-		});
+		const { allImages, allVideos, metaData, screenshot } =
+			await retryWithBackoff({
+				callback: () => getScreenshot(config),
+				options: { logger },
+			});
+
+		logger.info("all videos", { allVideos });
+		logger.info("all images", { allImages: allImages.length });
+
 		logger.logSummary(true, screenshot.length, metaData ?? undefined);
 		return NextResponse.json(
-			{ allImages, metaData, screenshot },
+			{ allImages, allVideos, metaData, screenshot },
 			{ headers: new Headers(RESPONSE_HEADERS), status: 200 },
 		);
 	} catch (error) {
@@ -75,9 +80,11 @@ export type GetScreenshotOptions = RequestConfig;
 /**
  * Standard screenshot result returned by all screenshot handlers
  * allImages contains carousel images for Instagram, empty array for other handlers
+ * allVideos contains video URLs for Twitter, empty array for other handlers
  */
 export interface ScreenshotResult {
 	allImages: Buffer[];
+	allVideos: string[];
 	metaData: GetMetadataReturnType;
 	screenshot: Buffer;
 }
@@ -103,7 +110,12 @@ async function getScreenshot(
 			try {
 				const buffer = await fetchImageDirectly(newConfig);
 				logger.info("Successfully fetched image directly without browser");
-				return { allImages: [], metaData: null, screenshot: buffer };
+				return {
+					allImages: [],
+					allVideos: [],
+					metaData: null,
+					screenshot: buffer,
+				};
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
 					error,
@@ -123,7 +135,12 @@ async function getScreenshot(
 			try {
 				const buffer = await fetchImageDirectly(newConfig);
 				logger.info("Successfully fetched ambiguous image directly");
-				return { allImages: [], metaData: null, screenshot: buffer };
+				return {
+					allImages: [],
+					allVideos: [],
+					metaData: null,
+					screenshot: buffer,
+				};
 			} catch (error) {
 				logger.info("Retrying image with Puppeteer after direct fetch failed", {
 					error,
