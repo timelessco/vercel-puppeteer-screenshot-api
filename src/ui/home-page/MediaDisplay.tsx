@@ -29,19 +29,13 @@ export function MediaDisplay({
 									className="overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
 									key={videoUrl}
 								>
+									{/* eslint-disable-next-line jsx-a11y/media-has-caption */}
 									<video
 										className="w-full"
 										controls
 										preload="metadata"
 										src={videoUrl}
 									>
-										<track
-											default
-											kind="captions"
-											label="English captions"
-											src="no captions"
-											srcLang="en"
-										/>
 										Your browser does not support the video tag.
 									</video>
 									<div className="p-2">

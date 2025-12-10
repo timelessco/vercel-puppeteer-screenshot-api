@@ -67,8 +67,13 @@ export async function extractTwitterMediaUrls(
 	);
 
 	if (!response.ok) {
+		logger.warn("Twitter syndication API request failed", {
+			status: response.status,
+			statusText: response.statusText,
+			tweetId,
+		});
 		return {
-			error: "Failed to fetch tweet",
+			error: `Failed to fetch tweet: ${response.status} ${response.statusText}`,
 			method: "syndication",
 			success: false,
 		};
