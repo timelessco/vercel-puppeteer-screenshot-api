@@ -1,10 +1,3 @@
-/* eslint-disable @eslint-community/eslint-comments/disable-enable-pair */
-
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
-import { logger } from "@sentry/nextjs";
-
 import { getErrorMessage } from "@/utils/errorUtils";
 import type { ScreenshotResult } from "@/app/try/route";
 
@@ -28,41 +21,32 @@ function extractInstagramImageIndex(url: string): number | undefined {
 }
 
 interface InstagramMedia {
+	height?: number;
 	thumbnail?: string;
 	type: "image" | "video";
 	url: string;
+	width?: number;
+}
+
+interface InstagramNode {
+	__typename: string;
+	dimensions?: {
+		height: number;
+		width: number;
+	};
+	display_url?: string;
+	edge_sidecar_to_children?: {
+		edges: Array<{
+			node: InstagramNode;
+		}>;
+	};
+	video_url?: string;
 }
 
 interface InstagramEmbedData {
 	gql_data?: {
-		shortcode_media?: {
-			__typename?: string;
-			display_url?: string;
-			edge_sidecar_to_children?: {
-				edges: Array<{
-					node: {
-						__typename: string;
-						display_url?: string;
-						video_url?: string;
-					};
-				}>;
-			};
-			video_url?: string;
-		};
-		xdt_shortcode_media?: {
-			__typename?: string;
-			display_url?: string;
-			edge_sidecar_to_children?: {
-				edges: Array<{
-					node: {
-						__typename: string;
-						display_url?: string;
-						video_url?: string;
-					};
-				}>;
-			};
-			video_url?: string;
-		};
+		shortcode_media?: InstagramNode;
+		xdt_shortcode_media?: InstagramNode;
 	};
 }
 
@@ -82,9 +66,7 @@ export async function getInstagramPostReelScreenshot(
 		logger.info("Instagram POST or REEL detected");
 
 		const media = await extractMediaFromEmbed(url);
-		logger.info("Extracted media from Instagram embed", {
-			count: media.length,
-		});
+		console.log("Extracted media:", media);
 
 		const results = await Promise.allSettled(
 			media.map((m) =>
@@ -121,179 +103,223 @@ export async function getInstagramPostReelScreenshot(
 	}
 }
 
-/**
- * Extracts media URLs from HTML img tags when contextJSON is not available
- * This is used as a fallback for single posts and reels
- * @param {string} html - The HTML content to parse
- * @returns {InstagramMedia[]} Array of extracted media items
- */
-function extractMediaFromHTML(html: string): InstagramMedia[] {
-	const results: InstagramMedia[] = [];
-	const seen = new Set<string>();
-
-	// Extract image URLs from img tags
-	const imgRegex = /<img[^>]*src="([^"]+)"[^>]*>/gi;
-	let imgMatch;
-
-	while ((imgMatch = imgRegex.exec(html)) !== null) {
-		const src = imgMatch[1];
-		// Filter for actual post images (not profile pics or icons)
-		// t51.2885-15 identifies Instagram post images
-		if (
-			(src.includes("fbcdn.net") || src.includes("cdninstagram.com")) &&
-			src.includes("t51.2885-15") &&
-			!seen.has(src)
-		) {
-			seen.add(src);
-			results.push({
-				type: "image",
-				url: src,
-			});
-		}
-		logger.info("Extracted image from HTML", { src });
-	}
-
-	// Try to extract video URLs if present
-	const videoUrlRegex = /"video_url":"(https:\/\/[^"]+)"/g;
-	let videoMatch;
-
-	while ((videoMatch = videoUrlRegex.exec(html)) !== null) {
-		const videoUrl = videoMatch[1].replaceAll(String.raw`\u0026`, "&");
-		if (!seen.has(videoUrl)) {
-			seen.add(videoUrl);
-
-			// Try to find corresponding thumbnail from the images we already extracted
-			const thumbnail = results.find((r) => r.type === "image")?.url;
-			logger.info("Found thumbnail for video", { thumbnail });
-
-			results.push({
-				thumbnail,
-				type: "video",
-				url: videoUrl,
-			});
-		}
-	}
-
-	console.log(
-		`Extracted ${results.length} media items from HTML fallback method`,
-	);
-	return results;
-}
-
 async function extractMediaFromEmbed(url: string): Promise<InstagramMedia[]> {
 	try {
-		// Extract shortcode from URL
-		// Supports /p/SHORTCODE and /reel/SHORTCODE
-		const match = /(?:p|reel)\/([\w-]+)/.exec(url);
-		const shortcode = match ? match[1] : null;
+		// Extract shortcode from URL (supports /p/, /reel/, and /tv/)
+		const shortcodeMatch = /(?:p|reel|tv)\/([\w-]+)/.exec(url);
+		const shortcode = shortcodeMatch?.[1];
 
 		if (!shortcode) {
-			console.error("Could not extract shortcode from URL");
-			return [];
+			throw new Error("Invalid Instagram URL: Could not extract shortcode");
 		}
 
-		// Fetch the embed page HTML
+		// Fetch the embed page
 		const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
 		const response = await fetch(embedUrl, {
 			headers: {
 				accept:
-					"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+					"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 				"sec-fetch-dest": "document",
 				"sec-fetch-mode": "navigate",
 				"sec-fetch-site": "none",
-				"upgrade-insecure-requests": "1",
 				"user-agent":
 					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 			},
 		});
 
 		if (!response.ok) {
-			console.error(`Failed to fetch embed page: ${response.status}`);
-			return [];
+			throw new Error(`HTTP ${response.status}: Failed to fetch embed page`);
 		}
 
 		const html = await response.text();
 
-		// Extract the embedded JSON data
-		const embedDataMatch = /"init",\[\],\[(.*?)\]\],/.exec(html);
-		if (!embedDataMatch?.[1]) {
-			console.error("Could not find embed data in HTML");
-			return [];
-		}
+		let mediaList: InstagramMedia[] = [];
 
-		const embedDataRaw = JSON.parse(embedDataMatch[1]);
+		// Method 1: Try to extract from JSON data (legacy and some current embeds)
+		try {
+			const embedData = extractEmbedData(html);
+			const contextData = JSON.parse(
+				embedData.contextJSON,
+			) as InstagramEmbedData;
 
-		logger.info("!!@#!@#!@#!@#!@embedDataRaw", { embedDataRaw });
+			const shortcodeMedia =
+				contextData.gql_data?.xdt_shortcode_media ??
+				contextData.gql_data?.shortcode_media;
 
-		// Fallback: Extract from HTML when contextJSON is null (single posts/reels)
-		if (!embedDataRaw?.contextJSON) {
-			console.log(
-				"No contextJSON in embed data - using HTML fallback for single post/reel",
-			);
-			return extractMediaFromHTML(html);
-		}
-
-		// Parse the contextJSON which contains the actual media data
-		const contextData = JSON.parse(
-			embedDataRaw.contextJSON as string,
-		) as InstagramEmbedData;
-
-		logger.info("!!@#!@#!@#!@#!@contextData", { contextData });
-
-		// Extract media from gql_data
-		const shortcodeMedia =
-			contextData.gql_data?.xdt_shortcode_media ??
-			contextData.gql_data?.shortcode_media;
-
-		logger.info("!!@#!@#!@#!@#!@shortcodeMedia", { shortcodeMedia });
-
-		if (!shortcodeMedia) {
-			console.error("No shortcode media found in context data");
-			return [];
-		}
-
-		const mediaList: InstagramMedia[] = [];
-
-		// Check if it's a carousel (multiple images/videos)
-		if (shortcodeMedia.edge_sidecar_to_children?.edges) {
-			console.log(
-				"!!@#!@#!@#!@#!@Carousel detected with",
-				shortcodeMedia.edge_sidecar_to_children.edges.length,
-				"items",
-			);
-
-			// Extract all carousel items
-			for (const edge of shortcodeMedia.edge_sidecar_to_children.edges) {
-				const node = edge.node;
-				const isVideo = node.__typename === "GraphVideo";
-
-				mediaList.push({
-					thumbnail: node.display_url,
-					type: isVideo ? "video" : "image",
-					url: isVideo ? (node.video_url ?? "") : (node.display_url ?? ""),
-				});
+			if (shortcodeMedia) {
+				mediaList = extractMediaItems(shortcodeMedia);
 			}
-		} else {
-			// Single image or video post
-			const isVideo = shortcodeMedia.__typename === "GraphVideo";
+		} catch (error) {
 			console.log(
-				"!!@#!@#!@#!@#!@Single media detected, type:",
-				shortcodeMedia.__typename,
+				"JSON extraction failed, trying fallback DOM parsing",
+				getErrorMessage(error),
 			);
-
-			mediaList.push({
-				thumbnail: shortcodeMedia.display_url,
-				type: isVideo ? "video" : "image",
-				url: isVideo
-					? (shortcodeMedia.video_url ?? "")
-					: (shortcodeMedia.display_url ?? ""),
-			});
 		}
 
-		console.log("!!@#!@#!@#!@#!@Extracted", mediaList.length, "media items");
-		return mediaList;
+		// Method 2: Fallback to DOM regex parsing if JSON failed or returned empty
+		if (mediaList.length === 0) {
+			console.log("Attempting DOM parsing for Instagram media...");
+			mediaList = extractMediaFromHtml(html);
+		}
+
+		if (mediaList.length > 0) {
+			console.log(
+				`✓ Extracted ${mediaList.length} media item(s) from ${shortcode}`,
+			);
+			return mediaList;
+		}
+
+		throw new Error("No media found in embed data or HTML");
 	} catch (error) {
-		console.error("Error extracting media from embed", error);
+		console.error("Failed to extract media from Instagram embed:", error);
 		return [];
 	}
+}
+
+// Helper: Extract embed data from HTML
+function extractEmbedData(html: string) {
+	const match = /"init",\s*\[\],\s*\[(.*?)\]\],/.exec(html);
+
+	if (!match?.[1]) {
+		throw new Error("Could not find embed data in HTML");
+	}
+
+	const embedDataRaw = JSON.parse(match[1]) as { contextJSON: string };
+
+	if (!embedDataRaw.contextJSON) {
+		throw new Error("Missing contextJSON in embed data");
+	}
+
+	return embedDataRaw;
+}
+
+// Helper: Extract media items from shortcode media object
+function extractMediaItems(shortcodeMedia: InstagramNode): InstagramMedia[] {
+	// Handle carousel posts
+	const carouselEdges = shortcodeMedia.edge_sidecar_to_children?.edges;
+
+	if (carouselEdges?.length) {
+		console.log(`→ Carousel detected: ${carouselEdges.length} items`);
+		return carouselEdges.map((edge) => createMediaItem(edge.node));
+	}
+
+	// Handle single media posts
+	console.log(`→ Single media: ${shortcodeMedia.__typename}`);
+	return [createMediaItem(shortcodeMedia)];
+}
+
+// Helper: Create media item object
+function createMediaItem(node: InstagramNode): InstagramMedia {
+	const isVideo = node.__typename === "GraphVideo";
+
+	return {
+		height: node.dimensions?.height,
+		thumbnail: node.display_url ?? "",
+		type: isVideo ? "video" : "image",
+		url: isVideo ? (node.video_url ?? "") : (node.display_url ?? ""),
+		width: node.dimensions?.width,
+	};
+}
+
+// Helper: Parse HTML to find media if JSON method fails
+function extractMediaFromHtml(html: string): InstagramMedia[] {
+	const media: InstagramMedia[] = [];
+
+	// 1. Try to find the main image in the embed
+	// Look for <img class="EmbeddedMediaImage" ... src="..." ...>
+	const imgMatch = /<img[^>]*class="EmbeddedMediaImage"[^>]*src="([^"]+)"/.exec(
+		html,
+	);
+	let thumbnailUrl = imgMatch?.[1];
+
+	// 2. Try to find higher resolution in srcset
+	// srcset="url 640w, url 750w, ..."
+	const srcsetMatch =
+		/<img[^>]*class="EmbeddedMediaImage"[^>]*srcset="([^"]+)"/.exec(html);
+	if (srcsetMatch?.[1]) {
+		const srcset = srcsetMatch[1];
+		// Split by comma, find the one with highest width
+		const sources = srcset.split(",").map((s) => {
+			const [url, widthStr] = s.trim().split(" ");
+			const width = widthStr ? Number.parseInt(widthStr) : 0;
+			return { url, width };
+		});
+		// Sort by width descending
+		sources.sort((a, b) => b.width - a.width);
+		if (sources[0]?.url) {
+			thumbnailUrl = sources[0].url;
+		}
+	}
+
+	// Decode HTML entities in URL (e.g. &amp; -> &)
+	const decodedThumbnail = thumbnailUrl?.replaceAll("&amp;", "&");
+
+	// 3. Try to extract video URL if this is a video post
+	let videoUrl: string | undefined;
+
+	// Check if it's likely a video (Reel/Video post)
+	const isVideoPost =
+		html.includes('data-media-type="GraphVideo"') ||
+		html.includes("Sprite PlayButtonSprite");
+
+	if (isVideoPost) {
+		// Strategy 1: Look for video_url in any script tags or data attributes
+		const videoUrlPatterns = [
+			// Look for video_url in JSON-like structures
+			/"video_url"\s*:\s*"([^"]+\.mp4[^"]*)"/,
+			// Look for direct .mp4 URLs from Instagram CDN
+			/https:\/\/[^"'\s]*\.cdninstagram\.com[^"'\s]*\.mp4[^"'\s]*/,
+			// Look for scontent video URLs
+			/https:\/\/scontent[^"'\s]*\.mp4[^"'\s]*/,
+		];
+
+		for (const pattern of videoUrlPatterns) {
+			const match = pattern.exec(html);
+			if (match) {
+				// Get the full match or the first capture group
+				const potentialUrl = match[1] || match[0];
+				// Decode HTML entities and unescape
+				videoUrl = potentialUrl
+					.replaceAll("&amp;", "&")
+					.replaceAll(String.raw`\/`, "/")
+					.replaceAll(String.raw`\u0026`, "&");
+				break;
+			}
+		}
+
+		// Strategy 2: Look for <video> tag with src
+		if (!videoUrl) {
+			const videoTagMatch = /<video[^>]*src="([^"]+)"/.exec(html);
+			if (videoTagMatch?.[1]) {
+				videoUrl = videoTagMatch[1].replaceAll("&amp;", "&");
+			}
+		}
+
+		// Strategy 3: Look for <source> tag inside video
+		if (!videoUrl) {
+			const sourceTagMatch = /<source[^>]*src="([^"]+\.mp4[^"]*)"/.exec(html);
+			if (sourceTagMatch?.[1]) {
+				videoUrl = sourceTagMatch[1].replaceAll("&amp;", "&");
+			}
+		}
+	}
+
+	// 4. Create media item based on what we found
+	if (videoUrl && decodedThumbnail) {
+		// We found both video and thumbnail
+		media.push({
+			thumbnail: decodedThumbnail,
+			type: "video",
+			url: videoUrl,
+		});
+	} else if (decodedThumbnail) {
+		// Only found thumbnail (image or video poster)
+		media.push({
+			thumbnail: decodedThumbnail,
+			type: "image",
+			url: decodedThumbnail,
+		});
+	}
+
+	return media;
 }
