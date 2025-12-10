@@ -4,9 +4,9 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
 import { GithubIcon } from "@/ui/home-page/GithubIcon";
+import { MediaDisplay } from "@/ui/home-page/MediaDisplay";
+import { ScreenshotForm } from "@/ui/home-page/ScreenshotForm";
 import { Spotlight } from "@/ui/home-page/Spotlight";
-import { ToggleButton } from "@/ui/home-page/ToggleButton";
-import { StyledButton } from "@/components/StyledButton";
 
 interface ApiResponse {
 	allImages?: Array<{ data: number[] }>;
@@ -164,8 +164,6 @@ export default function Home() {
 		return "";
 	}
 
-	const hasAdditionalMedia = allImageUrls.length > 0 || allVideoUrls.length > 0;
-
 	return (
 		<main className="relative min-h-screen overflow-auto bg-black bg-grid-white/02">
 			<Spotlight
@@ -187,106 +185,24 @@ export default function Home() {
 					</p>
 				</section>
 
-				<form
-					aria-label="Form to take screenshot"
-					className="w-full max-w-2xl"
+				<ScreenshotForm
+					fullPage={fullPage}
+					headless={headless}
+					loading={loading}
+					onFullPageToggle={() => {
+						setFullPage((prev) => !prev);
+					}}
+					onHeadlessToggle={() => {
+						setHeadless((prev) => !prev);
+					}}
 					onSubmit={(e) => void handleSubmit(e)}
-				>
-					<div className="flex flex-col space-y-3">
-						<label
-							className="flex items-center justify-between text-2xl"
-							htmlFor="url"
-						>
-							<span>Site url</span>
+					onVerboseToggle={() => {
+						setVerbose((prev) => !prev);
+					}}
+					timeDisplay={getTimeDisplay()}
+					verbose={verbose}
+				/>
 
-							<span className="font-mono text-lg">{getTimeDisplay()}</span>
-						</label>
-
-						<div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-							<input
-								aria-label="Enter website URL to screenshot"
-								className="flex-1 rounded-xl border border-neutral-800 bg-black/50 px-4 py-2.5 text-lg text-neutral-300 transition-colors duration-200 focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 focus:outline-none"
-								disabled={loading}
-								id="url"
-								name="url"
-								placeholder="https://example.com"
-								required
-								type="url"
-							/>
-
-							<div className="flex flex-wrap gap-3">
-								<StyledButton
-									aria-label={
-										loading ? "Loading screenshot" : "Take screenshot"
-									}
-									className="group relative grid overflow-hidden rounded-xl px-5 py-2.5 shadow-[0_1000px_0_0_hsl(0_0%_20%)_inset] transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50"
-									disabled={loading}
-									type="submit"
-								>
-									<span className="absolute inset-0 h-full w-full animate-flip overflow-hidden rounded-xl mask-[linear-gradient(white,transparent_50%)] before:absolute before:inset-[0_auto_auto_50%] before:aspect-square before:w-[200%] before:[translate:-50%_-15%] before:-rotate-90 before:animate-rotate before:bg-[conic-gradient(from_0deg,transparent_0_340deg,white_360deg)]" />
-
-									<span className="absolute inset-px rounded-[11px] bg-neutral-950 transition-all duration-200 group-hover:bg-neutral-900" />
-
-									<span className="z-10 flex items-center space-x-2 text-lg text-neutral-300">
-										{loading && (
-											<svg
-												aria-hidden="true"
-												className="animate-spin"
-												fill="currentColor"
-												height="16"
-												viewBox="0 0 256 256"
-												width="16"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path d="M232,128a104,104,0,0,1-208,0c0-41,23.81-78.36,60.66-95.27a8,8,0,0,1,6.68,14.54C60.15,61.59,40,93.27,40,128a88,88,0,0,0,176,0c0-34.73-20.15-66.41-51.34-80.73a8,8,0,0,1,6.68-14.54C208.19,49.64,232,87,232,128Z" />
-											</svg>
-										)}
-
-										<span>{loading ? "Loading..." : "Screenshot"}</span>
-									</span>
-								</StyledButton>
-
-								<ToggleButton
-									aria-label={`Full page capture: ${fullPage ? "enabled" : "disabled"}`}
-									disabled={loading}
-									isActive={fullPage}
-									labelOff="Full Page: OFF"
-									labelOn="Full Page: ON"
-									onToggle={() => {
-										setFullPage((prev) => !prev);
-									}}
-								/>
-							</div>
-						</div>
-					</div>
-
-					<div className="mt-2 flex flex-wrap gap-2">
-						{process.env.NODE_ENV !== "production" && (
-							<ToggleButton
-								aria-label={`Headless mode: ${headless ? "enabled" : "disabled"}`}
-								disabled={loading}
-								isActive={headless}
-								labelOff="Headless: OFF"
-								labelOn="Headless: ON"
-								onToggle={() => {
-									setHeadless((prev) => !prev);
-								}}
-							/>
-						)}
-						<ToggleButton
-							aria-label={`Verbose mode: ${verbose ? "enabled" : "disabled"}`}
-							disabled={loading}
-							isActive={verbose}
-							labelOff="Verbose: OFF"
-							labelOn="Verbose: ON"
-							onToggle={() => {
-								setVerbose((prev) => !prev);
-							}}
-						/>
-					</div>
-				</form>
-
-				{/* Main Screenshot */}
 				{imgUrl && (
 					<section
 						aria-label="Screenshot preview"
@@ -304,91 +220,7 @@ export default function Home() {
 					</section>
 				)}
 
-				{/* Additional Media Section */}
-				{hasAdditionalMedia && (
-					<div className="mt-6 w-full max-w-4xl space-y-6">
-						{/* Twitter Videos */}
-						{allVideoUrls.length > 0 && (
-							<section
-								aria-label="Extracted videos"
-								className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
-							>
-								<div className="p-4">
-									<h2 className="mb-3 text-lg font-semibold text-neutral-200">
-										Videos ({allVideoUrls.length})
-									</h2>
-									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-										{allVideoUrls.map((videoUrl, index) => (
-											<div
-												className="overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
-												key={videoUrl}
-											>
-												<video
-													className="w-full"
-													controls
-													preload="metadata"
-													src={videoUrl}
-												>
-													<track
-														default
-														kind="captions"
-														label="English captions"
-														src="no captions"
-														srcLang="en"
-													/>
-													Your browser does not support the video tag.
-												</video>
-												<div className="p-2">
-													<a
-														className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
-														href={videoUrl}
-														rel="noopener noreferrer"
-														target="_blank"
-													>
-														Open video {index + 1} in new tab ↗
-													</a>
-												</div>
-											</div>
-										))}
-									</div>
-								</div>
-							</section>
-						)}
-
-						{/* All Images */}
-						{allImageUrls.length > 0 && (
-							<section
-								aria-label="All images"
-								className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
-							>
-								<div className="p-4">
-									<h2 className="mb-3 text-lg font-semibold text-neutral-200">
-										All Images ({allImageUrls.length})
-									</h2>
-									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-										{allImageUrls.map((url, index) => (
-											<div
-												className="relative aspect-square overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
-												key={url}
-											>
-												{/* eslint-disable-next-line @next/next/no-img-element */}
-												<img
-													alt={`twitter post`}
-													className="h-full w-full object-cover transition-transform duration-200 hover:scale-105"
-													loading="lazy"
-													src={url}
-												/>
-												<div className="absolute right-2 bottom-2 rounded-full bg-black/70 px-2 py-1 text-xs text-white">
-													{index + 1}/{allImageUrls.length}
-												</div>
-											</div>
-										))}
-									</div>
-								</div>
-							</section>
-						)}
-					</div>
-				)}
+				<MediaDisplay allImageUrls={allImageUrls} allVideoUrls={allVideoUrls} />
 			</div>
 
 			<div
