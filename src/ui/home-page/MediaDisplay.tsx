@@ -3,28 +3,41 @@ interface MediaDisplayProps {
 	allVideoUrls: string[];
 }
 
+function isValidMediaUrl(url: string): boolean {
+	try {
+		const parsedUrl = new URL(url);
+		return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
 export function MediaDisplay({
 	allImageUrls,
 	allVideoUrls,
 }: MediaDisplayProps) {
-	const hasMedia = allImageUrls.length > 0 || allVideoUrls.length > 0;
+	// Filter out any potentially malicious URLs
+	const safeVideoUrls = allVideoUrls.filter(isValidMediaUrl);
+	const safeImageUrls = allImageUrls.filter(isValidMediaUrl);
+
+	const hasMedia = safeImageUrls.length > 0 || safeVideoUrls.length > 0;
 
 	if (!hasMedia) return null;
 
 	return (
 		<div className="mt-6 w-full max-w-4xl space-y-6">
 			{/* Twitter Videos */}
-			{allVideoUrls.length > 0 && (
+			{safeVideoUrls.length > 0 && (
 				<section
 					aria-label="Extracted videos"
 					className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
 				>
 					<div className="p-4">
 						<h2 className="mb-3 text-lg font-semibold text-neutral-200">
-							Videos ({allVideoUrls.length})
+							Videos ({safeVideoUrls.length})
 						</h2>
 						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							{allVideoUrls.map((videoUrl, index) => (
+							{safeVideoUrls.map((videoUrl, index) => (
 								<div
 									className="overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
 									key={videoUrl}
@@ -56,17 +69,17 @@ export function MediaDisplay({
 			)}
 
 			{/* All Images */}
-			{allImageUrls.length > 0 && (
+			{safeImageUrls.length > 0 && (
 				<section
 					aria-label="All images"
 					className="rounded-lg border border-gray-100/10 bg-neutral-900/50 backdrop-blur-sm"
 				>
 					<div className="p-4">
 						<h2 className="mb-3 text-lg font-semibold text-neutral-200">
-							All Images ({allImageUrls.length})
+							All Images ({safeImageUrls.length})
 						</h2>
 						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{allImageUrls.map((url, index) => (
+							{safeImageUrls.map((url, index) => (
 								<div
 									className="relative aspect-square overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
 									key={url}
@@ -79,7 +92,7 @@ export function MediaDisplay({
 										src={url}
 									/>
 									<div className="absolute right-2 bottom-2 rounded-full bg-black/70 px-2 py-1 text-xs text-white">
-										{index + 1}/{allImageUrls.length}
+										{index + 1}/{safeImageUrls.length}
 									</div>
 								</div>
 							))}
