@@ -1,10 +1,34 @@
+import { z } from "zod";
+
 import type {
 	ExtractedTwitterMedia,
 	ExtractionResult,
 	ExtractTwitterMediaOptions,
-	TwitterSyndicationResponse,
 	TwitterVideoVariant,
 } from "./types";
+
+const TwitterVideoVariantSchema = z.object({
+	bitrate: z.number().optional(),
+	content_type: z.string(),
+	url: z.url(),
+});
+
+const TwitterMediaDetailsSchema = z.object({
+	ext_alt_text: z.string().optional(),
+	media_url_https: z.url(),
+	type: z.enum(["photo", "video", "animated_gif"]),
+	video_info: z
+		.object({
+			variants: z.array(TwitterVideoVariantSchema),
+		})
+		.optional(),
+});
+
+const TwitterSyndicationResponseSchema = z.object({
+	__typename: z.literal("Tweet"),
+	id_str: z.string(),
+	mediaDetails: z.array(TwitterMediaDetailsSchema).optional(),
+});
 
 const TWITTER_SYNDICATION_API =
 	"https://cdn.syndication.twimg.com/tweet-result";
@@ -50,7 +74,18 @@ export async function extractTwitterMediaUrls(
 		};
 	}
 
-	const data = (await response.json()) as TwitterSyndicationResponse;
+	const parseResult = TwitterSyndicationResponseSchema.safeParse(
+		await response.json(),
+	);
+	if (!parseResult.success) {
+		logger.warn("Invalid API response structure", { error: parseResult.error });
+		return {
+			error: "Invalid API response",
+			method: "syndication",
+			success: false,
+		};
+	}
+	const data = parseResult.data;
 
 	logger.debug("Fetched tweet data", { data });
 

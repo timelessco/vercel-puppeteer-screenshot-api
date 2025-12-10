@@ -45,27 +45,6 @@ export interface TwitterUser {
 }
 
 /**
- * Twitter Syndication API Response
- */
-export interface TwitterSyndicationResponse {
-	__typename: "Tweet";
-	/** Tweet ID as string */
-	id_str: string;
-	/** Tweet text content */
-	text: string;
-	/** User who posted the tweet */
-	user: TwitterUser;
-	/** Array of media attached to the tweet */
-	mediaDetails?: TwitterMediaDetails[];
-	/** Creation timestamp */
-	created_at?: string;
-	/** Conversation ID */
-	conversation_id_str?: string;
-	/** Language code */
-	lang?: string;
-}
-
-/**
  * Processed image information
  */
 export interface ProcessedImage {
