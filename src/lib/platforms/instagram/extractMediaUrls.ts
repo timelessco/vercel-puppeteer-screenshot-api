@@ -28,7 +28,7 @@ export async function extractInstagramMediaUrls(
 		}
 
 		// Fetch the embed page
-		const embedUrl = `https://www.instagram.com/p/${shortcode}/mbed/captioned/`;
+		const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
 		const response = await fetch(embedUrl, {
 			headers: {
 				accept:
