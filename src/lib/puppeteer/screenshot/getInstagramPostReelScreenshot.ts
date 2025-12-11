@@ -36,11 +36,11 @@ export async function getInstagramPostReelScreenshot(
 	try {
 		logger.info("Instagram POST or REEL detected");
 
-		const media = await extractInstagramMediaUrls(url, logger);
-		logger.debug("Extracted media", { count: media.length, media });
+		const { caption, mediaList } = await extractInstagramMediaUrls(url, logger);
+		logger.debug("Extracted media", { caption, count: mediaList.length });
 
 		const results = await Promise.allSettled(
-			media.map((m) =>
+			mediaList.map((m) =>
 				fetchImageDirectly({ ...options, url: m.thumbnail ?? "" }),
 			),
 		);
@@ -53,7 +53,9 @@ export async function getInstagramPostReelScreenshot(
 			return Buffer.alloc(0);
 		});
 
-		const allVideos = media.filter((m) => m.type === "video").map((m) => m.url);
+		const allVideos = mediaList
+			.filter((m) => m.type === "video")
+			.map((m) => m.url);
 
 		const imageIndex = extractInstagramImageIndex(url);
 
@@ -62,7 +64,15 @@ export async function getInstagramPostReelScreenshot(
 		return {
 			allImages,
 			allVideos,
-			metaData: null,
+			metaData: caption
+				? {
+						description: caption,
+						favIcon: null,
+						isPageScreenshot: false,
+						ogImage: null,
+						title: "Instagram Post",
+					}
+				: null,
 			screenshot,
 		};
 	} catch (error) {

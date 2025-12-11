@@ -17,6 +17,8 @@ export interface InstagramMedia {
 	url: string;
 	/** Media width in pixels */
 	width?: number;
+	/** Caption */
+	caption?: null | string;
 }
 
 /**
@@ -41,6 +43,14 @@ export interface InstagramNode {
 		edges: Array<{
 			/** Child media node */
 			node: InstagramNode;
+		}>;
+	};
+	/** Caption data */
+	edge_media_to_caption?: {
+		edges: Array<{
+			node: {
+				text: string;
+			};
 		}>;
 	};
 	/** Direct video URL (only present for video posts) */

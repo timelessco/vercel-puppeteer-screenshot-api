@@ -10,7 +10,7 @@ import type {
 export async function extractInstagramMediaUrls(
 	url: string,
 	logger: WithBrowserOptions["logger"],
-): Promise<InstagramMedia[]> {
+): Promise<{ caption?: string; mediaList: InstagramMedia[] }> {
 	try {
 		// Extract shortcode from URL (supports /p/, /reel/, and /tv/)
 		const shortcodeMatch = /(?:p|reel|tv)\/([\w-]+)/.exec(url);
@@ -42,6 +42,7 @@ export async function extractInstagramMediaUrls(
 		const html = await response.text();
 
 		let mediaList: InstagramMedia[] = [];
+		let caption: string | undefined;
 
 		// Try to extract from JSON data
 		try {
@@ -54,6 +55,9 @@ export async function extractInstagramMediaUrls(
 				contextData.gql_data?.xdt_shortcode_media ??
 				contextData.gql_data?.shortcode_media;
 
+			caption = shortcodeMedia?.edge_media_to_caption?.edges[0]?.node?.text;
+
+			logger.debug("Extracted caption", { caption });
 			if (shortcodeMedia) {
 				mediaList = extractMediaItems(shortcodeMedia, logger);
 			}
@@ -66,15 +70,28 @@ export async function extractInstagramMediaUrls(
 		// Fallback to DOM regex parsing if JSON failed or returned empty
 		if (mediaList.length === 0) {
 			logger.debug("Attempting DOM parsing for Instagram media");
-			mediaList = extractMediaFromHtml(html, logger);
+			try {
+				const htmlResult = extractMediaFromHtml(html, logger);
+				mediaList = htmlResult.mediaList;
+				// Use HTML caption if we don't have one from JSON
+				if (!caption && htmlResult.caption) {
+					caption = htmlResult.caption;
+					logger.debug("Caption extracted from HTML fallback", { caption });
+				}
+			} catch (error) {
+				logger.error("Failed to extract media from HTML fallback", {
+					error: getErrorMessage(error),
+				});
+			}
 		}
 
 		if (mediaList.length > 0) {
 			logger.info("Successfully extracted Instagram media", {
+				caption,
 				count: mediaList.length,
 				shortcode,
 			});
-			return mediaList;
+			return { caption, mediaList };
 		}
 
 		throw new Error("No media found in embed data or HTML");
@@ -82,7 +99,7 @@ export async function extractInstagramMediaUrls(
 		logger.error("Failed to extract media from Instagram embed", {
 			error: getErrorMessage(error),
 		});
-		return [];
+		return { caption: undefined, mediaList: [] };
 	}
 }
 
@@ -136,8 +153,36 @@ function createMediaItem(node: InstagramNode): InstagramMedia {
 function extractMediaFromHtml(
 	html: string,
 	logger: WithBrowserOptions["logger"],
-): InstagramMedia[] {
+): { caption?: string; mediaList: InstagramMedia[] } {
 	const media: InstagramMedia[] = [];
+	let caption: string | undefined;
+
+	// Try to extract caption from HTML
+	// Look for <div class="Caption">...</div>
+	const captionMatch =
+		/<div class="Caption">([\s\S]*?)<div class="CaptionComments">/.exec(html);
+	if (captionMatch?.[1]) {
+		let captionHtml = captionMatch[1];
+		// Remove the username link at the start
+		captionHtml = captionHtml.replace(
+			/<a class="CaptionUsername"[^>]*>.*?<\/a>/,
+			"",
+		);
+		// Remove all HTML tags
+		captionHtml = captionHtml.replaceAll(/<[^>]+>/g, "");
+		// Decode HTML entities
+		captionHtml = captionHtml
+			.replaceAll("&amp;", "&")
+			.replaceAll("&lt;", "<")
+			.replaceAll("&gt;", ">")
+			.replaceAll("&quot;", '"')
+			.replaceAll("&#064;", "@");
+		// Clean up whitespace
+		caption = captionHtml.trim();
+		if (caption) {
+			logger.debug("Extracted caption from HTML", { caption });
+		}
+	}
 
 	// Try to find the main image in the embed
 	// Look for <img class="EmbeddedMediaImage" ... src="..." ...>
@@ -241,5 +286,5 @@ function extractMediaFromHtml(
 		});
 	}
 
-	return media;
+	return { caption, mediaList: media };
 }
