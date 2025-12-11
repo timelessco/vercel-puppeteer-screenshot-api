@@ -21,10 +21,7 @@ function extractInstagramImageIndex(url: string): number | undefined {
 	}
 }
 
-interface GetInstagramPostReelScreenshotOptions extends WithBrowserOptions {
-	logger: WithBrowserOptions["logger"];
-	url: string;
-}
+export type GetInstagramPostReelScreenshotOptions = WithBrowserOptions;
 
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images

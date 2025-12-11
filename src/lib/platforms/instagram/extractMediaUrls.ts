@@ -1,6 +1,4 @@
-import { logger } from "@sentry/nextjs";
-
-import type { WithBrowserOptions } from "@/lib/puppeteer/core/withBrowser";
+import type { GetInstagramPostReelScreenshotOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import type {
@@ -10,15 +8,17 @@ import type {
 	InstagramNode,
 } from "./types";
 
-export interface ExtractInstagramMediaOptions {
-	logger: WithBrowserOptions["logger"];
-	url: string;
-}
+export type ExtractInstagramMediaOptions = Pick<
+	GetInstagramPostReelScreenshotOptions,
+	"logger" | "url"
+>;
+
 export async function extractInstagramMediaUrls(
 	options: ExtractInstagramMediaOptions,
 ): Promise<ExtractInstagramMediaResult> {
+	const { logger, url } = options;
+
 	try {
-		const { logger, url } = options;
 		// Extract shortcode from URL (supports /p/, /reel/, and /tv/)
 		const shortcodeMatch = /(?:p|reel|tv)\/([\w-]+)/.exec(url);
 		const shortcode = shortcodeMatch?.[1];
@@ -130,7 +130,7 @@ function extractEmbedData(html: string) {
 //  Extract media items from shortcode media object
 function extractMediaItems(
 	shortcodeMedia: InstagramNode,
-	logger: WithBrowserOptions["logger"],
+	logger: ExtractInstagramMediaOptions["logger"],
 ): InstagramMedia[] {
 	// Handle carousel posts
 	const carouselEdges = shortcodeMedia.edge_sidecar_to_children?.edges;
@@ -159,7 +159,7 @@ function createMediaItem(node: InstagramNode): InstagramMedia {
 //  Parse HTML to find media if JSON method fails
 function extractMediaFromHtml(
 	html: string,
-	logger: WithBrowserOptions["logger"],
+	logger: ExtractInstagramMediaOptions["logger"],
 ): { caption?: string; mediaList: InstagramMedia[] } {
 	const media: InstagramMedia[] = [];
 	let caption: string | undefined;
