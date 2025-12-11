@@ -86,7 +86,8 @@ export function MediaDisplay({
 							{safeImageUrls.map((url, index) => (
 								<div
 									className="relative aspect-square overflow-hidden rounded-lg border border-gray-100/5 bg-neutral-950"
-									key={url}
+									// eslint-disable-next-line @eslint-react/no-array-index-key
+									key={`${url}-${index}`}
 								>
 									{/* eslint-disable-next-line @next/next/no-img-element */}
 									<img

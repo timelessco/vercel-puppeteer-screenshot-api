@@ -22,13 +22,13 @@ interface ScreenshotResponse {
 }
 
 function bufferToBase64(buffer: number[]): string {
-	const base64 = btoa(
-		buffer.reduce(
-			(acc: string, byte: number) => acc + String.fromCodePoint(byte),
-			"",
-		),
-	);
-	return `data:image/png;base64,${base64}`;
+	const u8 = new Uint8Array(buffer);
+	const CHUNK_SIZE = 32_768; // 32KB chunks to avoid stack overflow
+	const chunks: string[] = [];
+	for (let i = 0; i < u8.length; i += CHUNK_SIZE) {
+		chunks.push(String.fromCodePoint(...u8.subarray(i, i + CHUNK_SIZE)));
+	}
+	return `data:image/png;base64,${btoa(chunks.join(""))}`;
 }
 
 export default function Home() {
@@ -73,6 +73,7 @@ export default function Home() {
 		setDuration(0);
 		setTime(0);
 		setAllVideoUrls([]);
+		setAllImageUrls([]);
 
 		const timePoint = Date.now();
 		const intervalTimer = startDuration();
@@ -114,20 +115,11 @@ export default function Home() {
 			const imageUrl = bufferToBase64(data.screenshot.data);
 			setImgUrl(imageUrl);
 
-			// Set Instagram carousel images
-			if (data.allImages.length > 0) {
-				const imageUrls = data.allImages.map((img) => bufferToBase64(img.data));
-				setAllImageUrls(imageUrls);
-			} else {
-				setAllImageUrls([]);
-			}
+			// Set all extracted images
+			setAllImageUrls(data.allImages.map((img) => bufferToBase64(img.data)));
 
 			// Set Twitter video URLs
-			if (data.allVideos.length > 0) {
-				setAllVideoUrls(data.allVideos);
-			} else {
-				setAllVideoUrls([]);
-			}
+			setAllVideoUrls(data.allVideos);
 		} catch (error) {
 			console.error("Screenshot capture error:", error);
 			alert(
