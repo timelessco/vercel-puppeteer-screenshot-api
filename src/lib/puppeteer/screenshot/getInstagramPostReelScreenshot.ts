@@ -21,7 +21,10 @@ function extractInstagramImageIndex(url: string): number | undefined {
 	}
 }
 
-type GetInstagramPostReelScreenshotOptions = WithBrowserOptions;
+interface GetInstagramPostReelScreenshotOptions extends WithBrowserOptions {
+	logger: WithBrowserOptions["logger"];
+	url: string;
+}
 
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images
@@ -36,7 +39,10 @@ export async function getInstagramPostReelScreenshot(
 	try {
 		logger.info("Instagram POST or REEL detected");
 
-		const { caption, mediaList } = await extractInstagramMediaUrls(url, logger);
+		const { caption, mediaList } = await extractInstagramMediaUrls({
+			logger,
+			url,
+		});
 		logger.debug("Extracted media", { caption, count: mediaList.length });
 
 		const mediaWithThumbnails = mediaList.filter((m) => m.thumbnail);

@@ -1,17 +1,24 @@
+import { logger } from "@sentry/nextjs";
+
 import type { WithBrowserOptions } from "@/lib/puppeteer/core/withBrowser";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import type {
+	ExtractInstagramMediaResult,
 	InstagramEmbedData,
 	InstagramMedia,
 	InstagramNode,
 } from "./types";
 
+export interface ExtractInstagramMediaOptions {
+	logger: WithBrowserOptions["logger"];
+	url: string;
+}
 export async function extractInstagramMediaUrls(
-	url: string,
-	logger: WithBrowserOptions["logger"],
-): Promise<{ caption?: string; mediaList: InstagramMedia[] }> {
+	options: ExtractInstagramMediaOptions,
+): Promise<ExtractInstagramMediaResult> {
 	try {
+		const { logger, url } = options;
 		// Extract shortcode from URL (supports /p/, /reel/, and /tv/)
 		const shortcodeMatch = /(?:p|reel|tv)\/([\w-]+)/.exec(url);
 		const shortcode = shortcodeMatch?.[1];

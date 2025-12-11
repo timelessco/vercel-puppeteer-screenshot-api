@@ -7,18 +7,12 @@
  * Extracted Instagram media item (image or video)
  */
 export interface InstagramMedia {
-	/** Media height in pixels */
-	height?: number;
 	/** Thumbnail URL (poster image for videos) */
 	thumbnail?: string;
 	/** Media type */
 	type: "image" | "video";
 	/** Direct URL to the media file */
 	url: string;
-	/** Media width in pixels */
-	width?: number;
-	/** Caption */
-	caption?: null | string;
 }
 
 /**
@@ -69,4 +63,9 @@ export interface InstagramEmbedData {
 		/** Current field for shortcode media (XDT format) */
 		xdt_shortcode_media?: InstagramNode;
 	};
+}
+
+export interface ExtractInstagramMediaResult {
+	caption?: string;
+	mediaList: InstagramMedia[];
 }
