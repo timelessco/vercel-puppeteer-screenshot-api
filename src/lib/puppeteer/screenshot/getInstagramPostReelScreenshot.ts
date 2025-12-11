@@ -39,27 +39,32 @@ export async function getInstagramPostReelScreenshot(
 		const { caption, mediaList } = await extractInstagramMediaUrls(url, logger);
 		logger.debug("Extracted media", { caption, count: mediaList.length });
 
+		const mediaWithThumbnails = mediaList.filter((m) => m.thumbnail);
 		const results = await Promise.allSettled(
-			mediaList.map((m) =>
-				fetchImageDirectly({ ...options, url: m.thumbnail ?? "" }),
+			mediaWithThumbnails.map((m) =>
+				fetchImageDirectly({ ...options, url: m.thumbnail! }),
 			),
 		);
 
-		const allImages: Buffer[] = results.map((result) => {
-			if (result.status === "fulfilled") {
-				return result.value;
-			}
-
-			return Buffer.alloc(0);
-		});
+		const allImages: Buffer[] = results
+			.filter((result) => result.status === "fulfilled")
+			.map((result) => result.value);
 
 		const allVideos = mediaList
 			.filter((m) => m.type === "video")
 			.map((m) => m.url);
 
-		const imageIndex = extractInstagramImageIndex(url);
+		const selectedIndex = extractInstagramImageIndex(url) ?? 0;
 
-		const screenshot = allImages[imageIndex ?? 0];
+		if (selectedIndex >= allImages.length || allImages.length === 0) {
+			logger.warn("No images available or invalid index", {
+				availableImages: allImages.length,
+				imageIndex: selectedIndex,
+			});
+			return null;
+		}
+
+		const screenshot = allImages[selectedIndex];
 
 		return {
 			allImages,
