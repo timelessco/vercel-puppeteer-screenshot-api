@@ -76,6 +76,11 @@ export async function getInstagramPostReelScreenshot(
 			.filter((result) => result.status === "fulfilled")
 			.map((result) => result.value);
 
+		// If embed extraction produced no images, treat as failure to trigger fallback
+		if (allImages.length === 0) {
+			throw new Error("No images extracted from Instagram embed");
+		}
+
 		const allVideos = mediaList
 			.filter((m) => m.type === "video")
 			.map((m) => m.url);
@@ -83,11 +88,9 @@ export async function getInstagramPostReelScreenshot(
 		const selectedIndex = extractInstagramImageIndex(url) ?? 0;
 
 		if (selectedIndex >= allImages.length || allImages.length === 0) {
-			logger.warn("No images available or invalid index", {
-				availableImages: allImages.length,
-				imageIndex: selectedIndex,
-			});
-			return null;
+			throw new Error(
+				`No images available or invalid index (index=${selectedIndex}, available=${allImages.length})`,
+			);
 		}
 
 		const screenshot = allImages[selectedIndex];
@@ -117,11 +120,11 @@ export async function getInstagramPostReelScreenshot(
 		try {
 			const fallback = await extractInstagramMediaUrlsPuppeteer(options);
 			if (fallback) {
-				logger.info("Legacy Instagram flow succeeded");
+				logger.info("Fallback Instagram flow succeeded");
 				return fallback;
 			}
 		} catch (legacyError) {
-			logger.warn("Legacy Instagram flow failed", {
+			logger.warn("Fallback Instagram flow failed", {
 				error: getErrorMessage(legacyError),
 			});
 		}
@@ -412,7 +415,7 @@ async function extractInstagramMediaUrlsPuppeteer(
 		logger.info("No Instagram content found in legacy flow");
 		return null;
 	} catch (error) {
-		logger.warn("Legacy Instagram screenshot failed", {
+		logger.warn("Fallback Instagram screenshot failed", {
 			error: getErrorMessage(error),
 		});
 
