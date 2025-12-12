@@ -76,40 +76,10 @@ export async function getInstagramPostReelScreenshot(
 		logger.debug("Extracted media", { caption, count: mediaList.length });
 
 		const mediaWithThumbnails = mediaList.filter((m) => m.thumbnail);
-		const results = await Promise.allSettled(
-			mediaWithThumbnails.map((m) =>
-				fetchImageDirectly({ ...options, url: m.thumbnail! }),
-			),
-		);
-
-		const rejected = results
-			.map((result, index) => ({
-				index,
-				result,
-				url: mediaWithThumbnails[index]?.thumbnail,
-			}))
-			.filter(
-				(
-					entry,
-				): entry is {
-					index: number;
-					result: PromiseRejectedResult;
-					url: string;
-				} => entry.result.status === "rejected",
-			);
-
-		if (rejected.length > 0) {
-			logger.warn("Some Instagram images failed to fetch", {
-				failures: rejected.map((entry) => ({
-					error: getErrorMessage(entry.result.reason),
-					index: entry.index,
-					url: entry.url,
-				})),
-			});
-		}
 
 		const BATCH_SIZE = 5;
 		const allImages: Buffer[] = [];
+		const failures: Array<{ error: string; index: number; url: string }> = [];
 
 		for (let i = 0; i < mediaWithThumbnails.length; i += BATCH_SIZE) {
 			const batch = mediaWithThumbnails.slice(i, i + BATCH_SIZE);
@@ -117,13 +87,22 @@ export async function getInstagramPostReelScreenshot(
 				batch.map((m) => fetchImageDirectly({ ...options, url: m.thumbnail! })),
 			);
 
-			const successfulImages = batchResults
-				.filter(
-					(r): r is PromiseFulfilledResult<Buffer> => r.status === "fulfilled",
-				)
-				.map((r) => r.value);
+			for (const [j, result] of batchResults.entries()) {
+				const globalIndex = i + j;
+				if (result.status === "fulfilled") {
+					allImages.push(result.value);
+				} else {
+					failures.push({
+						error: getErrorMessage(result.reason),
+						index: globalIndex,
+						url: mediaWithThumbnails[globalIndex]?.thumbnail ?? "",
+					});
+				}
+			}
+		}
 
-			allImages.push(...successfulImages);
+		if (failures.length > 0) {
+			logger.warn("Some Instagram images failed to fetch", { failures });
 		}
 
 		// If embed extraction produced no images, treat as failure to trigger fallback

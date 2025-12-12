@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-import type { ExtractInstagramMediaOptions } from "./extractMediaUrls";
-import type { InstagramMedia, InstagramNode } from "./types";
+import type { ExtractInstagramMediaOptions } from "@/lib/platforms/instagram/extractMediaUrls";
+import type {
+	InstagramMedia,
+	InstagramNode,
+} from "@/lib/platforms/instagram/types";
 
 const InstagramNodeSchema: z.ZodType<InstagramNode> = z.lazy(() =>
 	z.object({
@@ -38,6 +41,10 @@ const InstagramEmbedDataSchema = z.object({
 		.optional(),
 });
 
+const EmbedDataRawSchema = z.object({
+	contextJSON: z.string(),
+});
+
 export function extractEmbedData(html: string) {
 	const match = /"init",\s*\[\],\s*\[(.*?)\]\],/.exec(html);
 
@@ -45,13 +52,14 @@ export function extractEmbedData(html: string) {
 		throw new Error("Could not find embed data in HTML");
 	}
 
-	const embedDataRaw = JSON.parse(match[1]) as { contextJSON: string };
+	const parsed = EmbedDataRawSchema.safeParse(JSON.parse(match[1]));
 
-	if (!embedDataRaw.contextJSON) {
-		throw new Error("Missing contextJSON in embed data");
+	if (!parsed.success) {
+		const issues = parsed.error.issues.map((issue) => issue.message).join("; ");
+		throw new Error(`Invalid embed data raw structure: ${issues}`);
 	}
 
-	return embedDataRaw;
+	return parsed.data;
 }
 
 export function parseEmbedContext(contextJSON: string) {
@@ -72,11 +80,16 @@ export function parseEmbedContext(contextJSON: string) {
 }
 
 type Logger = Pick<ExtractInstagramMediaOptions["logger"], "debug">;
+export interface ExtractMediaItemsOptions {
+	logger: Logger;
+	shortcodeMedia: InstagramNode;
+}
 
 export function extractMediaItems(
-	shortcodeMedia: InstagramNode,
-	logger: Logger,
+	options: ExtractMediaItemsOptions,
 ): InstagramMedia[] {
+	const { logger, shortcodeMedia } = options;
+
 	const carouselEdges = shortcodeMedia.edge_sidecar_to_children?.edges;
 
 	if (carouselEdges?.length) {
@@ -91,9 +104,21 @@ export function extractMediaItems(
 function createMediaItem(node: InstagramNode): InstagramMedia {
 	const isVideo = node.__typename === "GraphVideo";
 
+	const thumbnail = node.display_url;
+	if (!thumbnail) {
+		throw new Error(`Missing display_url for ${node.__typename}`);
+	}
+
+	const url = isVideo ? node.video_url : node.display_url;
+	if (!url) {
+		throw new Error(
+			`Missing ${isVideo ? "video_url" : "display_url"} for ${node.__typename}`,
+		);
+	}
+
 	return {
-		thumbnail: node.display_url ?? "",
+		thumbnail,
 		type: isVideo ? "video" : "image",
-		url: isVideo ? (node.video_url ?? "") : (node.display_url ?? ""),
+		url,
 	};
 }
