@@ -1,6 +1,7 @@
 import type { GetInstagramPostReelScreenshotOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
+import type { ExtractionResult } from "../twitter/types";
 import { EMBED_FETCH_HEADERS, EMBED_FETCH_TIMEOUT_MS } from "./constants";
 /* eslint-disable import-x/no-unresolved */
 import {
@@ -19,7 +20,7 @@ export type ExtractInstagramMediaOptions = Pick<
 
 export async function extractInstagramMediaUrls(
 	options: ExtractInstagramMediaOptions,
-): Promise<ExtractInstagramMediaResult> {
+): Promise<ExtractionResult<ExtractInstagramMediaResult>> {
 	const { logger, url } = options;
 	let lastError: string | undefined;
 
@@ -89,7 +90,7 @@ export async function extractInstagramMediaUrls(
 				count: mediaList.length,
 				shortcode,
 			});
-			return { caption, mediaList };
+			return { data: { caption, mediaList }, success: true };
 		}
 
 		const reason = lastError
@@ -108,7 +109,7 @@ export async function extractInstagramMediaUrls(
 		logger.warn("Recoverable failure extracting Instagram media", {
 			error: message,
 		});
-		return { caption: undefined, mediaList: [] };
+		return { error: message, recoverable: true, success: false };
 	}
 }
 

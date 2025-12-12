@@ -178,9 +178,9 @@ async function extractTwitterMedia(
 
 		logger.info("Extraction result", { extractionResult });
 
-		if (extractionResult.success && extractionResult.media) {
+		if (extractionResult.success) {
 			const results = await Promise.allSettled(
-				extractionResult.media.images.map((image) =>
+				extractionResult.data.media.images.map((image) =>
 					fetchImageDirectly({ ...options, url: image.url }),
 				),
 			);
@@ -200,10 +200,10 @@ async function extractTwitterMedia(
 
 			logger.info("Successfully fetched Twitter image buffers", {
 				fetched: allImages.length,
-				total: extractionResult.media.images.length,
+				total: extractionResult.data.media.images.length,
 			});
 
-			const allVideos = extractionResult.media.videos;
+			const allVideos = extractionResult.data.media.videos;
 
 			logger.info("✓ Successfully extracted Twitter media URLs", {
 				images: allImages.length,
@@ -215,6 +215,7 @@ async function extractTwitterMedia(
 
 		logger.warn("Syndication API failed, will capture screenshot only", {
 			error: extractionResult.error,
+			recoverable: extractionResult.recoverable,
 		});
 		return { allImages: [], allVideos: [] };
 	} catch (error) {

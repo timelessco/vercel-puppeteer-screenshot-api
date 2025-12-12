@@ -40,7 +40,9 @@ const TWITTER_SYNDICATION_API =
  */
 export async function extractTwitterMediaUrls(
 	options: ExtractTwitterMediaOptions,
-): Promise<ExtractionResult> {
+): Promise<
+	ExtractionResult<{ media: ExtractedTwitterMedia; method: "syndication" }>
+> {
 	const { logger, url } = options;
 
 	// 1. Extract tweet ID
@@ -48,7 +50,7 @@ export async function extractTwitterMediaUrls(
 	if (!tweetId) {
 		return {
 			error: "Invalid Twitter URL",
-			method: "syndication",
+			recoverable: true,
 			success: false,
 		};
 	}
@@ -74,7 +76,7 @@ export async function extractTwitterMediaUrls(
 		});
 		return {
 			error: `Failed to fetch tweet: ${response.status} ${response.statusText}`,
-			method: "syndication",
+			recoverable: true,
 			success: false,
 		};
 	}
@@ -86,7 +88,7 @@ export async function extractTwitterMediaUrls(
 		logger.warn("Invalid API response structure", { error: parseResult.error });
 		return {
 			error: "Invalid API response",
-			method: "syndication",
+			recoverable: true,
 			success: false,
 		};
 	}
@@ -102,7 +104,7 @@ export async function extractTwitterMediaUrls(
 	};
 
 	if (!data.mediaDetails || data.mediaDetails.length === 0) {
-		return { media, method: "syndication", success: true };
+		return { data: { media, method: "syndication" }, success: true };
 	}
 
 	// Process each media item
@@ -134,7 +136,7 @@ export async function extractTwitterMediaUrls(
 		videos: media.videos.length,
 	});
 
-	return { media, method: "syndication", success: true };
+	return { data: { media, method: "syndication" }, success: true };
 }
 
 function extractTweetId(url: string): null | string {

@@ -59,10 +59,20 @@ export async function getInstagramPostReelScreenshot(
 	try {
 		logger.info("Instagram POST or REEL detected");
 
-		const { caption, mediaList } = await extractInstagramMediaUrls({
+		const extraction = await extractInstagramMediaUrls({
 			logger,
 			url,
 		});
+
+		if (!extraction.success) {
+			logger.warn("Instagram extraction failed", {
+				error: extraction.error,
+				recoverable: extraction.recoverable,
+			});
+			throw new Error(extraction.error);
+		}
+
+		const { caption, mediaList } = extraction.data;
 		logger.debug("Extracted media", { caption, count: mediaList.length });
 
 		const mediaWithThumbnails = mediaList.filter((m) => m.thumbnail);
