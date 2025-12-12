@@ -18,6 +18,7 @@ import type { ScreenshotResult } from "@/app/try/route";
 
 import { getMetadata } from "../core/getMetadata";
 import type { WithBrowserOptions } from "../core/withBrowser";
+import type { RequestConfig } from "../request/parseRequestConfig";
 import { fetchImageDirectly } from "./getImageScreenshot";
 
 const INSTAGRAM_VIEWPORT = {
@@ -30,21 +31,22 @@ const INSTAGRAM_VIEWPORT = {
 const INSTAGRAM_USER_AGENT =
 	"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36";
 
-export type GetInstagramPostReelScreenshotOptions = WithBrowserOptions;
+export type GetInstagramPostReelScreenshotPuppeteerOptions = WithBrowserOptions;
+
+export type GetInstagramPostReelScreenshotEmbedOptions = RequestConfig;
 
 /**
  * Captures screenshot from Instagram posts with special handling for carousels and images
- * @param {GetInstagramPostReelScreenshotOptions} options - Options containing browser, url, logger, and metrics flag
+ * @param {GetInstagramPostReelScreenshotEmbedOptions} options - Options containing browser, url, logger, and metrics flag
  * @returns {Promise<ScreenshotResult | null>} Screenshot buffer with metadata or null if not an Instagram URL
  */
-export async function getInstagramPostReelScreenshot(
-	options: GetInstagramPostReelScreenshotOptions,
-): Promise<null | ScreenshotResult> {
+export async function getInstagramPostReelScreenshotEmbed(
+	options: GetInstagramPostReelScreenshotEmbedOptions,
+): Promise<ScreenshotResult> {
 	const { logger, url } = options;
 
+	logger.info("Instagram POST or REEL detected");
 	try {
-		logger.info("Instagram POST or REEL detected");
-
 		const extraction = await extractInstagramMediaUrls({
 			logger,
 			url,
@@ -125,36 +127,20 @@ export async function getInstagramPostReelScreenshot(
 			screenshot,
 		};
 	} catch (error) {
-		logger.warn(
-			"Instagram screenshot failed, using puppeteer to extract media",
-			{
-				error: getErrorMessage(error),
-			},
-		);
-
-		try {
-			const fallback = await extractInstagramMediaUrlsPuppeteer(options);
-			if (fallback) {
-				logger.info("Fallback Instagram flow succeeded");
-				return fallback;
-			}
-		} catch (legacyError) {
-			logger.warn("Fallback Instagram flow failed", {
-				error: getErrorMessage(legacyError),
-			});
-		}
-
-		return null;
+		logger.error("Error in getInstagramPostReelScreenshotEmbed", {
+			error: getErrorMessage(error),
+		});
+		throw error;
 	}
 }
 
 /**
  * Legacy fallback that replays the previous Instagram screenshot flow.
- * @param {GetInstagramPostReelScreenshotOptions} options - With browser, url, logger, and metrics flag
+ * @param {GetInstagramPostReelScreenshotPuppeteerOptions} options - With browser, url, logger, and metrics flag
  * @returns {Promise<ScreenshotResult | null>} Screenshot data or null on failure
  */
-async function extractInstagramMediaUrlsPuppeteer(
-	options: GetInstagramPostReelScreenshotOptions,
+export async function getInstagramPostReelScreenshotPuppeteer(
+	options: GetInstagramPostReelScreenshotPuppeteerOptions,
 ): Promise<null | ScreenshotResult> {
 	const { browser, logger, shouldGetPageMetrics, url } = options;
 

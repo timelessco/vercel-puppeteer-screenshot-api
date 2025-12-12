@@ -1,7 +1,7 @@
 import type { GetOrCreatePageReturnType } from "@/lib/puppeteer/browser/pageUtils";
 import { handleDialogs } from "@/lib/puppeteer/navigation/navigationUtils";
 import { fetchImageDirectly } from "@/lib/puppeteer/screenshot/getImageScreenshot";
-import type { GetInstagramPostReelScreenshotOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
+import type { GetInstagramPostReelScreenshotPuppeteerOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 interface InstagramExtractResult {
@@ -10,7 +10,7 @@ interface InstagramExtractResult {
 }
 
 interface GetInstagramPostReelScreenshotHelperOptions
-	extends GetInstagramPostReelScreenshotOptions {
+	extends GetInstagramPostReelScreenshotPuppeteerOptions {
 	page: GetOrCreatePageReturnType;
 }
 

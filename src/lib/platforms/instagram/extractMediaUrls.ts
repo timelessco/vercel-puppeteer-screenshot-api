@@ -1,4 +1,4 @@
-import type { GetInstagramPostReelScreenshotOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
+import type { GetInstagramPostReelScreenshotEmbedOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import type { ExtractionResult } from "../twitter/types";
@@ -12,7 +12,7 @@ import { extractMediaFromHtml } from "./htmlParser";
 import type { ExtractInstagramMediaResult, InstagramMedia } from "./types";
 
 export type ExtractInstagramMediaOptions = Pick<
-	GetInstagramPostReelScreenshotOptions,
+	GetInstagramPostReelScreenshotEmbedOptions,
 	"logger" | "url"
 >;
 
