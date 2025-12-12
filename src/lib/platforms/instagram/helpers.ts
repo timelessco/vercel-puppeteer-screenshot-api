@@ -168,20 +168,18 @@ async function extractAllInstagramImages(
 		allImages.map((url) => fetchImageDirectly({ ...options, url })),
 	);
 
-	const buffers: Buffer[] = results.map((result, index) => {
+	const buffers: Buffer[] = [];
+	for (const [index, result] of results.entries()) {
 		if (result.status === "fulfilled") {
-			return result.value;
+			buffers.push(result.value);
+		} else {
+			logger.warn("Failed to fetch carousel image", {
+				error: getErrorMessage(result.reason),
+				index,
+				url: allImages[index],
+			});
 		}
-
-		logger.warn("Failed to fetch carousel image", {
-			error: getErrorMessage(result.reason),
-			index,
-			url: allImages[index],
-		});
-
-		// Return empty buffer for failed fetches
-		return Buffer.alloc(0);
-	});
+	}
 
 	logger.info("Collected image sources", {
 		count: allImages.length,
