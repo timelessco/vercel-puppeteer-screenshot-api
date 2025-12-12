@@ -52,7 +52,15 @@ export function extractEmbedData(html: string) {
 		throw new Error("Could not find embed data in HTML");
 	}
 
-	const parsed = EmbedDataRawSchema.safeParse(JSON.parse(match[1]));
+	let raw: unknown;
+	try {
+		raw = JSON.parse(match[1]);
+	} catch (error) {
+		throw new Error(
+			`Invalid embed data JSON: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+	const parsed = EmbedDataRawSchema.safeParse(raw);
 
 	if (!parsed.success) {
 		const issues = parsed.error.issues.map((issue) => issue.message).join("; ");
@@ -63,7 +71,16 @@ export function extractEmbedData(html: string) {
 }
 
 export function parseEmbedContext(contextJSON: string) {
-	const parsed = InstagramEmbedDataSchema.safeParse(JSON.parse(contextJSON));
+	let raw: unknown;
+	try {
+		raw = JSON.parse(contextJSON);
+	} catch (error) {
+		throw new Error(
+			`Invalid contextJSON: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+	const parsed = InstagramEmbedDataSchema.safeParse(raw);
+
 	if (!parsed.success) {
 		const issues = parsed.error.issues.map((issue) => issue.message).join("; ");
 		throw new Error(`Invalid embed data structure: ${issues}`);
