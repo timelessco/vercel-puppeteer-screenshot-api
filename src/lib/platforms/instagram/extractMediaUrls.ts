@@ -56,7 +56,7 @@ export async function extractInstagramMediaUrls(
 			caption = parsedCaption;
 			logger.debug("Extracted caption", { caption });
 			if (shortcodeMedia) {
-				mediaList = extractMediaItems(shortcodeMedia, logger);
+				mediaList = extractMediaItems({ logger, shortcodeMedia });
 			}
 		} catch (error) {
 			lastError = getErrorMessage(error);
