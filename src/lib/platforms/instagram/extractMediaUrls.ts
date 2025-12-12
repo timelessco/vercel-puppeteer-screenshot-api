@@ -3,14 +3,12 @@ import { getErrorMessage } from "@/utils/errorUtils";
 
 import type { ExtractionResult } from "../twitter/types";
 import { EMBED_FETCH_HEADERS, EMBED_FETCH_TIMEOUT_MS } from "./constants";
-/* eslint-disable import-x/no-unresolved */
 import {
 	extractEmbedData,
 	extractMediaItems,
 	parseEmbedContext,
 } from "./embedDataParser";
 import { extractMediaFromHtml } from "./htmlParser";
-/* eslint-enable import-x/no-unresolved */
 import type { ExtractInstagramMediaResult, InstagramMedia } from "./types";
 
 export type ExtractInstagramMediaOptions = Pick<
