@@ -9,7 +9,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"incremental": true,
 		"isolatedModules": true,
-		"jsx": "react-jsx",
+		"jsx": "preserve",
 		"lib": [
 			"dom",
 			"dom.iterable",
@@ -31,11 +31,7 @@
 			"@/ui/*": ["./src/ui/*"],
 			"@/utils/*": ["./src/utils/*"]
 		},
-		"plugins": [
-			{
-				"name": "next"
-			}
-		],
+		"plugins": [{ "name": "next" }],
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"strict": true,
@@ -49,11 +45,6 @@
 		"useUnknownInCatchVariables": true,
 		"verbatimModuleSyntax": true
 	},
-	"include": [
-		"./**/*",
-		".next/types/**/*.ts",
-		".release-it.ts",
-		".next/dev/types/**/*.ts"
-	],
+	"include": ["./**/*", ".next/types/**/*.ts", ".release-it.ts"],
 	"exclude": ["node_modules", ".next", "public/sw.js"]
 }
