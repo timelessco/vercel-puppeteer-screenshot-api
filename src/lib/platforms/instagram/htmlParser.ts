@@ -118,5 +118,7 @@ function decodeHtmlEntities(input: string) {
 		.replaceAll("&lt;", "<")
 		.replaceAll("&gt;", ">")
 		.replaceAll("&quot;", '"')
+		.replaceAll("&apos;", "'")
+		.replaceAll("&#39;", "'")
 		.replaceAll("&#064;", "@");
 }
