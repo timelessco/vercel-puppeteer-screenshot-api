@@ -46,7 +46,7 @@ const EmbedDataRawSchema = z.object({
 });
 
 export function extractEmbedData(html: string) {
-	const match = /"init",\s*\[\],\s*\[(.*?)\]\],/.exec(html);
+	const match = /"init",\s*\[\],\s*\[([\s\S]*?)\]\],/.exec(html);
 
 	if (!match?.[1]) {
 		throw new Error("Could not find embed data in HTML");
