@@ -1,3 +1,5 @@
+import { parse } from "node-html-parser";
+
 import type { GetInstagramPostReelScreenshotOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
@@ -164,46 +166,32 @@ function extractMediaFromHtml(
 	const media: InstagramMedia[] = [];
 	let caption: string | undefined;
 
-	// Try to extract caption from HTML
-	// Look for <div class="Caption">...</div>
-	const captionMatch =
-		/<div class="Caption">([\s\S]*?)<div class="CaptionComments">/.exec(html);
-	if (captionMatch?.[1]) {
-		let captionHtml = captionMatch[1];
-		// Remove the username link at the start
-		captionHtml = captionHtml.replace(
-			/<a class="CaptionUsername"[^>]*>.*?<\/a>/,
-			"",
-		);
-		// Remove all HTML tags
-		captionHtml = captionHtml.replaceAll(/<[^>]+>/g, "");
-		// Decode HTML entities
-		captionHtml = captionHtml
-			.replaceAll("&amp;", "&")
-			.replaceAll("&lt;", "<")
-			.replaceAll("&gt;", ">")
-			.replaceAll("&quot;", '"')
-			.replaceAll("&#064;", "@");
-		// Clean up whitespace
-		caption = captionHtml.trim();
-		if (caption) {
+	const root = parse(html);
+
+	// Extract caption without relying on unbounded regex.
+	const captionDiv = root.querySelector(".Caption");
+	if (captionDiv) {
+		// Drop username and comments to leave only the caption text.
+		captionDiv
+			.querySelectorAll(".CaptionUsername, .CaptionComments")
+			.forEach((node) => {
+				node.remove();
+			});
+		const rawCaption = decodeHtmlEntities(captionDiv.text.trim());
+		if (rawCaption) {
+			caption = rawCaption;
 			logger.debug("Extracted caption from HTML", { caption });
 		}
 	}
 
-	// Try to find the main image in the embed
-	// Look for <img class="EmbeddedMediaImage" ... src="..." ...>
-	const imgMatch = /<img[^>]*class="EmbeddedMediaImage"[^>]*src="([^"]+)"/.exec(
-		html,
-	);
-	let thumbnailUrl = imgMatch?.[1];
+	// Try to find the main image in the embed via DOM.
+	const embeddedImg = root.querySelector("img.EmbeddedMediaImage");
+	let thumbnailUrl = embeddedImg?.getAttribute("src") ?? undefined;
 
-	// Try to find higher resolution in srcset
-	// srcset="url 640w, url 750w, ..."
-	const srcsetMatch =
-		/<img[^>]*class="EmbeddedMediaImage"[^>]*srcset="([^"]+)"/.exec(html);
-	if (srcsetMatch?.[1]) {
-		const srcset = srcsetMatch[1];
+	// Try to find higher resolution in srcset.
+	const srcsetAttr = embeddedImg?.getAttribute("srcset");
+	if (srcsetAttr) {
+		const srcset = srcsetAttr;
 		// Split by comma, find the one with highest width
 		const sources = srcset.split(",").map((s) => {
 			const [url, widthStr] = s.trim().split(" ");
@@ -218,7 +206,9 @@ function extractMediaFromHtml(
 	}
 
 	// Decode HTML entities in URL (e.g. &amp; -> &)
-	const decodedThumbnail = thumbnailUrl?.replaceAll("&amp;", "&");
+	const decodedThumbnail = thumbnailUrl
+		? decodeHtmlEntities(thumbnailUrl)
+		: undefined;
 
 	// Try to extract video URL if this is a video post
 	let videoUrl: string | undefined;
@@ -294,4 +284,13 @@ function extractMediaFromHtml(
 	}
 
 	return { caption, mediaList: media };
+}
+
+function decodeHtmlEntities(input: string) {
+	return input
+		.replaceAll("&amp;", "&")
+		.replaceAll("&lt;", "<")
+		.replaceAll("&gt;", ">")
+		.replaceAll("&quot;", '"')
+		.replaceAll("&#064;", "@");
 }
