@@ -1,14 +1,40 @@
 import { parse } from "node-html-parser";
+import { z } from "zod";
 
 import type { GetInstagramPostReelScreenshotOptions } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getErrorMessage } from "@/utils/errorUtils";
 
 import type {
 	ExtractInstagramMediaResult,
-	InstagramEmbedData,
 	InstagramMedia,
 	InstagramNode,
 } from "./types";
+
+const InstagramNodeSchema: z.ZodType<InstagramNode> = z.lazy(() =>
+	z.object({
+		__typename: z.string(),
+		display_url: z.url().optional(),
+		edge_sidecar_to_children: z
+			.object({
+				edges: z.array(
+					z.object({
+						node: z.lazy(() => InstagramNodeSchema),
+					}),
+				),
+			})
+			.optional(),
+		video_url: z.url().optional(),
+	}),
+);
+
+const InstagramEmbedDataSchema = z.object({
+	gql_data: z
+		.object({
+			shortcode_media: z.lazy(() => InstagramNodeSchema).optional(),
+			xdt_shortcode_media: z.lazy(() => InstagramNodeSchema).optional(),
+		})
+		.optional(),
+});
 
 export type ExtractInstagramMediaOptions = Pick<
 	GetInstagramPostReelScreenshotOptions,
@@ -56,9 +82,18 @@ export async function extractInstagramMediaUrls(
 		// Try to extract from JSON data
 		try {
 			const embedData = extractEmbedData(html);
-			const contextData = JSON.parse(
-				embedData.contextJSON,
-			) as InstagramEmbedData;
+			const parsedEmbedData = InstagramEmbedDataSchema.safeParse(
+				JSON.parse(embedData.contextJSON),
+			);
+
+			if (!parsedEmbedData.success) {
+				logger.warn("Invalid embed data structure", {
+					issues: parsedEmbedData.error.issues,
+				});
+				throw new Error("Invalid embed data structure");
+			}
+
+			const contextData = parsedEmbedData.data;
 
 			const shortcodeMedia =
 				contextData.gql_data?.xdt_shortcode_media ??
