@@ -91,16 +91,6 @@ export interface ExtractTwitterMediaOptions {
 	};
 }
 
-/**
- * Result of media extraction attempt
- */
-export interface ExtractionResult {
-	/** Whether extraction was successful */
-	success: boolean;
-	/** Extracted media (if successful) */
-	media?: ExtractedTwitterMedia;
-	/** Error message (if failed) */
-	error?: string;
-	/** Method used for extraction */
-	method: "syndication";
-}
+export type ExtractionResult<T> =
+	| { data: T; success: true }
+	| { error: string; recoverable: boolean; success: false };

@@ -26,7 +26,10 @@ import {
 	fetchImageDirectly,
 	getImageScreenshot,
 } from "@/lib/puppeteer/screenshot/getImageScreenshot";
-import { getInstagramPostReelScreenshot } from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
+import {
+	getInstagramPostReelScreenshotEmbed,
+	getInstagramPostReelScreenshotPuppeteer,
+} from "@/lib/puppeteer/screenshot/getInstagramPostReelScreenshot";
 import { getPageScreenshot } from "@/lib/puppeteer/screenshot/getPageScreenshot";
 import { getTwitterScreenshot } from "@/lib/puppeteer/screenshot/getTwitterScreenshot";
 import { getVideoScreenshot } from "@/lib/puppeteer/screenshot/getVideoScreenshot";
@@ -182,11 +185,24 @@ async function getScreenshot(
 			processedUrl.includes(INSTAGRAM) &&
 			(processedUrl.includes("/p/") || processedUrl.includes("/reel/"))
 		) {
-			return await withBrowser(
-				newConfig,
-				getInstagramPostReelScreenshot,
-				getPageScreenshot,
-			);
+			try {
+				logger.info(
+					"Trying Instagram POST or REEL screenshot with embed handler",
+				);
+				return await getInstagramPostReelScreenshotEmbed(newConfig);
+			} catch (error) {
+				logger.error(
+					"Error in getInstagramPostReelScreenshotEmbed, using puppeteer fallback",
+					{
+						error: getErrorMessage(error),
+					},
+				);
+				return await withBrowser(
+					newConfig,
+					getInstagramPostReelScreenshotPuppeteer,
+					getPageScreenshot,
+				);
+			}
 		}
 
 		// Twitter/X check
