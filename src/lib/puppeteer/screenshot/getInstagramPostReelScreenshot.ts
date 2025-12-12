@@ -72,8 +72,37 @@ export async function getInstagramPostReelScreenshot(
 			),
 		);
 
+		const rejected = results
+			.map((result, index) => ({
+				index,
+				result,
+				url: mediaWithThumbnails[index]?.thumbnail,
+			}))
+			.filter(
+				(
+					entry,
+				): entry is {
+					index: number;
+					result: PromiseRejectedResult;
+					url: string;
+				} => entry.result.status === "rejected",
+			);
+
+		if (rejected.length > 0) {
+			logger.warn("Some Instagram images failed to fetch", {
+				failures: rejected.map((entry) => ({
+					error: getErrorMessage(entry.result.reason),
+					index: entry.index,
+					url: entry.url,
+				})),
+			});
+		}
+
 		const allImages: Buffer[] = results
-			.filter((result) => result.status === "fulfilled")
+			.filter(
+				(result): result is PromiseFulfilledResult<Buffer> =>
+					result.status === "fulfilled",
+			)
 			.map((result) => result.value);
 
 		// If embed extraction produced no images, treat as failure to trigger fallback

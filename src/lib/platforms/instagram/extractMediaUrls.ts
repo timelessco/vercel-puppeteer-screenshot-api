@@ -45,6 +45,7 @@ export async function extractInstagramMediaUrls(
 	options: ExtractInstagramMediaOptions,
 ): Promise<ExtractInstagramMediaResult> {
 	const { logger, url } = options;
+	let lastError: string | undefined;
 
 	try {
 		// Extract shortcode from URL (supports /p/, /reel/, and /tv/)
@@ -106,8 +107,9 @@ export async function extractInstagramMediaUrls(
 				mediaList = extractMediaItems(shortcodeMedia, logger);
 			}
 		} catch (error) {
-			logger.debug("JSON extraction failed, trying fallback DOM parsing", {
-				error: getErrorMessage(error),
+			lastError = getErrorMessage(error);
+			logger.warn("JSON extraction failed, trying fallback DOM parsing", {
+				error: lastError,
 			});
 		}
 
@@ -123,8 +125,9 @@ export async function extractInstagramMediaUrls(
 					logger.debug("Caption extracted from HTML fallback", { caption });
 				}
 			} catch (error) {
+				lastError = getErrorMessage(error);
 				logger.error("Failed to extract media from HTML fallback", {
-					error: getErrorMessage(error),
+					error: lastError,
 				});
 			}
 		}
@@ -138,10 +141,21 @@ export async function extractInstagramMediaUrls(
 			return { caption, mediaList };
 		}
 
-		throw new Error("No media found in embed data or HTML");
+		const reason = lastError
+			? `Last error: ${lastError}`
+			: "No errors captured";
+		throw new Error(`No media found in embed data or HTML. ${reason}`);
 	} catch (error) {
-		logger.error("Failed to extract media from Instagram embed", {
-			error: getErrorMessage(error),
+		const message = getErrorMessage(error);
+		if (!isRecoverableError(message)) {
+			logger.error("Critical failure extracting Instagram media", {
+				error: message,
+			});
+			throw error;
+		}
+
+		logger.warn("Recoverable failure extracting Instagram media", {
+			error: message,
 		});
 		return { caption: undefined, mediaList: [] };
 	}
@@ -328,4 +342,25 @@ function decodeHtmlEntities(input: string) {
 		.replaceAll("&gt;", ">")
 		.replaceAll("&quot;", '"')
 		.replaceAll("&#064;", "@");
+}
+
+// Heuristic classifier to avoid swallowing critical failures silently.
+function isRecoverableError(message: string) {
+	const lower = message.toLowerCase();
+	const criticalPatterns = [
+		"timeout",
+		"etimedout",
+		"econnrefused",
+		"econnreset",
+		"enotfound",
+		"rate limit",
+		"429",
+		"401",
+		"403",
+		"500",
+		"503",
+		"out of memory",
+	];
+
+	return !criticalPatterns.some((pattern) => lower.includes(pattern));
 }
