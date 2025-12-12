@@ -98,12 +98,23 @@ export async function getInstagramPostReelScreenshot(
 			});
 		}
 
-		const allImages: Buffer[] = results
-			.filter(
-				(result): result is PromiseFulfilledResult<Buffer> =>
-					result.status === "fulfilled",
-			)
-			.map((result) => result.value);
+		const BATCH_SIZE = 5;
+		const allImages: Buffer[] = [];
+
+		for (let i = 0; i < mediaWithThumbnails.length; i += BATCH_SIZE) {
+			const batch = mediaWithThumbnails.slice(i, i + BATCH_SIZE);
+			const batchResults = await Promise.allSettled(
+				batch.map((m) => fetchImageDirectly({ ...options, url: m.thumbnail! })),
+			);
+
+			const successfulImages = batchResults
+				.filter(
+					(r): r is PromiseFulfilledResult<Buffer> => r.status === "fulfilled",
+				)
+				.map((r) => r.value);
+
+			allImages.push(...successfulImages);
+		}
 
 		// If embed extraction produced no images, treat as failure to trigger fallback
 		if (allImages.length === 0) {
