@@ -7,6 +7,15 @@ const InstagramNodeSchema: z.ZodType<InstagramNode> = z.lazy(() =>
 	z.object({
 		__typename: z.string(),
 		display_url: z.url().optional(),
+		edge_media_to_caption: z
+			.object({
+				edges: z.array(
+					z.object({
+						node: z.object({ text: z.string() }),
+					}),
+				),
+			})
+			.optional(),
 		edge_sidecar_to_children: z
 			.object({
 				edges: z.array(
